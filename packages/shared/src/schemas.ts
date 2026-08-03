@@ -11,6 +11,7 @@ const featureBaseProperties = {
   operation: { type: "string", enum: ["add", "cut"] },
   position: vector3Schema,
   rotation: vector3Schema,
+  scale: vector3Schema,
 };
 
 export const modelFeatureSchema = {
@@ -40,6 +41,25 @@ export const modelFeatureSchema = {
       required: ["id", "name", "type", "operation", "position", "rotation", "parameters"],
       properties: {
         ...featureBaseProperties,
+        type: { const: "mesh" },
+        parameters: {
+          type: "object",
+          additionalProperties: false,
+          required: ["positions", "normals", "indices"],
+          properties: {
+            positions: { type: "array", items: { type: "number" }, minItems: 9, maxItems: 300000 },
+            normals: { type: "array", items: { type: "number" }, minItems: 9, maxItems: 300000 },
+            indices: { type: "array", items: { type: "integer", minimum: 0 }, minItems: 3, maxItems: 300000 },
+          },
+        },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "name", "type", "operation", "position", "rotation", "parameters"],
+      properties: {
+        ...featureBaseProperties,
         type: { const: "cylinder" },
         parameters: {
           type: "object",
@@ -55,6 +75,25 @@ export const modelFeatureSchema = {
   ],
 } as const;
 
+export const featureGroupSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "name", "featureIds", "position", "rotation"],
+  properties: {
+    id: { type: "string", minLength: 1 },
+    name: { type: "string", minLength: 1, maxLength: 120 },
+    featureIds: {
+      type: "array",
+      items: { type: "string", minLength: 1 },
+      maxItems: 256,
+      uniqueItems: true,
+    },
+    position: vector3Schema,
+    rotation: vector3Schema,
+    scale: vector3Schema,
+  },
+} as const;
+
 export const featureGraphSchema = {
   type: "object",
   additionalProperties: false,
@@ -65,6 +104,11 @@ export const featureGraphSchema = {
       type: "array",
       items: modelFeatureSchema,
       maxItems: 256,
+    },
+    groups: {
+      type: "array",
+      items: featureGroupSchema,
+      maxItems: 64,
     },
   },
 } as const;
@@ -118,11 +162,32 @@ export const createModelSchema = {
 export const updateModelSchema = {
   type: "object",
   additionalProperties: false,
-  minProperties: 1,
+  required: ["expectedRevision"],
+  minProperties: 2,
   properties: {
+    expectedRevision: { type: "integer", minimum: 1 },
     name: { type: "string", minLength: 1, maxLength: 120 },
     description: { type: "string", maxLength: 2000 },
     unit: { type: "string", enum: ["mm", "cm", "in"] },
+  },
+} as const;
+
+export const replaceFeatureGraphSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["expectedRevision", "featureGraph"],
+  properties: {
+    expectedRevision: { type: "integer", minimum: 1 },
+    featureGraph: featureGraphSchema,
+  },
+} as const;
+
+export const deleteModelQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["expectedRevision"],
+  properties: {
+    expectedRevision: { type: "integer", minimum: 1 },
   },
 } as const;
 

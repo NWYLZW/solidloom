@@ -1,5 +1,6 @@
 import { Command } from "commander";
-import { renderCliLlms } from "@solidloom/shared";
+import { readFile } from "node:fs/promises";
+import { renderCliLlms, type FeatureGraph, type Unit } from "@solidloom/shared";
 
 const DEFAULT_SERVER = "http://127.0.0.1:4310";
 
@@ -9,14 +10,19 @@ function readServerArg(argv: string[]): string {
   return (fromArg ?? process.env.SOLIDLOOM_URL ?? DEFAULT_SERVER).replace(/\/+$/, "");
 }
 
-async function requestJson(server: string, path: string): Promise<unknown> {
-  const response = await fetch(`${server}${path}`, {
-    headers: { accept: "application/json", "user-agent": "solidloom-cli/0.1.0" },
-  });
-  const body = await response.json().catch(() => ({
-    error: "invalid_response",
-    message: `The service returned ${response.status} without JSON.`,
-  }));
+async function requestJson(server: string, path: string, options: { method?: string; body?: unknown } = {}): Promise<unknown> {
+  const request: RequestInit = {
+    method: options.method ?? "GET",
+    headers: {
+      accept: "application/json",
+      "user-agent": "solidloom-cli/0.1.0",
+      ...(options.body === undefined ? {} : { "content-type": "application/json" }),
+    },
+  };
+  if (options.body !== undefined) request.body = JSON.stringify(options.body);
+  const response = await fetch(`${server}${path}`, request);
+  if (response.status === 204) return { deleted: true };
+  const body = await response.json().catch(() => ({ error: "invalid_response", message: `The service returned ${response.status} without JSON.` }));
   if (!response.ok) throw new Error(JSON.stringify(body));
   return body;
 }
@@ -51,8 +57,67 @@ if (process.argv.includes("--llms")) {
   const models = program.command("models").description("work with local model records");
   models
     .command("list")
-    .description("list models; persistence is not enabled in the scaffold")
+    .description("list locally persisted models")
     .action(async () => printJson(await requestJson(server, "/api/models")));
+
+  models
+    .command("create")
+    .description("create a local model with a default box feature")
+    .requiredOption("--name <name>", "model name")
+    .option("--description <description>", "model description")
+    .option("--unit <unit>", "model unit: mm, cm, or in", "mm")
+    .action(async (options: { name: string; description?: string; unit: Unit }) => printJson(await requestJson(server, "/api/models", {
+      method: "POST",
+      body: { name: options.name, description: options.description, unit: options.unit },
+    })));
+
+  models
+    .command("get <model-id>")
+    .description("inspect one model and its complete feature graph")
+    .action(async (modelId: string) => printJson(await requestJson(server, `/api/models/${encodeURIComponent(modelId)}`)));
+
+  models
+    .command("update <model-id>")
+    .description("update model metadata using optimistic concurrency")
+    .requiredOption("--revision <revision>", "current model revision", Number)
+    .option("--name <name>", "new model name")
+    .option("--description <description>", "new model description")
+    .option("--unit <unit>", "new model unit: mm, cm, or in")
+    .action(async (modelId: string, options: { revision: number; name?: string; description?: string; unit?: Unit }) => {
+      if (options.name === undefined && options.description === undefined && options.unit === undefined) {
+        throw new Error("Provide at least one of --name, --description, or --unit.");
+      }
+      const body = {
+        expectedRevision: options.revision,
+        ...(options.name === undefined ? {} : { name: options.name }),
+        ...(options.description === undefined ? {} : { description: options.description }),
+        ...(options.unit === undefined ? {} : { unit: options.unit }),
+      };
+      printJson(await requestJson(server, `/api/models/${encodeURIComponent(modelId)}`, { method: "PATCH", body }));
+    });
+
+  models
+    .command("replace-features <model-id>")
+    .description("replace the complete feature graph from a JSON file")
+    .requiredOption("--revision <revision>", "current model revision", Number)
+    .requiredOption("--file <path>", "JSON file containing a feature graph")
+    .action(async (modelId: string, options: { revision: number; file: string }) => {
+      const featureGraph = JSON.parse(await readFile(options.file, "utf8")) as FeatureGraph;
+      printJson(await requestJson(server, `/api/models/${encodeURIComponent(modelId)}/features`, {
+        method: "PUT",
+        body: { expectedRevision: options.revision, featureGraph },
+      }));
+    });
+
+  models
+    .command("delete <model-id>")
+    .description("permanently delete a model after an exact-id confirmation")
+    .requiredOption("--revision <revision>", "current model revision", Number)
+    .requiredOption("--confirm <model-id>", "repeat the exact model id to confirm deletion")
+    .action(async (modelId: string, options: { revision: number; confirm: string }) => {
+      if (options.confirm !== modelId) throw new Error("--confirm must exactly match <model-id>.");
+      printJson(await requestJson(server, `/api/models/${encodeURIComponent(modelId)}?expectedRevision=${options.revision}`, { method: "DELETE" }));
+    });
 
   program.parseAsync(process.argv).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);

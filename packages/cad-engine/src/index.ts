@@ -21,10 +21,24 @@ export interface GraphInspection {
 
 function dimensions(feature: ModelFeature): Vector3Tuple {
   if (feature.type === "box") {
-    return [feature.parameters.width, feature.parameters.height, feature.parameters.depth];
+    const scale = feature.scale ?? [1, 1, 1];
+    return [feature.parameters.width * Math.abs(scale[0]), feature.parameters.height * Math.abs(scale[1]), feature.parameters.depth * Math.abs(scale[2])];
   }
-  const diameter = feature.parameters.radius * 2;
-  return [diameter, feature.parameters.height, diameter];
+  if (feature.type === "cylinder") {
+    const diameter = feature.parameters.radius * 2;
+    const scale = feature.scale ?? [1, 1, 1];
+    return [diameter * Math.abs(scale[0]), feature.parameters.height * Math.abs(scale[1]), diameter * Math.abs(scale[2])];
+  }
+  const positions = feature.parameters.positions;
+  const xs = positions.filter((_, index) => index % 3 === 0);
+  const ys = positions.filter((_, index) => index % 3 === 1);
+  const zs = positions.filter((_, index) => index % 3 === 2);
+  const scale = feature.scale ?? [1, 1, 1];
+  return [
+    (Math.max(...xs) - Math.min(...xs)) * Math.abs(scale[0]),
+    (Math.max(...ys) - Math.min(...ys)) * Math.abs(scale[1]),
+    (Math.max(...zs) - Math.min(...zs)) * Math.abs(scale[2]),
+  ];
 }
 
 function featureBounds(feature: ModelFeature): { min: Vector3Tuple; max: Vector3Tuple } {
@@ -39,6 +53,8 @@ function featureBounds(feature: ModelFeature): { min: Vector3Tuple; max: Vector3
 export function inspectFeatureGraph(graph: FeatureGraph): GraphInspection {
   const issues: GraphIssue[] = [];
   const seen = new Set<string>();
+  const groupIds = new Set<string>();
+  const groupedFeatureIds = new Set<string>();
 
   for (const [index, feature] of graph.features.entries()) {
     if (seen.has(feature.id)) {
@@ -55,6 +71,38 @@ export function inspectFeatureGraph(graph: FeatureGraph): GraphInspection {
         featureId: feature.id,
         message: "Cut is stored and previewed but is not yet evaluated by a production B-Rep kernel.",
       });
+    }
+    if ((feature.scale ?? [1, 1, 1]).some((value) => value <= 0)) {
+      issues.push({ level: "error", featureId: feature.id, message: "Feature scale components must be positive." });
+    }
+    if (feature.type === "mesh") {
+      const { indices, normals, positions } = feature.parameters;
+      const vertexCount = positions.length / 3;
+      if (positions.length % 3 !== 0 || normals.length !== positions.length || indices.length % 3 !== 0) {
+        issues.push({ level: "error", featureId: feature.id, message: "Mesh positions, normals, and triangle indices must have compatible lengths." });
+      }
+      if (indices.some((vertexIndex) => vertexIndex >= vertexCount)) {
+        issues.push({ level: "error", featureId: feature.id, message: "Mesh indices may only reference existing vertices." });
+      }
+    }
+  }
+
+  for (const group of graph.groups ?? []) {
+    if (groupIds.has(group.id)) {
+      issues.push({ level: "error", message: "Feature group ids must be unique." });
+    }
+    groupIds.add(group.id);
+    if ((group.scale ?? [1, 1, 1]).some((value) => value <= 0)) {
+      issues.push({ level: "error", message: "Feature group scale components must be positive." });
+    }
+    for (const featureId of group.featureIds) {
+      if (!seen.has(featureId)) {
+        issues.push({ level: "error", featureId, message: "Feature groups may only reference existing features." });
+      }
+      if (groupedFeatureIds.has(featureId)) {
+        issues.push({ level: "error", featureId, message: "A feature may only belong to one feature group." });
+      }
+      groupedFeatureIds.add(featureId);
     }
   }
 

@@ -1,6 +1,6 @@
 # SolidLoom
 
-本地优先、面向人类与 Agent 的可编程三维建模工作台。目前仓库提供项目骨架、模型元数据与特征存储、Web 编辑器、Node.js API、CLI，以及由同一份 capability registry 生成的 Agent 文档。
+本地优先、面向人类与 Agent 的可编程三维建模工作台。目前仓库提供 SQLite 模型持久化、带修订冲突保护的参数化特征存储、Web 编辑器、Node.js API、CLI，以及由同一份 capability registry 生成的 Agent 文档。
 
 项目不包含 MCP，也不会依赖仓库内 Skill 才能被 Agent 使用。Agent 从本地服务的 `/llms.txt`、`/capabilities.json`、路径级 `/skill.md` 或 CLI 的 `--llms` 逐步发现能力。
 
@@ -25,6 +25,8 @@ npm run cli -- --help
 npm run cli -- --llms
 npm run cli -- models list
 npm run cli -- models create --name "Desk hook"
+npm run cli -- models get <model-id>
+npm run cli -- models update <model-id> --revision 1 --description "Wall-mounted cable guide"
 ```
 
 安装或链接 `@solidloom/cli` 后，也可以直接使用 `solidloom` 命令。
@@ -41,4 +43,4 @@ packages/
   cad-engine/   CAD 引擎适配边界与基础特征检查
 ```
 
-SQLite 数据默认写入 `data/solidloom.db`。第一阶段只建立参数化特征图和 CAD 引擎适配边界；真实 B-Rep 求值、布尔运算和 STL/STEP 导出会在后续阶段接入。
+SQLite 数据默认写入 `data/solidloom.db`。模型创建、读取、元数据修改、完整特征图替换和删除已经可用；写操作使用 `expectedRevision` 防止界面与 Agent 相互覆盖。当前视口只根据参数生成明确标注的预览，真实 B-Rep 求值、布尔运算和 STL/STEP 导出仍为规划中。

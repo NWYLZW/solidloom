@@ -8,6 +8,7 @@ export interface FeatureBase {
   operation: FeatureOperation;
   position: Vector3Tuple;
   rotation: Vector3Tuple;
+  scale?: Vector3Tuple;
 }
 
 export interface BoxFeature extends FeatureBase {
@@ -27,11 +28,30 @@ export interface CylinderFeature extends FeatureBase {
   };
 }
 
-export type ModelFeature = BoxFeature | CylinderFeature;
+export interface MeshFeature extends FeatureBase {
+  type: "mesh";
+  parameters: {
+    positions: number[];
+    normals: number[];
+    indices: number[];
+  };
+}
+
+export type ModelFeature = BoxFeature | CylinderFeature | MeshFeature;
+
+export interface FeatureGroup {
+  id: string;
+  name: string;
+  featureIds: string[];
+  position: Vector3Tuple;
+  rotation: Vector3Tuple;
+  scale?: Vector3Tuple;
+}
 
 export interface FeatureGraph {
   version: 1;
   features: ModelFeature[];
+  groups?: FeatureGroup[];
 }
 
 export interface ModelRecord {
@@ -53,9 +73,15 @@ export interface CreateModelInput {
 }
 
 export interface UpdateModelInput {
+  expectedRevision: number;
   name?: string;
   description?: string;
   unit?: Unit;
+}
+
+export interface ReplaceFeatureGraphInput {
+  expectedRevision: number;
+  featureGraph: FeatureGraph;
 }
 
 export interface ModelList {

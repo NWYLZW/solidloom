@@ -2,16 +2,22 @@ import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import Fastify, { type FastifyInstance, type FastifyRequest, type FastifySchema } from "fastify";
+import { inspectFeatureGraph } from "@solidloom/cad-engine";
 import {
   createCapabilityManifest,
   getCapability,
   renderLlmsTxt,
   renderSkillMarkdown,
   type CapabilityDefinition,
+  type CreateModelInput,
+  type ReplaceFeatureGraphInput,
+  type UpdateModelInput,
 } from "@solidloom/shared";
+import { ModelRepository, RevisionConflictError } from "./model-repository.js";
 
 export interface BuildAppOptions {
   logger?: boolean;
+  databasePath?: string;
 }
 
 function requestBaseUrl(request: FastifyRequest): string {
@@ -34,7 +40,10 @@ function routeSchema(capability: CapabilityDefinition): FastifySchema {
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
-  const app = Fastify({ logger: options.logger ?? false });
+  const app = Fastify({ bodyLimit: 8 * 1024 * 1024, logger: options.logger ?? false });
+  const models = new ModelRepository(options.databasePath);
+
+  app.addHook("onClose", async () => models.close());
 
   await app.register(cors, {
     origin: [/^http:\/\/127\.0\.0\.1:\d+$/, /^http:\/\/localhost:\d+$/],
@@ -43,7 +52,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     openapi: {
       info: {
         title: "SolidLoom local API",
-        description: "Runnable scaffold for the local modeling service. Planned routes are listed in /capabilities.json.",
+        description: "Local model records and versioned feature graphs. Planned routes remain listed in /capabilities.json.",
         version: "0.1.0",
       },
     },
@@ -98,7 +107,111 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     method: listModels.method,
     url: listModels.path,
     schema: routeSchema(listModels),
-    handler: async () => ({ items: [], total: 0 }),
+    handler: async () => models.list(),
+  });
+
+  const createModel = getCapability("models.create");
+  app.route({
+    method: createModel.method,
+    url: createModel.path,
+    schema: routeSchema(createModel),
+    handler: async (request, reply) => {
+      const input = request.body as CreateModelInput;
+      if (!input.name.trim()) {
+        return reply.code(400).send({ error: "invalid_name", message: "Model name cannot be blank." });
+      }
+      const graph = input.featureGraph;
+      if (graph) {
+        const inspection = inspectFeatureGraph(graph);
+        const errors = inspection.issues.filter((issue) => issue.level === "error");
+        if (errors.length > 0) {
+          return reply.code(422).send({ error: "invalid_feature_graph", message: errors.map((issue) => issue.message).join(" ") });
+        }
+      }
+      return reply.code(201).send(models.create(input));
+    },
+  });
+
+  const getModel = getCapability("models.get");
+  app.route({
+    method: getModel.method,
+    url: getModel.path,
+    schema: routeSchema(getModel),
+    handler: async (request, reply) => {
+      const { modelId } = request.params as { modelId: string };
+      const model = models.get(modelId);
+      return model ?? reply.code(404).send({ error: "model_not_found", message: `Model ${modelId} was not found.` });
+    },
+  });
+
+  const updateModel = getCapability("models.update");
+  app.route({
+    method: updateModel.method,
+    url: updateModel.path,
+    schema: routeSchema(updateModel),
+    handler: async (request, reply) => {
+      const { modelId } = request.params as { modelId: string };
+      const input = request.body as UpdateModelInput;
+      if (input.name !== undefined && !input.name.trim()) {
+        return reply.code(400).send({ error: "invalid_name", message: "Model name cannot be blank." });
+      }
+      try {
+        const model = models.update(modelId, input);
+        return model ?? reply.code(404).send({ error: "model_not_found", message: `Model ${modelId} was not found.` });
+      } catch (error) {
+        if (error instanceof RevisionConflictError) {
+          return reply.code(409).send({ error: "revision_conflict", message: error.message });
+        }
+        throw error;
+      }
+    },
+  });
+
+  const replaceFeatures = getCapability("models.features.replace");
+  app.route({
+    method: replaceFeatures.method,
+    url: replaceFeatures.path,
+    schema: routeSchema(replaceFeatures),
+    handler: async (request, reply) => {
+      const { modelId } = request.params as { modelId: string };
+      const input = request.body as ReplaceFeatureGraphInput;
+      const inspection = inspectFeatureGraph(input.featureGraph);
+      const errors = inspection.issues.filter((issue) => issue.level === "error");
+      if (errors.length > 0) {
+        return reply.code(422).send({ error: "invalid_feature_graph", message: errors.map((issue) => issue.message).join(" ") });
+      }
+      try {
+        const model = models.replaceFeatureGraph(modelId, input);
+        return model ?? reply.code(404).send({ error: "model_not_found", message: `Model ${modelId} was not found.` });
+      } catch (error) {
+        if (error instanceof RevisionConflictError) {
+          return reply.code(409).send({ error: "revision_conflict", message: error.message });
+        }
+        throw error;
+      }
+    },
+  });
+
+  const deleteModel = getCapability("models.delete");
+  app.route({
+    method: deleteModel.method,
+    url: deleteModel.path,
+    schema: routeSchema(deleteModel),
+    handler: async (request, reply) => {
+      const { modelId } = request.params as { modelId: string };
+      const { expectedRevision } = request.query as { expectedRevision: number };
+      try {
+        if (!models.delete(modelId, expectedRevision)) {
+          return reply.code(404).send({ error: "model_not_found", message: `Model ${modelId} was not found.` });
+        }
+        return reply.code(204).send();
+      } catch (error) {
+        if (error instanceof RevisionConflictError) {
+          return reply.code(409).send({ error: "revision_conflict", message: error.message });
+        }
+        throw error;
+      }
+    },
   });
 
   app.setNotFoundHandler(async (request, reply) => {

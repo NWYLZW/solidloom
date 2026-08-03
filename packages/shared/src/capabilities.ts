@@ -1,9 +1,10 @@
 import {
   createModelSchema,
+  deleteModelQuerySchema,
   errorSchema,
-  featureGraphSchema,
   modelParamsSchema,
   modelSchema,
+  replaceFeatureGraphSchema,
   updateModelSchema,
 } from "./schemas.js";
 import type { CapabilityDefinition } from "./types.js";
@@ -74,7 +75,7 @@ export const capabilityRegistry = [
   },
   {
     id: "models.create",
-    status: "planned",
+    status: "available",
     method: "POST",
     path: "/api/models",
     summary: "Create a model",
@@ -91,12 +92,13 @@ export const capabilityRegistry = [
       response: {
         "201": modelSchema,
         "400": errorSchema,
+        "422": errorSchema,
       },
     },
   },
   {
     id: "models.get",
-    status: "planned",
+    status: "available",
     method: "GET",
     path: "/api/models/:modelId",
     summary: "Inspect a model",
@@ -112,7 +114,7 @@ export const capabilityRegistry = [
   },
   {
     id: "models.update",
-    status: "planned",
+    status: "available",
     method: "PATCH",
     path: "/api/models/:modelId",
     summary: "Update model metadata",
@@ -121,34 +123,43 @@ export const capabilityRegistry = [
     safety: "write",
     agent: {
       useWhen: "Rename a model or change its descriptive metadata.",
-      instructions: ["Send only fields that should change.", "Use the feature endpoint for geometry changes."],
-      example: "curl -s -X PATCH http://127.0.0.1:4310/api/models/MODEL_ID -H 'content-type: application/json' -d '{\"description\":\"Wall-mounted cable guide\"}'",
+      instructions: ["Read the model first and send its revision as expectedRevision.", "Send only fields that should change.", "Use the feature endpoint for geometry changes."],
+      example: "curl -s -X PATCH http://127.0.0.1:4310/api/models/MODEL_ID -H 'content-type: application/json' -d '{\"expectedRevision\":1,\"description\":\"Wall-mounted cable guide\"}'",
     },
-    schema: { params: modelParamsSchema, body: updateModelSchema, response: modelResponses },
+    schema: {
+      params: modelParamsSchema,
+      body: updateModelSchema,
+      response: { ...modelResponses, "409": errorSchema },
+    },
   },
   {
     id: "models.features.replace",
-    status: "planned",
+    status: "available",
     method: "PUT",
     path: "/api/models/:modelId/features",
     summary: "Replace a feature graph",
-    description: "Validate and replace the complete version-1 parametric feature graph.",
+    description: "Validate and replace the complete version-1 feature graph, including transformed primitives and persisted triangle-mesh results.",
     tags: ["models", "geometry"],
     safety: "write",
     agent: {
-      useWhen: "Apply an approved change to box or cylinder parameters and feature ordering.",
+      useWhen: "Apply approved primitive transforms, parameter changes, feature ordering, or persisted triangle-mesh operation results.",
       instructions: [
         "Inspect the current model first.",
-        "Send the complete graph, not a partial patch.",
+        "Send expectedRevision and the complete graph, not a partial patch.",
         "Use positive dimensions and unique feature ids.",
+        "Triangle-mesh features may store evaluated preview results from local plane-cut or boolean tools.",
         "Do not claim that cut operations have been evaluated by a B-Rep kernel in this scaffold.",
       ],
     },
-    schema: { params: modelParamsSchema, body: featureGraphSchema, response: modelResponses },
+    schema: {
+      params: modelParamsSchema,
+      body: replaceFeatureGraphSchema,
+      response: { ...modelResponses, "409": errorSchema, "422": errorSchema },
+    },
   },
   {
     id: "models.delete",
-    status: "planned",
+    status: "available",
     method: "DELETE",
     path: "/api/models/:modelId",
     summary: "Delete a model",
@@ -157,11 +168,12 @@ export const capabilityRegistry = [
     safety: "destructive",
     agent: {
       useWhen: "Delete a model only after the user explicitly confirms the exact model.",
-      instructions: ["List and inspect the model first.", "Obtain explicit confirmation immediately before calling this endpoint."],
+      instructions: ["List and inspect the model first.", "Obtain explicit confirmation immediately before calling this endpoint.", "Send the inspected revision as expectedRevision."],
     },
     schema: {
       params: modelParamsSchema,
-      response: { "404": errorSchema },
+      querystring: deleteModelQuerySchema,
+      response: { "404": errorSchema, "409": errorSchema },
     },
   },
 ] as const satisfies readonly CapabilityDefinition[];
