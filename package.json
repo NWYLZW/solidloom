@@ -1,0 +1,33 @@
+{
+  "name": "solidloom",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build:packages && npm run build -w @solidloom/server && npm run build -w @solidloom/cli && npm run build -w @solidloom/web",
+    "build:packages": "npm run build -w @solidloom/shared && npm run build -w @solidloom/cad-engine",
+    "dev": "npm run build:packages && concurrently -k -n api,web -c blue,green \"npm run dev -w @solidloom/server\" \"npm run dev -w @solidloom/web\"",
+    "dev:server": "npm run build:packages && npm run dev -w @solidloom/server",
+    "dev:web": "npm run build:packages && npm run dev -w @solidloom/web",
+    "cli": "npm run build:packages && npm run dev -w @solidloom/cli --",
+    "test": "npm run build:packages && vitest run",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "concurrently": "^9.2.1",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.20.5",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+*.log
+*.tsbuildinfo
+.env
+.env.local
+data/
+*.db
+*.db-shm
+*.db-wal
+.wrangler/
+.vinext/
+.next/
+outputs/
+work/

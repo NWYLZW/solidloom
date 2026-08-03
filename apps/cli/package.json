@@ -1,0 +1,19 @@
+{
+  "name": "@solidloom/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "solidloom": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup --config tsup.config.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@solidloom/shared": "0.1.0",
+    "commander": "^14.0.1"
+  }
+}
