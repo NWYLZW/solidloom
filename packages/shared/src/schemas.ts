@@ -5,6 +5,93 @@ const vector3Schema = {
   maxItems: 3,
 } as const;
 
+const vector2Schema = {
+  type: "array",
+  items: { type: "number" },
+  minItems: 2,
+  maxItems: 2,
+} as const;
+
+const proceduralRecessSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["center", "size", "depth"],
+  properties: {
+    center: vector2Schema,
+    size: {
+      type: "array",
+      items: { type: "number", exclusiveMinimum: 0 },
+      minItems: 2,
+      maxItems: 2,
+    },
+    depth: { type: "number", minimum: 0 },
+  },
+} as const;
+
+const proceduralMeshSourceSchema = {
+  oneOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "size", "recesses", "outlineRadius", "edgeFilletRadius"],
+      properties: {
+        kind: { const: "recessed-deck" },
+        size: vector3Schema,
+        recesses: { type: "array", items: proceduralRecessSchema, minItems: 1, maxItems: 16 },
+        outlineRadius: { type: "number", minimum: 0 },
+        edgeFilletRadius: { type: "number", minimum: 0 },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "size", "recessSize", "outlineRadius", "recessRadius", "edgeFilletRadius"],
+      properties: {
+        kind: { const: "recessed-panel" },
+        size: vector3Schema,
+        recessSize: vector3Schema,
+        outlineRadius: { type: "number", minimum: 0 },
+        recessRadius: { type: "number", minimum: 0 },
+        edgeFilletRadius: { type: "number", minimum: 0 },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "size", "wallThickness", "floorThickness", "autoHideSurfaces", "door", "window"],
+      properties: {
+        kind: { const: "room-shell" },
+        size: vector3Schema,
+        wallThickness: { type: "number", exclusiveMinimum: 0 },
+        floorThickness: { type: "number", exclusiveMinimum: 0 },
+        autoHideSurfaces: { type: "boolean" },
+        door: {
+          type: "object",
+          additionalProperties: false,
+          required: ["width", "height", "offsetZ"],
+          properties: {
+            width: { type: "number", exclusiveMinimum: 0 },
+            height: { type: "number", exclusiveMinimum: 0 },
+            offsetZ: { type: "number" },
+          },
+        },
+        window: {
+          type: "object",
+          additionalProperties: false,
+          required: ["width", "height", "sillHeight", "offsetX"],
+          properties: {
+            fullWall: { type: "boolean" },
+            width: { type: "number", exclusiveMinimum: 0 },
+            height: { type: "number", exclusiveMinimum: 0 },
+            sillHeight: { type: "number", minimum: 0 },
+            offsetX: { type: "number" },
+          },
+        },
+      },
+    },
+  ],
+} as const;
+
 const featureBaseProperties = {
   id: { type: "string", minLength: 1 },
   name: { type: "string", minLength: 1 },
@@ -12,6 +99,19 @@ const featureBaseProperties = {
   position: vector3Schema,
   rotation: vector3Schema,
   scale: vector3Schema,
+  appearance: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      material: { type: "string", enum: ["default", "wood", "metal", "plastic", "glass"] },
+      color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+    },
+  },
+  parameterExpressions: {
+    type: "object",
+    propertyNames: { pattern: "^[A-Za-z][A-Za-z0-9]*(?:\\.[A-Za-z0-9]+)*$" },
+    additionalProperties: { type: "string", minLength: 1, maxLength: 500 },
+  },
 };
 
 export const modelFeatureSchema = {
@@ -31,6 +131,32 @@ export const modelFeatureSchema = {
             width: { type: "number", exclusiveMinimum: 0 },
             depth: { type: "number", exclusiveMinimum: 0 },
             height: { type: "number", exclusiveMinimum: 0 },
+            cornerRadius: { type: "number", minimum: 0 },
+            cornerRadii: {
+              type: "object",
+              additionalProperties: false,
+              required: [
+                "xMinYMinZMin",
+                "xMaxYMinZMin",
+                "xMaxYMinZMax",
+                "xMinYMinZMax",
+                "xMinYMaxZMin",
+                "xMaxYMaxZMin",
+                "xMaxYMaxZMax",
+                "xMinYMaxZMax",
+              ],
+              properties: {
+                xMinYMinZMin: { type: "number", minimum: 0 },
+                xMaxYMinZMin: { type: "number", minimum: 0 },
+                xMaxYMinZMax: { type: "number", minimum: 0 },
+                xMinYMinZMax: { type: "number", minimum: 0 },
+                xMinYMaxZMin: { type: "number", minimum: 0 },
+                xMaxYMaxZMin: { type: "number", minimum: 0 },
+                xMaxYMaxZMax: { type: "number", minimum: 0 },
+                xMinYMaxZMax: { type: "number", minimum: 0 },
+              },
+            },
+            cornerAlgorithm: { type: "string", enum: ["circular", "smooth"] },
           },
         },
       },
@@ -50,6 +176,7 @@ export const modelFeatureSchema = {
             positions: { type: "array", items: { type: "number" }, minItems: 9, maxItems: 300000 },
             normals: { type: "array", items: { type: "number" }, minItems: 9, maxItems: 300000 },
             indices: { type: "array", items: { type: "integer", minimum: 0 }, minItems: 3, maxItems: 300000 },
+            source: proceduralMeshSourceSchema,
           },
         },
       },
@@ -109,6 +236,21 @@ export const featureGraphSchema = {
       type: "array",
       items: featureGroupSchema,
       maxItems: 64,
+    },
+    variables: {
+      type: "array",
+      maxItems: 128,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "label", "value"],
+        properties: {
+          id: { type: "string", pattern: "^--[A-Za-z][A-Za-z0-9-]*$" },
+          label: { type: "string", minLength: 1, maxLength: 120 },
+          value: { type: "number" },
+          unit: { type: "string", enum: ["mm", "cm", "in"] },
+        },
+      },
     },
   },
 } as const;

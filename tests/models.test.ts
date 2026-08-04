@@ -75,7 +75,18 @@ describe("SolidLoom model service", () => {
 
     const graph = structuredClone(updated.featureGraph);
     graph.features[0].parameters.width = 72;
+    graph.features[0].parameters.cornerRadii = {
+      xMinYMinZMin: 2,
+      xMaxYMinZMin: 3,
+      xMaxYMinZMax: 4,
+      xMinYMinZMax: 5,
+      xMinYMaxZMin: 6,
+      xMaxYMaxZMin: 7,
+      xMaxYMaxZMax: 8,
+      xMinYMaxZMax: 9,
+    };
     graph.features[0].scale = [1.2, 1, 1];
+    graph.features[0].appearance = { material: "wood", color: "#8A5A34" };
     graph.groups = [{
       id: "mounting-parts",
       name: "安装件",
@@ -93,6 +104,7 @@ describe("SolidLoom model service", () => {
     const replaced = replacedResponse.json();
     expect(replaced).toMatchObject({ revision: 3 });
     expect(replaced.featureGraph.features[0].parameters.width).toBe(72);
+    expect(replaced.featureGraph.features[0].parameters.cornerRadii.xMaxYMaxZMax).toBe(8);
     expect(replaced.featureGraph.groups[0]).toMatchObject({
       id: "mounting-parts",
       featureIds: [graph.features[0].id],
@@ -101,6 +113,7 @@ describe("SolidLoom model service", () => {
       scale: [1, 1, 1],
     });
     expect(replaced.featureGraph.features[0].scale).toEqual([1.2, 1, 1]);
+    expect(replaced.featureGraph.features[0].appearance).toEqual({ material: "wood", color: "#8A5A34" });
 
     const staleDelete = await app.inject({ method: "DELETE", url: `/api/models/${created.id}?expectedRevision=2` });
     expect(staleDelete.statusCode).toBe(409);

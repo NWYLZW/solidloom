@@ -30,6 +30,7 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  Pencil,
   Plus,
   Redo2,
   Rotate3D,
@@ -41,7 +42,33 @@ import {
   Undo2,
   Combine,
 } from "lucide-react";
-import type { BoxFeature, CylinderFeature, FeatureGroup, ModelFeature, ModelRecord, Unit, Vector3Tuple } from "@solidloom/shared";
+import {
+  BOX_CORNER_KEYS,
+  BOX_CORNER_LABELS,
+  boxCornerRadiiAreUniform,
+  clampBoxCornerRadii,
+  formatBoxCornerRadiusExpression,
+  parseBoxCornerRadiusExpression,
+  resolveBoxCornerRadii,
+  applyFeatureGraphExpressions,
+  regenerateProceduralMeshFeature,
+  synchronizeRoomAssemblyFeatures,
+  type BoxCornerKey,
+  type BoxCornerRadii,
+  type BoxFeature,
+  type CornerAlgorithm,
+  type CylinderFeature,
+  type FeatureAppearance,
+  type FeatureGroup,
+  type FeatureGraph,
+  type FeatureMaterialPreset,
+  type ModelFeature,
+  type ModelRecord,
+  type ProceduralMeshSource,
+  type RoomShellSource,
+  type Unit,
+  type Vector3Tuple,
+} from "@solidloom/shared";
 import {
   ApiError,
   createModel,
@@ -52,7 +79,10 @@ import {
   updateModel,
 } from "./api";
 import { Viewport3D, type TransformCommit, type TransformMode } from "./Viewport3D";
-import { evaluateBoolean, evaluatePlaneCut, type BooleanOperation } from "./meshOperations";
+import { resolveFeatureColor } from "./featureMaterials";
+import { evaluateBoolean, evaluatePlaneCut, featureTriangleCount, featureVolume, type BooleanOperation } from "./meshOperations";
+import { upsertModelInStableOrder } from "./modelCollection";
+import { readTreeUrlState, writeTreeUrlState } from "./treeUrlState";
 
 type ServiceState = "checking" | "online" | "offline";
 type Locale = "zh-CN" | "en";
@@ -104,8 +134,10 @@ const copyByLocale = {
     projectTree: "项目树",
     models: "模型",
     createModel: "新建模型",
+    renameProject: "重命名项目",
     create: "创建",
     cancel: "取消",
+    projectName: "项目名称",
     modelName: "模型名称",
     modelDescription: "模型说明",
     unit: "单位",
@@ -159,7 +191,30 @@ const copyByLocale = {
     width: "宽度",
     depth: "深度",
     height: "高度",
+    cornerRadius: "圆角半径",
+    cornerUniform: "统一圆角",
+    cornerRadii: "八角圆角",
+    cornerExpression: "圆角表达式",
+    cornerExpressionHint: "支持 1、2、4 或 8 个值；“/”分隔底面与顶面。",
+    cornerExpressionInvalid: "请输入 1、2、4 或 8 个非负数。",
+    cornerLocalAxes: "方向使用对象局部坐标，旋转时随对象一起旋转。",
+    cornerBottom: "底面 y−",
+    cornerTop: "顶面 y+",
+    apply: "应用",
+    cornerAlgorithm: "圆角算法",
+    cornerCircular: "标准圆弧",
+    cornerSmooth: "高阶平滑",
     radius: "半径",
+    appearance: "外观",
+    material: "材质",
+    materialDefault: "默认",
+    materialWood: "木质",
+    materialMetal: "金属",
+    materialPlastic: "塑料",
+    materialGlass: "玻璃",
+    color: "颜色",
+    resetAppearance: "重置外观",
+    useMaterialColor: "使用材质颜色",
     metadata: "模型信息",
     selectionSummary: "对象摘要",
     multipleSelection: "多选",
@@ -168,6 +223,36 @@ const copyByLocale = {
     volume: "体积",
     triangles: "三角形",
     mesh: "三角网格",
+    proceduralShell: "程序化外壳",
+    roomShell: "程序化房间",
+    modelVariables: "模型变量",
+    modelVariablesHint: "上层变量使用 CSS 自定义属性命名；修改后，绑定的节点字段会自动重新计算。",
+    nodeExpressions: "节点计算表达式",
+    expressionTarget: "目标字段",
+    expressionError: "部分表达式无法计算",
+    proceduralMeshHint: "修改参数后会自动重建三角网格，并可撤销和保存。",
+    wallThickness: "墙体厚度",
+    floorThickness: "地板与天花板厚度",
+    autoHideRoomSurfaces: "按视角自动隐藏近侧表面",
+    doorSettings: "门设置",
+    doorWidth: "门宽",
+    doorHeight: "门高",
+    doorPosition: "门位置 Z",
+    windowSettings: "落地窗设置",
+    fullWallWindow: "整墙玻璃幕墙",
+    fullWallWindowHint: "开启后，玻璃会自动填满整面墙并跟随房间尺寸变化。",
+    windowWidth: "落地窗宽度",
+    windowHeight: "落地窗高度",
+    windowSillHeight: "离地高度",
+    windowPosition: "落地窗位置 X",
+    outlineRadius: "轮廓圆角",
+    edgeFilletRadius: "边缘倒圆",
+    recessSettings: "凹槽设置",
+    recessSpanX: "凹槽宽度 X",
+    recessSpanY: "凹槽高度 Y",
+    recessSpanZ: "凹槽深度 Z",
+    recessCutDepth: "切入深度",
+    recessRadius: "凹槽圆角",
     moveTool: "移动",
     rotateTool: "旋转",
     scaleTool: "缩放",
@@ -223,8 +308,10 @@ const copyByLocale = {
     projectTree: "Project tree",
     models: "Models",
     createModel: "Create model",
+    renameProject: "Rename project",
     create: "Create",
     cancel: "Cancel",
+    projectName: "Project name",
     modelName: "Model name",
     modelDescription: "Model description",
     unit: "Unit",
@@ -278,7 +365,30 @@ const copyByLocale = {
     width: "Width",
     depth: "Depth",
     height: "Height",
+    cornerRadius: "Corner radius",
+    cornerUniform: "Uniform radius",
+    cornerRadii: "Eight-corner radii",
+    cornerExpression: "Corner radius expression",
+    cornerExpressionHint: "Use 1, 2, 4, or 8 values; “/” separates the bottom and top layers.",
+    cornerExpressionInvalid: "Enter 1, 2, 4, or 8 non-negative numbers.",
+    cornerLocalAxes: "Directions use local object axes and rotate with the object.",
+    cornerBottom: "Bottom y−",
+    cornerTop: "Top y+",
+    apply: "Apply",
+    cornerAlgorithm: "Corner algorithm",
+    cornerCircular: "Circular arc",
+    cornerSmooth: "High-order smooth",
     radius: "Radius",
+    appearance: "Appearance",
+    material: "Material",
+    materialDefault: "Default",
+    materialWood: "Wood",
+    materialMetal: "Metal",
+    materialPlastic: "Plastic",
+    materialGlass: "Glass",
+    color: "Color",
+    resetAppearance: "Reset appearance",
+    useMaterialColor: "Use material color",
     metadata: "Model information",
     selectionSummary: "Object summary",
     multipleSelection: "Multiple selection",
@@ -287,6 +397,36 @@ const copyByLocale = {
     volume: "Volume",
     triangles: "Triangles",
     mesh: "Triangle mesh",
+    proceduralShell: "Procedural shell",
+    roomShell: "Procedural room",
+    modelVariables: "Model variables",
+    modelVariablesHint: "Variables use CSS custom-property names; bound node fields recalculate automatically.",
+    nodeExpressions: "Node expressions",
+    expressionTarget: "Target field",
+    expressionError: "Some expressions could not be evaluated",
+    proceduralMeshHint: "Changing a parameter rebuilds the triangle mesh and remains undoable and saveable.",
+    wallThickness: "Wall thickness",
+    floorThickness: "Floor and ceiling thickness",
+    autoHideRoomSurfaces: "Auto-hide near surfaces by view",
+    doorSettings: "Door settings",
+    doorWidth: "Door width",
+    doorHeight: "Door height",
+    doorPosition: "Door position Z",
+    windowSettings: "Floor-to-ceiling window settings",
+    fullWallWindow: "Full-wall glass curtain",
+    fullWallWindowHint: "The glass automatically fills the wall and follows room size changes.",
+    windowWidth: "Window width",
+    windowHeight: "Window height",
+    windowSillHeight: "Floor clearance",
+    windowPosition: "Window position X",
+    outlineRadius: "Outline radius",
+    edgeFilletRadius: "Edge fillet",
+    recessSettings: "Recess settings",
+    recessSpanX: "Recess width X",
+    recessSpanY: "Recess height Y",
+    recessSpanZ: "Recess depth Z",
+    recessCutDepth: "Cut depth",
+    recessRadius: "Recess radius",
     moveTool: "Move",
     rotateTool: "Rotate",
     scaleTool: "Scale",
@@ -335,6 +475,14 @@ function readNumberPreference(key: string, fallback: number, minimum: number, ma
   }
 }
 
+function readTextPreference(key: string, fallback: string): string {
+  try {
+    return window.localStorage.getItem(key)?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -370,29 +518,32 @@ function meshDimensions(feature: Extract<ModelFeature, { type: "mesh" }>): Vecto
   return axes.map((values, axis) => (Math.max(...values) - Math.min(...values)) * Math.abs(scale[axis]!)) as Vector3Tuple;
 }
 
-function meshVolume(feature: Extract<ModelFeature, { type: "mesh" }>) {
-  const { indices, positions } = feature.parameters;
-  let signedVolume = 0;
-  for (let index = 0; index < indices.length; index += 3) {
-    const aIndex = indices[index]! * 3;
-    const bIndex = indices[index + 1]! * 3;
-    const cIndex = indices[index + 2]! * 3;
-    const ax = positions[aIndex] ?? 0;
-    const ay = positions[aIndex + 1] ?? 0;
-    const az = positions[aIndex + 2] ?? 0;
-    const bx = positions[bIndex] ?? 0;
-    const by = positions[bIndex + 1] ?? 0;
-    const bz = positions[bIndex + 2] ?? 0;
-    const cx = positions[cIndex] ?? 0;
-    const cy = positions[cIndex + 1] ?? 0;
-    const cz = positions[cIndex + 2] ?? 0;
-    signedVolume += ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx);
-  }
-  const scale = feature.scale ?? [1, 1, 1];
-  return Math.abs(signedVolume / 6) * Math.abs(scale[0] * scale[1] * scale[2]);
+function rebuildParameterizedFeatureGraph(featureGraph: FeatureGraph) {
+  const firstPass = applyFeatureGraphExpressions(featureGraph);
+  let roomSource: RoomShellSource | null = null;
+  const regeneratedFeatures = firstPass.featureGraph.features.map((feature) => {
+    if (feature.type !== "mesh" || !feature.parameters.source) return feature;
+    const regenerated = regenerateProceduralMeshFeature(feature, feature.parameters.source);
+    if (regenerated.parameters.source?.kind === "room-shell") roomSource = regenerated.parameters.source;
+    return regenerated;
+  });
+  const synchronizedFeatures = roomSource
+    ? synchronizeRoomAssemblyFeatures(regeneratedFeatures, roomSource)
+    : regeneratedFeatures;
+  const secondPass = applyFeatureGraphExpressions({
+    ...firstPass.featureGraph,
+    features: synchronizedFeatures,
+  });
+  return {
+    featureGraph: secondPass.featureGraph,
+    issues: [...firstPass.issues, ...secondPass.issues],
+  };
 }
 
 export function App() {
+  const initialTreeUrlStateRef = useRef(
+    typeof window === "undefined" ? null : readTreeUrlState(window.location.href),
+  );
   const [serviceState, setServiceState] = useState<ServiceState>("checking");
   const [models, setModels] = useState<ModelRecord[]>([]);
   const [savedModel, setSavedModel] = useState<ModelRecord | null>(null);
@@ -411,15 +562,22 @@ export function App() {
   const [preserveSources, setPreserveSources] = useState(false);
   const [uniformScale, setUniformScale] = useState(true);
   const [operationError, setOperationError] = useState("");
+  const [cornerRadiusExpression, setCornerRadiusExpression] = useState("");
+  const [cornerRadiusExpressionError, setCornerRadiusExpressionError] = useState("");
+  const [parameterExpressionError, setParameterExpressionError] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [projectName, setProjectName] = useState(() => readTextPreference("solidloom.projectName.v1", "未命名项目"));
+  const [projectNameDraft, setProjectNameDraft] = useState("");
+  const [renameProjectOpen, setRenameProjectOpen] = useState(false);
   const [libraryCollapsed, setLibraryCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [projectExpanded, setProjectExpanded] = useState(true);
-  const [modelsExpanded, setModelsExpanded] = useState(true);
-  const [expandedModelIds, setExpandedModelIds] = useState<string[]>([]);
-  const [expandedGroupIds, setExpandedGroupIds] = useState<string[]>([]);
+  const [projectExpanded, setProjectExpanded] = useState(() => initialTreeUrlStateRef.current?.projectExpanded ?? true);
+  const [modelsExpanded, setModelsExpanded] = useState(() => initialTreeUrlStateRef.current?.modelsExpanded ?? true);
+  const [expandedModelIds, setExpandedModelIds] = useState<string[]>(() => initialTreeUrlStateRef.current?.expandedModelIds ?? []);
+  const [expandedGroupIds, setExpandedGroupIds] = useState<string[]>(() => initialTreeUrlStateRef.current?.expandedGroupIds ?? []);
+  const [treeUrlReady, setTreeUrlReady] = useState(false);
   const [libraryWidth, setLibraryWidth] = useState(() => readNumberPreference("solidloom.layout.libraryWidth.v1", 260, 180, 420));
   const [inspectorWidth, setInspectorWidth] = useState(() => readNumberPreference("solidloom.layout.inspectorWidth.v1", 294, 240, 480));
   const [treeMenu, setTreeMenu] = useState<{ x: number; y: number; target: TreeMenuTarget } | null>(null);
@@ -446,6 +604,25 @@ export function App() {
   const selectedFeature = selectedFeatures.length === 1
     ? selectedFeatures[0]
     : null;
+  const selectedProceduralSource = selectedFeature?.type === "mesh"
+    ? selectedFeature.parameters.source ?? null
+    : null;
+  const selectedBoxCornerRadii = useMemo(
+    () => selectedFeature?.type === "box" ? resolveBoxCornerRadii(selectedFeature.parameters) : null,
+    [selectedFeature],
+  );
+  const selectedBoxCornerSignature = selectedBoxCornerRadii
+    ? BOX_CORNER_KEYS.map((key) => selectedBoxCornerRadii[key]).join(",")
+    : "";
+  useEffect(() => {
+    if (!selectedBoxCornerRadii) {
+      setCornerRadiusExpression("");
+      setCornerRadiusExpressionError("");
+      return;
+    }
+    setCornerRadiusExpression(formatBoxCornerRadiusExpression(selectedBoxCornerRadii));
+    setCornerRadiusExpressionError("");
+  }, [selectedFeature?.id, selectedBoxCornerSignature]);
   const selectedGroup = selectedGroupId
     ? featureGroups.find((group) => group.id === selectedGroupId) ?? null
     : null;
@@ -492,22 +669,16 @@ export function App() {
       : selectedFeature?.type === "mesh"
         ? `${meshDimensions(selectedFeature).map(formatNumber).join(" × ")} ${draftModel?.unit ?? "mm"}`
         : "";
-  const selectedFeatureVolume = selectedFeature?.type === "box"
-    ? selectedFeature.parameters.width * selectedFeature.parameters.depth * selectedFeature.parameters.height * Math.abs((selectedFeature.scale?.[0] ?? 1) * (selectedFeature.scale?.[1] ?? 1) * (selectedFeature.scale?.[2] ?? 1))
-    : selectedFeature?.type === "cylinder"
-      ? Math.PI * selectedFeature.parameters.radius ** 2 * selectedFeature.parameters.height * Math.abs((selectedFeature.scale?.[0] ?? 1) * (selectedFeature.scale?.[1] ?? 1) * (selectedFeature.scale?.[2] ?? 1))
-      : selectedFeature?.type === "mesh"
-        ? meshVolume(selectedFeature)
-        : 0;
-  const selectedFeatureTriangles = selectedFeature?.type === "box"
-    ? 12
-    : selectedFeature?.type === "cylinder"
-      ? 256
-      : selectedFeature?.type === "mesh"
-        ? Math.floor(selectedFeature.parameters.indices.length / 3)
-        : 0;
+  const selectedFeatureVolume = useMemo(
+    () => selectedFeature ? featureVolume(selectedFeature) : 0,
+    [selectedFeature],
+  );
+  const selectedFeatureTriangles = useMemo(
+    () => selectedFeature ? featureTriangleCount(selectedFeature) : 0,
+    [selectedFeature],
+  );
   const statusPath = [
-    { id: "project", label: copy.untitledProject },
+    { id: "project", label: projectName },
     { id: "models", label: copy.models },
     ...(draftModel ? [{ id: `model-${draftModel.id}`, label: draftModel.name }] : []),
     ...(selectedGroup ? [{ id: `group-${selectedGroup.id}`, label: selectedGroup.name }] : []),
@@ -639,11 +810,11 @@ export function App() {
       const existing = current.filter((featureId) => model.featureGraph.features.some((feature) => feature.id === featureId));
       return existing.length > 0 ? existing : model.featureGraph.features[0] ? [model.featureGraph.features[0].id] : [];
     });
-    setExpandedModelIds((current) => current.includes(model.id) ? current : [...current, model.id]);
-    setExpandedGroupIds((current) => [
-      ...new Set([...current, ...(next.featureGraph.groups ?? []).map((group) => group.id)]),
-    ]);
-    setModels((current) => [model, ...current.filter((item) => item.id !== model.id)]);
+    if (!options.preserveHistory) {
+      setExpandedModelIds([model.id]);
+      setExpandedGroupIds((next.featureGraph.groups ?? []).map((group) => group.id));
+    }
+    setModels((current) => upsertModelInStableOrder(current, model));
     setSaveState("idle");
     setStatusDetail("");
   };
@@ -652,19 +823,62 @@ export function App() {
     Promise.all([getHealth(), listModels()])
       .then(([, modelList]) => {
         setModels(modelList.items);
-        const firstModel = modelList.items[0];
+        const treeUrlState = initialTreeUrlStateRef.current;
+        const firstModel = treeUrlState?.modelId
+          ? modelList.items.find((model) => model.id === treeUrlState.modelId) ?? modelList.items[0]
+          : modelList.items[0];
         if (firstModel) {
           const normalized = cloneModel(firstModel);
           setSavedModel(normalized);
           setDraftModel(cloneModel(firstModel));
-          setSelectedFeatureIds(firstModel.featureGraph.features[0] ? [firstModel.featureGraph.features[0].id] : []);
-          setExpandedModelIds([firstModel.id]);
-          setExpandedGroupIds((normalized.featureGraph.groups ?? []).map((group) => group.id));
+          if (treeUrlState) {
+            const validGroupIds = new Set((normalized.featureGraph.groups ?? []).map((group) => group.id));
+            const validFeatureIds = new Set(normalized.featureGraph.features.map((feature) => feature.id));
+            const selectedGroupId = treeUrlState.selectedGroupId && validGroupIds.has(treeUrlState.selectedGroupId)
+              ? treeUrlState.selectedGroupId
+              : null;
+            setSelectedGroupId(selectedGroupId);
+            setSelectedFeatureIds(selectedGroupId
+              ? []
+              : treeUrlState.selectedFeatureIds.filter((featureId) => validFeatureIds.has(featureId)));
+            const modelIds = new Set(modelList.items.map((model) => model.id));
+            setExpandedModelIds(treeUrlState.expandedModelIds.filter((modelId) => modelIds.has(modelId)));
+            setExpandedGroupIds(treeUrlState.expandedGroupIds.filter((groupId) => validGroupIds.has(groupId)));
+          } else {
+            setSelectedFeatureIds(firstModel.featureGraph.features[0] ? [firstModel.featureGraph.features[0].id] : []);
+            setExpandedModelIds([firstModel.id]);
+            setExpandedGroupIds((normalized.featureGraph.groups ?? []).map((group) => group.id));
+          }
         }
         setServiceState("online");
+        setTreeUrlReady(true);
       })
       .catch(() => setServiceState("offline"));
   }, []);
+
+  useEffect(() => {
+    if (!treeUrlReady) return;
+    const nextUrl = writeTreeUrlState(window.location.href, {
+      modelId: draftModel?.id ?? null,
+      selectedFeatureIds,
+      selectedGroupId,
+      projectExpanded,
+      modelsExpanded,
+      expandedModelIds: draftModel && expandedModelIds.includes(draftModel.id) ? [draftModel.id] : [],
+      expandedGroupIds: expandedGroupIds.filter((groupId) => featureGroups.some((group) => group.id === groupId)),
+    });
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }, [
+    draftModel?.id,
+    expandedGroupIds,
+    expandedModelIds,
+    featureGroups,
+    modelsExpanded,
+    projectExpanded,
+    selectedFeatureIds,
+    selectedGroupId,
+    treeUrlReady,
+  ]);
 
   useEffect(() => {
     window.localStorage.setItem("solidloom.locale", locale);
@@ -691,6 +905,10 @@ export function App() {
     window.localStorage.setItem("solidloom.layout.inspectorWidth.v1", String(inspectorWidth));
   }, [inspectorWidth]);
 
+  useEffect(() => {
+    window.localStorage.setItem("solidloom.projectName.v1", projectName);
+  }, [projectName]);
+
   useEffect(() => () => resizeCleanupRef.current?.(), []);
 
   useEffect(() => {
@@ -703,6 +921,7 @@ export function App() {
         setMenuOpen(false);
         setTreeMenu(null);
         setCreateDialogOpen(false);
+        setRenameProjectOpen(false);
       }
     };
     document.addEventListener("pointerdown", closeMenu);
@@ -843,11 +1062,83 @@ export function App() {
     }
   };
 
-  const updateBoxParameter = (key: keyof BoxFeature["parameters"], value: number) => {
-    if (!Number.isFinite(value) || value <= 0) return;
+  const updateBoxParameter = (key: "width" | "depth" | "height" | "cornerRadius", value: number) => {
+    if (!Number.isFinite(value) || (key === "cornerRadius" ? value < 0 : value <= 0)) return;
     updateDraftWithHistory((current) => {
       const features = current.featureGraph.features.map((feature) => feature.id === selectedFeature?.id && feature.type === "box"
-        ? { ...feature, parameters: { ...feature.parameters, [key]: value } }
+        ? (() => {
+          const parameters: BoxFeature["parameters"] = { ...feature.parameters, [key]: value };
+          const maximumRadius = Math.min(parameters.width, parameters.depth, parameters.height) / 2;
+          parameters.cornerRadius = Math.min(parameters.cornerRadius ?? 0, maximumRadius);
+          if (key === "cornerRadius") delete parameters.cornerRadii;
+          else if (parameters.cornerRadii) {
+            parameters.cornerRadii = clampBoxCornerRadii(resolveBoxCornerRadii(parameters), maximumRadius);
+          }
+          return { ...feature, parameters };
+        })()
+        : feature);
+      return { ...current, featureGraph: { ...current.featureGraph, features } };
+    });
+  };
+
+  const updateBoxCornerRadius = (corner: BoxCornerKey, value: number) => {
+    if (!Number.isFinite(value) || value < 0) return;
+    updateDraftWithHistory((current) => {
+      const features = current.featureGraph.features.map((feature) => feature.id === selectedFeature?.id && feature.type === "box"
+        ? (() => {
+          const maximumRadius = Math.min(feature.parameters.width, feature.parameters.depth, feature.parameters.height) / 2;
+          const cornerRadii: BoxCornerRadii = {
+            ...clampBoxCornerRadii(resolveBoxCornerRadii(feature.parameters), maximumRadius),
+            [corner]: Math.min(value, maximumRadius),
+          };
+          return {
+            ...feature,
+            parameters: {
+              ...feature.parameters,
+              cornerRadius: cornerRadii.xMinYMinZMin,
+              cornerRadii,
+            },
+          };
+        })()
+        : feature);
+      return { ...current, featureGraph: { ...current.featureGraph, features } };
+    });
+  };
+
+  const applyBoxCornerRadiusExpression = () => {
+    const parsed = parseBoxCornerRadiusExpression(cornerRadiusExpression);
+    if (!parsed || selectedFeature?.type !== "box") {
+      setCornerRadiusExpressionError(copy.cornerExpressionInvalid);
+      return;
+    }
+    const maximumRadius = Math.min(
+      selectedFeature.parameters.width,
+      selectedFeature.parameters.depth,
+      selectedFeature.parameters.height,
+    ) / 2;
+    const cornerRadii = clampBoxCornerRadii(parsed, maximumRadius);
+    updateDraftWithHistory((current) => {
+      const features = current.featureGraph.features.map((feature) => feature.id === selectedFeature.id && feature.type === "box"
+        ? (() => {
+          const parameters: BoxFeature["parameters"] = {
+            ...feature.parameters,
+            cornerRadius: cornerRadii.xMinYMinZMin,
+          };
+          if (boxCornerRadiiAreUniform(cornerRadii)) delete parameters.cornerRadii;
+          else parameters.cornerRadii = cornerRadii;
+          return { ...feature, parameters };
+        })()
+        : feature);
+      return { ...current, featureGraph: { ...current.featureGraph, features } };
+    });
+    setCornerRadiusExpression(formatBoxCornerRadiusExpression(cornerRadii));
+    setCornerRadiusExpressionError("");
+  };
+
+  const updateBoxCornerAlgorithm = (value: CornerAlgorithm) => {
+    updateDraftWithHistory((current) => {
+      const features = current.featureGraph.features.map((feature) => feature.id === selectedFeature?.id && feature.type === "box"
+        ? { ...feature, parameters: { ...feature.parameters, cornerAlgorithm: value } }
         : feature);
       return { ...current, featureGraph: { ...current.featureGraph, features } };
     });
@@ -861,6 +1152,180 @@ export function App() {
         : feature);
       return { ...current, featureGraph: { ...current.featureGraph, features } };
     });
+  };
+
+  const updateSelectedProceduralSource = (mutate: (source: ProceduralMeshSource) => void) => {
+    if (!selectedFeature || selectedFeature.type !== "mesh" || !selectedFeature.parameters.source) return;
+    updateDraftWithHistory((current) => {
+      let roomSource: RoomShellSource | null = null;
+      const rebuiltFeatures = current.featureGraph.features.map((feature) => {
+          if (feature.id !== selectedFeature.id || feature.type !== "mesh" || !feature.parameters.source) return feature;
+          const source = structuredClone(feature.parameters.source);
+          mutate(source);
+          const regenerated = regenerateProceduralMeshFeature(feature, source);
+          if (regenerated.parameters.source?.kind === "room-shell") roomSource = regenerated.parameters.source;
+          return regenerated;
+        });
+      const features = roomSource ? synchronizeRoomAssemblyFeatures(rebuiltFeatures, roomSource) : rebuiltFeatures;
+      return {
+        ...current,
+        featureGraph: { ...current.featureGraph, features },
+      };
+    });
+  };
+
+  const updateProceduralSize = (index: number, value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return;
+    updateSelectedProceduralSource((source) => {
+      source.size[index] = value;
+    });
+  };
+
+  const updateProceduralRadius = (key: "outlineRadius" | "edgeFilletRadius", value: number) => {
+    if (!Number.isFinite(value) || value < 0) return;
+    updateSelectedProceduralSource((source) => {
+      if (source.kind === "room-shell") return;
+      source[key] = value;
+    });
+  };
+
+  const updateRoomShellParameter = (
+    key: "wallThickness" | "floorThickness" | "autoHideSurfaces",
+    value: number | boolean,
+  ) => {
+    if (typeof value === "number" && (!Number.isFinite(value) || value <= 0)) return;
+    updateSelectedProceduralSource((source) => {
+      if (source.kind !== "room-shell") return;
+      if (key === "autoHideSurfaces") source.autoHideSurfaces = Boolean(value);
+      else source[key] = Number(value);
+    });
+  };
+
+  const updateRoomOpening = (
+    opening: "door" | "window",
+    key: "width" | "height" | "offsetZ" | "sillHeight" | "offsetX",
+    value: number,
+  ) => {
+    if (!Number.isFinite(value)) return;
+    if ((key === "width" || key === "height") && value <= 0) return;
+    if (key === "sillHeight" && value < 0) return;
+    updateSelectedProceduralSource((source) => {
+      if (source.kind !== "room-shell") return;
+      if (opening === "door") {
+        if (key === "width" || key === "height" || key === "offsetZ") source.door[key] = value;
+      } else if (key === "width" || key === "height" || key === "sillHeight" || key === "offsetX") {
+        source.window[key] = value;
+      }
+    });
+  };
+
+  const updateRoomWindowMode = (fullWall: boolean) => {
+    updateSelectedProceduralSource((source) => {
+      if (source.kind !== "room-shell") return;
+      source.window.fullWall = fullWall;
+    });
+  };
+
+  const updateModelVariable = (variableId: string, value: number) => {
+    if (!Number.isFinite(value)) return;
+    updateDraftWithHistory((current) => {
+      const variables = (current.featureGraph.variables ?? []).map((variable) => (
+        variable.id === variableId ? { ...variable, value } : variable
+      ));
+      const resolved = rebuildParameterizedFeatureGraph({ ...current.featureGraph, variables });
+      setParameterExpressionError(resolved.issues[0]
+        ? `${copy.expressionError}：${resolved.issues[0].message}`
+        : "");
+      return { ...current, featureGraph: resolved.featureGraph };
+    });
+  };
+
+  const updateSelectedFeatureExpression = (target: string, expression: string) => {
+    if (!selectedFeature) return;
+    updateDraftWithHistory((current) => {
+      const features = current.featureGraph.features.map((feature) => feature.id === selectedFeature.id
+        ? {
+            ...feature,
+            parameterExpressions: {
+              ...feature.parameterExpressions,
+              [target]: expression,
+            },
+          } as ModelFeature
+        : feature);
+      const resolved = rebuildParameterizedFeatureGraph({ ...current.featureGraph, features });
+      setParameterExpressionError(resolved.issues[0]
+        ? `${copy.expressionError}：${resolved.issues[0].message}`
+        : "");
+      return { ...current, featureGraph: resolved.featureGraph };
+    });
+  };
+
+  const updatePanelRecess = (key: "size" | "radius", index: number, value: number) => {
+    if (!Number.isFinite(value) || value < 0) return;
+    updateSelectedProceduralSource((source) => {
+      if (source.kind !== "recessed-panel") return;
+      if (key === "radius") source.recessRadius = value;
+      else source.recessSize[index] = value;
+    });
+  };
+
+  const updateDeckRecess = (
+    recessIndex: number,
+    key: "center" | "size" | "depth",
+    axis: number,
+    value: number,
+  ) => {
+    if (!Number.isFinite(value) || (key !== "center" && value < 0)) return;
+    updateSelectedProceduralSource((source) => {
+      if (source.kind !== "recessed-deck") return;
+      const recess = source.recesses[recessIndex];
+      if (!recess) return;
+      if (key === "depth") recess.depth = value;
+      else recess[key][axis] = value;
+    });
+  };
+
+  const updateSelectedFeatureAppearance = (patch: Partial<FeatureAppearance>) => {
+    if (!selectedFeature || selectedFeature.operation !== "add") return;
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        features: current.featureGraph.features.map((feature) => feature.id === selectedFeature.id
+          ? { ...feature, appearance: { ...feature.appearance, ...patch } }
+          : feature),
+      },
+    }));
+  };
+
+  const clearSelectedFeatureColor = () => {
+    if (!selectedFeature?.appearance?.color) return;
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        features: current.featureGraph.features.map((feature) => {
+          if (feature.id !== selectedFeature.id) return feature;
+          const { color: _color, ...appearance } = feature.appearance ?? {};
+          return { ...feature, appearance };
+        }),
+      },
+    }));
+  };
+
+  const resetSelectedFeatureAppearance = () => {
+    if (!selectedFeature?.appearance) return;
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        features: current.featureGraph.features.map((feature) => {
+          if (feature.id !== selectedFeature.id) return feature;
+          const { appearance: _appearance, ...rest } = feature;
+          return rest as ModelFeature;
+        }),
+      },
+    }));
   };
 
   const updateFeatureGroups = (update: (groups: FeatureGroup[]) => FeatureGroup[]) => {
@@ -1207,7 +1672,7 @@ export function App() {
             <button className="tree-row tree-root" data-depth="0" type="button" role="treeitem" aria-expanded={projectExpanded} onClick={() => setProjectExpanded((value) => !value)}>
               {projectExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               <FolderTree size={16} />
-              <span>{copy.untitledProject}</span>
+              <span>{projectName}</span>
             </button>
 
             {projectExpanded && (
@@ -1375,6 +1840,21 @@ export function App() {
 
           {treeMenu && (
             <div className="tree-context-menu" ref={treeMenuRef} role="menu" style={{ left: treeMenu.x, top: treeMenu.y }}>
+              {treeMenu.target.kind === "tree" && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setProjectNameDraft(projectName);
+                    setRenameProjectOpen(true);
+                    setTreeMenu(null);
+                  }}
+                >
+                  <Pencil size={15} />
+                  <span>{copy.renameProject}</span>
+                </button>
+              )}
+
               {(treeMenu.target.kind === "tree" || treeMenu.target.kind === "model") && (
                 <button
                   type="button"
@@ -1727,6 +2207,8 @@ export function App() {
               members: copy.annotationMembers,
               mesh: copy.mesh,
               path: copy.annotationPath,
+              proceduralShell: copy.proceduralShell,
+              roomShell: copy.roomShell,
             }}
             cutPlane={activeObjectTool === "plane-cut" ? { offset: cutOffset, rotation: cutRotation } : null}
             features={draftModel.featureGraph.features}
@@ -1765,7 +2247,7 @@ export function App() {
                   ? copy.groups
                   : selectedFeatures.length > 1
                     ? copy.multipleSelection
-                  : `${selectedFeature?.type === "box" ? copy.box : selectedFeature?.type === "cylinder" ? copy.cylinder : copy.mesh} · ${selectedFeature ? copy[selectedFeature.operation] : ""}`}</small>
+                  : `${selectedFeature?.type === "box" ? copy.box : selectedFeature?.type === "cylinder" ? copy.cylinder : selectedProceduralSource?.kind === "room-shell" ? copy.roomShell : selectedProceduralSource ? copy.proceduralShell : copy.mesh} · ${selectedFeature ? copy[selectedFeature.operation] : ""}`}</small>
               </span>
             </div>
             <dl>
@@ -1830,6 +2312,18 @@ export function App() {
             <div className="inspector-lower-pane">
               <section className="inspector-section properties">
                 <div className="section-title"><span>{selectedGroup ? copy.groupTransform : copy.parameters}</span><Settings2 size={15} /></div>
+                {selectedFeatures.length === 0 && !selectedGroup && (draftModel?.featureGraph.variables?.length ?? 0) > 0 && (
+                  <div className="model-variable-editor">
+                    <strong>{copy.modelVariables}</strong>
+                    <p>{copy.modelVariablesHint}</p>
+                    {draftModel?.featureGraph.variables?.map((variable) => (
+                      <label key={variable.id}>
+                        <span className="model-variable-name"><strong>{variable.label}</strong><code>{variable.id}</code></span>
+                        <span><input aria-label={`${variable.label} ${variable.id}`} type="number" step="1" value={variable.value} onChange={(event) => updateModelVariable(variable.id, Number(event.target.value))} /> {variable.unit ?? draftModel.unit}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
                 {selectedGroup && (
                   <>
                     <label className="group-name-row">
@@ -1856,6 +2350,52 @@ export function App() {
                     <label>{copy.width} <span><input aria-label={`${copy.width} ${draftModel?.unit ?? "mm"}`} type="number" min="0.01" step="0.1" value={selectedFeature.parameters.width} onChange={(event) => updateBoxParameter("width", Number(event.target.value))} /> {draftModel?.unit}</span></label>
                     <label>{copy.depth} <span><input aria-label={`${copy.depth} ${draftModel?.unit ?? "mm"}`} type="number" min="0.01" step="0.1" value={selectedFeature.parameters.depth} onChange={(event) => updateBoxParameter("depth", Number(event.target.value))} /> {draftModel?.unit}</span></label>
                     <label>{copy.height} <span><input aria-label={`${copy.height} ${draftModel?.unit ?? "mm"}`} type="number" min="0.01" step="0.1" value={selectedFeature.parameters.height} onChange={(event) => updateBoxParameter("height", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                    <label>{copy.cornerUniform} <span><input aria-label={`${copy.cornerUniform} ${draftModel?.unit ?? "mm"}`} type="number" min="0" max={Math.min(selectedFeature.parameters.width, selectedFeature.parameters.depth, selectedFeature.parameters.height) / 2} step="0.1" placeholder="—" value={selectedFeature.parameters.cornerRadii ? "" : selectedFeature.parameters.cornerRadius ?? 0} onChange={(event) => updateBoxParameter("cornerRadius", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                    <details className="corner-radius-editor" key={`corner-editor-${selectedFeature.id}`}>
+                      <summary><span>{copy.cornerRadii}</span><ChevronDown size={13} aria-hidden="true" /></summary>
+                      <p>{copy.cornerLocalAxes}</p>
+                      <div className="corner-expression-row">
+                        <label htmlFor={`corner-expression-${selectedFeature.id}`}>{copy.cornerExpression}</label>
+                        <div>
+                          <input
+                            id={`corner-expression-${selectedFeature.id}`}
+                            aria-label={copy.cornerExpression}
+                            value={cornerRadiusExpression}
+                            onChange={(event) => setCornerRadiusExpression(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key !== "Enter") return;
+                              event.preventDefault();
+                              applyBoxCornerRadiusExpression();
+                            }}
+                          />
+                          <button type="button" onClick={applyBoxCornerRadiusExpression}>{copy.apply}</button>
+                        </div>
+                        <small className={cornerRadiusExpressionError ? "error" : ""}>{cornerRadiusExpressionError || copy.cornerExpressionHint}</small>
+                      </div>
+                      {([
+                        {
+                          label: copy.cornerBottom,
+                          keys: ["xMinYMinZMin", "xMaxYMinZMin", "xMinYMinZMax", "xMaxYMinZMax"],
+                        },
+                        {
+                          label: copy.cornerTop,
+                          keys: ["xMinYMaxZMin", "xMaxYMaxZMin", "xMinYMaxZMax", "xMaxYMaxZMax"],
+                        },
+                      ] satisfies Array<{ label: string; keys: BoxCornerKey[] }>).map((layer) => (
+                        <section className="corner-layer" key={layer.label}>
+                          <strong>{layer.label}</strong>
+                          <div className="corner-grid">
+                            {layer.keys.map((corner) => (
+                              <label key={corner}>
+                                <span>{BOX_CORNER_LABELS[corner]}</span>
+                                <div><input aria-label={`${BOX_CORNER_LABELS[corner]} ${draftModel?.unit ?? "mm"}`} type="number" min="0" max={Math.min(selectedFeature.parameters.width, selectedFeature.parameters.depth, selectedFeature.parameters.height) / 2} step="0.1" value={selectedBoxCornerRadii?.[corner] ?? 0} onChange={(event) => updateBoxCornerRadius(corner, Number(event.target.value))} /><small>{draftModel?.unit}</small></div>
+                              </label>
+                            ))}
+                          </div>
+                        </section>
+                      ))}
+                    </details>
+                    <label>{copy.cornerAlgorithm} <select aria-label={copy.cornerAlgorithm} value={selectedFeature.parameters.cornerAlgorithm ?? "circular"} onChange={(event) => updateBoxCornerAlgorithm(event.target.value as CornerAlgorithm)}><option value="circular">{copy.cornerCircular}</option><option value="smooth">{copy.cornerSmooth}</option></select></label>
                   </>
                 )}
                 {selectedFeature?.type === "cylinder" && (
@@ -1864,9 +2404,116 @@ export function App() {
                     <label>{copy.height} <span><input aria-label={`${copy.height} ${draftModel?.unit ?? "mm"}`} type="number" min="0.01" step="0.1" value={selectedFeature.parameters.height} onChange={(event) => updateCylinderParameter("height", Number(event.target.value))} /> {draftModel?.unit}</span></label>
                   </>
                 )}
-                {selectedFeature?.type === "mesh" && <p className="inspector-empty">{copy.meshResultNotice}</p>}
+                {selectedFeature?.type === "mesh" && selectedProceduralSource && (
+                  <>
+                    <p className="inspector-empty">{copy.proceduralMeshHint}</p>
+                    <label>{copy.width} <span><input aria-label={`${copy.width} ${draftModel?.unit ?? "mm"}`} type="number" min="0.01" step="0.1" value={selectedProceduralSource.size[0]} onChange={(event) => updateProceduralSize(0, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                    <label>{copy.height} <span><input aria-label={`${copy.height} ${draftModel?.unit ?? "mm"}`} type="number" min="0.01" step="0.1" value={selectedProceduralSource.size[1]} onChange={(event) => updateProceduralSize(1, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                    <label>{copy.depth} <span><input aria-label={`${copy.depth} ${draftModel?.unit ?? "mm"}`} type="number" min="0.01" step="0.1" value={selectedProceduralSource.size[2]} onChange={(event) => updateProceduralSize(2, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                    {selectedProceduralSource.kind === "room-shell" ? (
+                      <div className="procedural-room-editor">
+                        <label>{copy.wallThickness} <span><input aria-label={`${copy.wallThickness} ${draftModel?.unit ?? "mm"}`} type="number" min="0.1" step="1" value={selectedProceduralSource.wallThickness} onChange={(event) => updateRoomShellParameter("wallThickness", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                        <label>{copy.floorThickness} <span><input aria-label={`${copy.floorThickness} ${draftModel?.unit ?? "mm"}`} type="number" min="0.1" step="1" value={selectedProceduralSource.floorThickness} onChange={(event) => updateRoomShellParameter("floorThickness", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                        <section className="room-opening-editor">
+                          <strong>{copy.doorSettings}</strong>
+                          <label>{copy.doorWidth} <span><input aria-label={`${copy.doorWidth} ${draftModel?.unit ?? "mm"}`} type="number" min="0.1" step="1" value={selectedProceduralSource.door.width} onChange={(event) => updateRoomOpening("door", "width", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                          <label>{copy.doorHeight} <span><input aria-label={`${copy.doorHeight} ${draftModel?.unit ?? "mm"}`} type="number" min="0.1" step="1" value={selectedProceduralSource.door.height} onChange={(event) => updateRoomOpening("door", "height", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                          <label>{copy.doorPosition} <span><input aria-label={`${copy.doorPosition} ${draftModel?.unit ?? "mm"}`} type="number" step="1" value={selectedProceduralSource.door.offsetZ} onChange={(event) => updateRoomOpening("door", "offsetZ", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                        </section>
+                        <section className="room-opening-editor">
+                          <strong>{copy.windowSettings}</strong>
+                          <label className="tool-checkbox"><input aria-label={copy.fullWallWindow} type="checkbox" checked={selectedProceduralSource.window.fullWall === true} onChange={(event) => updateRoomWindowMode(event.target.checked)} /> {copy.fullWallWindow}</label>
+                          {selectedProceduralSource.window.fullWall ? (
+                            <small>{copy.fullWallWindowHint}</small>
+                          ) : (
+                            <>
+                              <label>{copy.windowWidth} <span><input aria-label={`${copy.windowWidth} ${draftModel?.unit ?? "mm"}`} type="number" min="0.1" step="1" value={selectedProceduralSource.window.width} onChange={(event) => updateRoomOpening("window", "width", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                              <label>{copy.windowHeight} <span><input aria-label={`${copy.windowHeight} ${draftModel?.unit ?? "mm"}`} type="number" min="0.1" step="1" value={selectedProceduralSource.window.height} onChange={(event) => updateRoomOpening("window", "height", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                              <label>{copy.windowSillHeight} <span><input aria-label={`${copy.windowSillHeight} ${draftModel?.unit ?? "mm"}`} type="number" min="0" step="1" value={selectedProceduralSource.window.sillHeight} onChange={(event) => updateRoomOpening("window", "sillHeight", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                              <label>{copy.windowPosition} <span><input aria-label={`${copy.windowPosition} ${draftModel?.unit ?? "mm"}`} type="number" step="1" value={selectedProceduralSource.window.offsetX} onChange={(event) => updateRoomOpening("window", "offsetX", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                            </>
+                          )}
+                        </section>
+                        <label className="tool-checkbox procedural-room-toggle"><input aria-label={copy.autoHideRoomSurfaces} type="checkbox" checked={selectedProceduralSource.autoHideSurfaces} onChange={(event) => updateRoomShellParameter("autoHideSurfaces", event.target.checked)} /> {copy.autoHideRoomSurfaces}</label>
+                      </div>
+                    ) : (
+                      <>
+                        <label>{copy.outlineRadius} <span><input aria-label={`${copy.outlineRadius} ${draftModel?.unit ?? "mm"}`} type="number" min="0" step="0.1" value={selectedProceduralSource.outlineRadius} onChange={(event) => updateProceduralRadius("outlineRadius", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                        <label>{copy.edgeFilletRadius} <span><input aria-label={`${copy.edgeFilletRadius} ${draftModel?.unit ?? "mm"}`} type="number" min="0" step="0.1" value={selectedProceduralSource.edgeFilletRadius} onChange={(event) => updateProceduralRadius("edgeFilletRadius", Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                        <div className="procedural-recess-editor">
+                          <strong>{copy.recessSettings}</strong>
+                          {selectedProceduralSource.kind === "recessed-panel" ? (
+                            <div className="procedural-recess-fields">
+                              <label>{copy.recessSpanX} <span><input type="number" min="0.01" step="0.1" value={selectedProceduralSource.recessSize[0]} onChange={(event) => updatePanelRecess("size", 0, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                              <label>{copy.recessSpanY} <span><input type="number" min="0.01" step="0.1" value={selectedProceduralSource.recessSize[1]} onChange={(event) => updatePanelRecess("size", 1, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                              <label>{copy.recessCutDepth} <span><input type="number" min="0" step="0.1" value={selectedProceduralSource.recessSize[2]} onChange={(event) => updatePanelRecess("size", 2, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                              <label>{copy.recessRadius} <span><input type="number" min="0" step="0.1" value={selectedProceduralSource.recessRadius} onChange={(event) => updatePanelRecess("radius", 0, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                            </div>
+                          ) : selectedProceduralSource.recesses.map((recess, recessIndex) => (
+                            <details className="corner-radius-editor" key={`recess-${recessIndex}`}>
+                              <summary><span>{copy.recessSettings} {recessIndex + 1}</span><ChevronDown size={13} aria-hidden="true" /></summary>
+                              <div className="procedural-recess-fields">
+                                <label>{copy.position} X <span><input type="number" step="0.1" value={recess.center[0]} onChange={(event) => updateDeckRecess(recessIndex, "center", 0, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                                <label>{copy.position} Z <span><input type="number" step="0.1" value={recess.center[1]} onChange={(event) => updateDeckRecess(recessIndex, "center", 1, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                                <label>{copy.recessSpanX} <span><input type="number" min="0.01" step="0.1" value={recess.size[0]} onChange={(event) => updateDeckRecess(recessIndex, "size", 0, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                                <label>{copy.recessSpanZ} <span><input type="number" min="0.01" step="0.1" value={recess.size[1]} onChange={(event) => updateDeckRecess(recessIndex, "size", 1, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                                <label>{copy.recessCutDepth} <span><input type="number" min="0" step="0.1" value={recess.depth} onChange={(event) => updateDeckRecess(recessIndex, "depth", 0, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                              </div>
+                            </details>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+                {selectedFeature?.type === "mesh" && !selectedProceduralSource && <p className="inspector-empty">{copy.meshResultNotice}</p>}
+                {selectedFeature && Object.keys(selectedFeature.parameterExpressions ?? {}).length > 0 && (
+                  <div className="node-expression-editor">
+                    <strong>{copy.nodeExpressions}</strong>
+                    {Object.entries(selectedFeature.parameterExpressions ?? {}).map(([target, expression]) => (
+                      <label key={target}>
+                        <span><small>{copy.expressionTarget}</small><code>{target}</code></span>
+                        <input aria-label={`${copy.expressionTarget} ${target}`} value={expression} onChange={(event) => updateSelectedFeatureExpression(target, event.target.value)} />
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {parameterExpressionError && <p className="parameter-expression-error">{parameterExpressionError}</p>}
+                {selectedFeature?.operation === "add" && (
+                  <div className="appearance-editor">
+                    <div className="appearance-heading">
+                      <strong>{copy.appearance}</strong>
+                      <button type="button" disabled={!selectedFeature.appearance} onClick={resetSelectedFeatureAppearance}>{copy.resetAppearance}</button>
+                    </div>
+                    <label>{copy.material}
+                      <select
+                        aria-label={copy.material}
+                        value={selectedFeature.appearance?.material ?? "default"}
+                        onChange={(event) => updateSelectedFeatureAppearance({ material: event.target.value as FeatureMaterialPreset })}
+                      >
+                        <option value="default">{copy.materialDefault}</option>
+                        <option value="wood">{copy.materialWood}</option>
+                        <option value="metal">{copy.materialMetal}</option>
+                        <option value="plastic">{copy.materialPlastic}</option>
+                        <option value="glass">{copy.materialGlass}</option>
+                      </select>
+                    </label>
+                    <label>{copy.color}
+                      <span className="appearance-color-control">
+                        <input
+                          aria-label={copy.color}
+                          type="color"
+                          value={resolveFeatureColor(selectedFeature)}
+                          onChange={(event) => updateSelectedFeatureAppearance({ color: event.target.value.toUpperCase() })}
+                        />
+                        <code>{resolveFeatureColor(selectedFeature).toUpperCase()}</code>
+                      </span>
+                    </label>
+                    {selectedFeature.appearance?.color && <button className="material-color-button" type="button" onClick={clearSelectedFeatureColor}>{copy.useMaterialColor}</button>}
+                  </div>
+                )}
                 {selectedFeatures.length > 1 && <p className="inspector-empty">{copy.selectedObjects} · {selectedFeatures.length}</p>}
-                {selectedFeatures.length === 0 && !selectedGroup && <p className="inspector-empty">{copy.noSelection}</p>}
+                {selectedFeatures.length === 0 && !selectedGroup && (draftModel?.featureGraph.variables?.length ?? 0) === 0 && <p className="inspector-empty">{copy.noSelection}</p>}
               </section>
             </div>
           ) : (
@@ -1886,16 +2533,6 @@ export function App() {
                       <textarea value={draftModel.description} maxLength={2000} onChange={(event) => {
                         updateDraftWithHistory((current) => ({ ...current, description: event.target.value }));
                       }} />
-                    </label>
-                    <label>
-                      <span>{copy.unit}</span>
-                      <select value={draftModel.unit} onChange={(event) => {
-                        updateDraftWithHistory((current) => ({ ...current, unit: event.target.value as Unit }));
-                      }}>
-                        <option value="mm">mm</option>
-                        <option value="cm">cm</option>
-                        <option value="in">in</option>
-                      </select>
                     </label>
                   </>
                 ) : <p className="inspector-empty">{copy.selectModelHint}</p>}
@@ -1926,7 +2563,22 @@ export function App() {
           )}
         </div>
         <div className="status-right">
-          <span>{copy.units} {draftModel?.unit ?? "mm"}</span>
+          <label className={`status-unit-picker${draftModel ? "" : " disabled"}`} title={`${copy.unit}: ${draftModel?.unit ?? "mm"}`}>
+            <span>{copy.units} {draftModel?.unit ?? "mm"}</span>
+            <ChevronDown size={9} aria-hidden="true" />
+            <select
+              aria-label={copy.unit}
+              disabled={!draftModel}
+              value={draftModel?.unit ?? "mm"}
+              onChange={(event) => {
+                updateDraftWithHistory((current) => ({ ...current, unit: event.target.value as Unit }));
+              }}
+            >
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+              <option value="in">in</option>
+            </select>
+          </label>
           <span className="status-divider" aria-hidden="true" />
           <span className={`status-service ${serviceState}`}><span className="state-dot" />{serviceLabel}</span>
         </div>
@@ -1945,6 +2597,36 @@ export function App() {
             <div className="dialog-actions">
               <button type="button" onClick={() => setCreateDialogOpen(false)}>{copy.cancel}</button>
               <button className="primary-button" type="submit" disabled={!createName.trim() || creating}>{copy.create}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {renameProjectOpen && (
+        <div className="dialog-backdrop" role="presentation" onPointerDown={(event) => {
+          if (event.currentTarget === event.target) setRenameProjectOpen(false);
+        }}>
+          <form
+            className="create-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rename-project-title"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const nextName = projectNameDraft.trim();
+              if (!nextName) return;
+              setProjectName(nextName);
+              setRenameProjectOpen(false);
+            }}
+          >
+            <div className="dialog-heading" id="rename-project-title"><FolderTree size={17} /><span>{copy.renameProject}</span></div>
+            <label>
+              <span>{copy.projectName}</span>
+              <input autoFocus value={projectNameDraft} maxLength={120} onChange={(event) => setProjectNameDraft(event.target.value)} />
+            </label>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setRenameProjectOpen(false)}>{copy.cancel}</button>
+              <button className="primary-button" type="submit" disabled={!projectNameDraft.trim()}>{copy.save}</button>
             </div>
           </form>
         </div>

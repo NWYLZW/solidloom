@@ -2,7 +2,8 @@ import { Fragment, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
-import type { FeatureGroup, ModelFeature, Vector3Tuple } from "@solidloom/shared";
+import type { FeatureGroup, ModelFeature, RoomShellSource, Vector3Tuple } from "@solidloom/shared";
+import { createFeatureMaterial } from "./featureMaterials";
 import { createFeatureGeometry } from "./meshOperations";
 
 export type TransformMode = "translate" | "rotate" | "scale" | null;
@@ -27,6 +28,8 @@ interface Viewport3DProps {
     members: string;
     mesh: string;
     path: string;
+    proceduralShell: string;
+    roomShell: string;
   };
   features: ModelFeature[];
   groups: FeatureGroup[];
@@ -49,6 +52,67 @@ interface Viewport3DProps {
 const AXIS_WIDGET_SIZE = 160;
 const DEFAULT_TRANSFORM_CONTROL_SIZE = 0.82;
 const ROTATION_RING_PADDING = 1.18;
+const GRID_MINOR_SPACING = 10;
+const GRID_MAJOR_SPACING = 100;
+
+function createInfiniteGrid(minorColor: THREE.ColorRepresentation, majorColor: THREE.ColorRepresentation, extent: number) {
+  const geometry = new THREE.PlaneGeometry(2, 2);
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      minorColor: { value: new THREE.Color(minorColor) },
+      majorColor: { value: new THREE.Color(majorColor) },
+      minorSpacing: { value: GRID_MINOR_SPACING },
+      majorSpacing: { value: GRID_MAJOR_SPACING },
+    },
+    vertexShader: `
+      varying vec3 worldPosition;
+
+      void main() {
+        vec4 positionInWorld = modelMatrix * vec4(position, 1.0);
+        worldPosition = positionInWorld.xyz;
+        gl_Position = projectionMatrix * viewMatrix * positionInWorld;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 minorColor;
+      uniform vec3 majorColor;
+      uniform float minorSpacing;
+      uniform float majorSpacing;
+      varying vec3 worldPosition;
+
+      float gridLine(float spacing) {
+        vec2 coordinate = worldPosition.xz / spacing;
+        vec2 derivativeWidth = max(fwidth(coordinate), vec2(0.0001));
+        vec2 distanceToLine = abs(fract(coordinate - 0.5) - 0.5) / derivativeWidth;
+        float line = 1.0 - min(min(distanceToLine.x, distanceToLine.y), 1.0);
+        float detailVisibility = 1.0 - smoothstep(0.55, 1.2, max(derivativeWidth.x, derivativeWidth.y));
+        return line * detailVisibility;
+      }
+
+      void main() {
+        float minorLine = gridLine(minorSpacing);
+        float majorLine = gridLine(majorSpacing);
+        float opacity = max(minorLine * 0.48, majorLine * 0.72);
+        if (opacity < 0.01) discard;
+        gl_FragColor = vec4(mix(minorColor, majorColor, majorLine), opacity);
+      }
+    `,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = "infinite-grid";
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.scale.set(extent, extent, 1);
+  mesh.renderOrder = -10;
+  mesh.frustumCulled = false;
+  return { geometry, material, mesh };
+}
 
 function createSelectionCornerBox(bounds: THREE.Box3, color: THREE.ColorRepresentation) {
   const cornerBox = new THREE.Group();
@@ -315,10 +379,8 @@ export function Viewport3D({ annotationMode, annotationStrings, cutPlane, featur
     const computedStyle = window.getComputedStyle(container);
     const gridMajor = computedStyle.getPropertyValue("--color-grid-major").trim() || "#ccccc5";
     const gridMinor = computedStyle.getPropertyValue("--color-grid-minor").trim() || "#d5d5ce";
-    const grid = new THREE.GridHelper(300, 30, new THREE.Color(gridMajor), new THREE.Color(gridMinor));
-    grid.material.opacity = 0.72;
-    grid.material.transparent = true;
-    scene.add(grid);
+    const infiniteGrid = createInfiniteGrid(gridMinor, gridMajor, camera.far);
+    scene.add(infiniteGrid.mesh);
 
     const ambient = new THREE.HemisphereLight(0xffffff, 0x53604d, theme === "dark" ? 1.8 : 1.45);
     scene.add(ambient);
@@ -334,6 +396,11 @@ export function Viewport3D({ annotationMode, annotationStrings, cutPlane, featur
     scene.add(featureGroup);
     const featureGroupById = new Map<string, THREE.Group>();
     const featureMeshById = new Map<string, THREE.Mesh>();
+    const roomSurfaceMeshes: Array<{
+      mesh: THREE.Mesh;
+      source: RoomShellSource;
+      materials: THREE.MeshStandardMaterial[];
+    }> = [];
     const groupIdByFeatureId = new Map<string, string>();
     for (const group of groups) {
       const groupObject = new THREE.Group();
@@ -350,16 +417,25 @@ export function Viewport3D({ annotationMode, annotationStrings, cutPlane, featur
       for (const featureId of group.featureIds) groupIdByFeatureId.set(featureId, group.id);
     }
     for (const feature of features) {
-      const material = feature.operation === "cut"
-        ? new THREE.MeshStandardMaterial({ color: 0xc77867, transparent: true, opacity: 0.32, wireframe: true, depthWrite: false })
-        : new THREE.MeshStandardMaterial({
-          color: 0xb9c9ad,
-          emissive: 0x000000,
-          emissiveIntensity: 0,
-          roughness: 0.62,
-          metalness: 0.04,
+      const geometry = createFeatureGeometry(feature);
+      const baseMaterial = createFeatureMaterial(feature);
+      const roomSource = feature.type === "mesh" && feature.parameters.source?.kind === "room-shell"
+        ? feature.parameters.source
+        : null;
+      const roomMaterials = roomSource
+        ? Array.from({ length: 6 }, () => baseMaterial.clone())
+        : null;
+      if (roomMaterials) {
+        baseMaterial.dispose();
+        geometry.clearGroups();
+        const roomSurfaceIndexCounts = [36, 36, 36, roomSource?.window.fullWall ? 0 : 144, 108, 36];
+        let groupStart = 0;
+        roomSurfaceIndexCounts.forEach((count, index) => {
+          geometry.addGroup(groupStart, count, index);
+          groupStart += count;
         });
-      const mesh = new THREE.Mesh(createFeatureGeometry(feature), material);
+      }
+      const mesh = new THREE.Mesh(geometry, roomMaterials ?? baseMaterial);
       mesh.position.set(...feature.position);
       mesh.rotation.set(
         THREE.MathUtils.degToRad(feature.rotation[0]),
@@ -371,9 +447,35 @@ export function Viewport3D({ annotationMode, annotationStrings, cutPlane, featur
       mesh.receiveShadow = feature.operation === "add";
       mesh.userData.featureId = feature.id;
       featureMeshById.set(feature.id, mesh);
+      if (roomSource && roomMaterials) roomSurfaceMeshes.push({ mesh, source: roomSource, materials: roomMaterials });
       const parentGroupId = groupIdByFeatureId.get(feature.id);
       (parentGroupId ? featureGroupById.get(parentGroupId) ?? featureGroup : featureGroup).add(mesh);
     }
+
+    const roomCameraPosition = new THREE.Vector3();
+    const roomViewDirection = new THREE.Vector3();
+    const roomCenter = new THREE.Vector3();
+    const roomInverseWorldMatrix = new THREE.Matrix4();
+    const updateRoomSurfaceVisibility = () => {
+      camera.getWorldPosition(roomCameraPosition);
+      for (const { mesh, source, materials } of roomSurfaceMeshes) {
+        materials.forEach((material) => { material.visible = true; });
+        if (!source.autoHideSurfaces) continue;
+        mesh.updateWorldMatrix(true, false);
+        roomViewDirection
+          .copy(roomCameraPosition)
+          .applyMatrix4(roomInverseWorldMatrix.copy(mesh.matrixWorld).invert())
+          .sub(roomCenter.set(0, source.size[1] / 2, 0))
+          .normalize();
+        if (Math.abs(roomViewDirection.y) > 0.12) materials[roomViewDirection.y > 0 ? 1 : 0]!.visible = false;
+        if (Math.abs(roomViewDirection.z) > 0.12) materials[roomViewDirection.z > 0 ? 2 : 3]!.visible = false;
+        if (Math.abs(roomViewDirection.x) > 0.12) materials[roomViewDirection.x > 0 ? 5 : 4]!.visible = false;
+        for (const [featureId, featureMesh] of featureMeshById) {
+          if (featureId.startsWith("cyber-room-window-")) featureMesh.visible = materials[3]!.visible;
+          if (featureId === "cyber-room-door" || featureId === "cyber-room-door-handle") featureMesh.visible = materials[4]!.visible;
+        }
+      }
+    };
 
     const annotationProjectionMatrix = new THREE.Matrix4();
     const annotationFrustum = new THREE.Frustum();
@@ -529,11 +631,13 @@ export function Viewport3D({ annotationMode, annotationStrings, cutPlane, featur
       clearSelectionDecorations();
       const selectedIds = new Set(featureIds);
       for (const [featureId, mesh] of featureMeshById) {
-        if (!(mesh.material instanceof THREE.MeshStandardMaterial) || mesh.material.wireframe) continue;
         const isSelected = selectedIds.has(featureId);
-        mesh.material.color.setHex(isSelected ? 0xd1dfa8 : 0xb9c9ad);
-        mesh.material.emissive.setHex(isSelected ? 0x263016 : 0x000000);
-        mesh.material.emissiveIntensity = isSelected ? 0.34 : 0;
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const material of materials) {
+          if (!(material instanceof THREE.MeshStandardMaterial) || material.wireframe) continue;
+          material.emissive.setHex(isSelected ? 0x263016 : 0x000000);
+          material.emissiveIntensity = isSelected ? 0.34 : 0;
+        }
       }
 
       if (groupId) {
@@ -1116,6 +1220,8 @@ export function Viewport3D({ annotationMode, annotationStrings, cutPlane, featur
       } else {
         controls.update();
       }
+      infiniteGrid.mesh.position.set(camera.position.x, 0, camera.position.z);
+      updateRoomSurfaceVisibility();
       updateAnnotationTargets();
       updateAxisWidget();
       renderer.render(scene, camera);
@@ -1170,6 +1276,7 @@ export function Viewport3D({ annotationMode, annotationStrings, cutPlane, featur
           const materials = Array.isArray(child.material) ? child.material : [child.material];
           for (const material of materials) {
             if (disposedFeatureMaterials.has(material)) continue;
+            if (material instanceof THREE.MeshStandardMaterial) material.map?.dispose();
             material.dispose();
             disposedFeatureMaterials.add(material);
           }
@@ -1183,6 +1290,8 @@ export function Viewport3D({ annotationMode, annotationStrings, cutPlane, featur
       gridCellGeometry.dispose();
       gridCellMaterial.dispose();
       gridCellHoverMaterial.dispose();
+      infiniteGrid.geometry.dispose();
+      infiniteGrid.material.dispose();
       for (const material of faceMaterials) {
         material.map?.dispose();
         material.dispose();
@@ -1251,7 +1360,11 @@ export function Viewport3D({ annotationMode, annotationStrings, cutPlane, featur
                 ? annotationStrings.box
                 : feature.type === "cylinder"
                   ? annotationStrings.cylinder
-                  : annotationStrings.mesh;
+                  : feature.parameters.source?.kind === "room-shell"
+                    ? annotationStrings.roomShell
+                    : feature.parameters.source
+                      ? annotationStrings.proceduralShell
+                    : annotationStrings.mesh;
               const operation = feature.operation === "add" ? annotationStrings.add : annotationStrings.cut;
               const path = [modelName, parentGroup?.name, feature.name].filter(Boolean).join(" / ");
               const accessibleLabel = `${annotationStrings.feature}: ${feature.name}; ${featureType}; ${operation}; ${annotationStrings.path}: ${path}`;

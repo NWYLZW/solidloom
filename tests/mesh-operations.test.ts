@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { BoxFeature } from "@solidloom/shared";
-import { evaluateBoolean, evaluatePlaneCut } from "../apps/web/src/meshOperations";
+import { uniformBoxCornerRadii, type BoxFeature } from "@solidloom/shared";
+import { createFeatureGeometry, evaluateBoolean, evaluatePlaneCut, featureTriangleCount, featureVolume } from "../apps/web/src/meshOperations";
 
 const firstBox: BoxFeature = {
   id: "box-a",
@@ -34,5 +34,48 @@ describe("mesh operations", () => {
     expect(result.type).toBe("mesh");
     expect(result.parameters.positions.length).toBeGreaterThan(0);
     expect(result.parameters.indices.length % 3).toBe(0);
+  });
+
+  it("builds rounded boxes with configurable curve density", () => {
+    const circular: BoxFeature = {
+      ...firstBox,
+      parameters: { ...firstBox.parameters, cornerRadius: 3, cornerAlgorithm: "circular" },
+    };
+    const smooth: BoxFeature = {
+      ...circular,
+      parameters: { ...circular.parameters, cornerAlgorithm: "smooth" },
+    };
+    const geometry = createFeatureGeometry(circular);
+    geometry.computeBoundingBox();
+    expect(geometry.boundingBox?.min.toArray()).toEqual([-10, -10, -10]);
+    expect(geometry.boundingBox?.max.toArray()).toEqual([10, 10, 10]);
+    geometry.dispose();
+    expect(featureTriangleCount(circular)).toBeGreaterThan(12);
+    expect(featureTriangleCount(smooth)).toBeGreaterThan(featureTriangleCount(circular));
+  });
+
+  it("rounds one local-space corner without changing the opposite sharp corner", () => {
+    const cornerRadii = uniformBoxCornerRadii(0);
+    cornerRadii.xMaxYMaxZMax = 4;
+    const asymmetric: BoxFeature = {
+      ...firstBox,
+      parameters: { ...firstBox.parameters, cornerRadii },
+    };
+    const geometry = createFeatureGeometry(asymmetric);
+    const position = geometry.getAttribute("position");
+    let hasSharpMinimumCorner = false;
+    let hasRoundedMaximumCorner = false;
+    for (let index = 0; index < position.count; index += 1) {
+      const x = position.getX(index);
+      const y = position.getY(index);
+      const z = position.getZ(index);
+      if (Math.abs(x + 10) < 1e-4 && Math.abs(y + 10) < 1e-4 && Math.abs(z + 10) < 1e-4) hasSharpMinimumCorner = true;
+      if (Math.abs(x - 10) < 1e-4 && Math.abs(y - 10) < 1e-4 && Math.abs(z - 10) < 1e-4) hasRoundedMaximumCorner = true;
+    }
+    expect(hasSharpMinimumCorner).toBe(true);
+    expect(hasRoundedMaximumCorner).toBe(false);
+    expect(featureVolume(asymmetric)).toBeGreaterThan(7_000);
+    expect(featureVolume(asymmetric)).toBeLessThan(8_000);
+    geometry.dispose();
   });
 });

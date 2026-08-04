@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { mergeVertices, toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   ADDITION,
   Brush,
@@ -6,12 +8,157 @@ import {
   Evaluator,
   INTERSECTION,
 } from "three-bvh-csg";
-import type { FeatureGroup, MeshFeature, ModelFeature, Vector3Tuple } from "@solidloom/shared";
+import {
+  BOX_CORNER_KEYS,
+  boxCornerRadiiAreUniform,
+  clampBoxCornerRadii,
+  resolveBoxCornerRadii,
+  type BoxCornerRadii,
+  type FeatureGroup,
+  type MeshFeature,
+  type ModelFeature,
+  type Vector3Tuple,
+} from "@solidloom/shared";
 
 export type BooleanOperation = "union" | "intersection" | "difference";
 
+function interpolateCornerRadius(radii: BoxCornerRadii, xAmount: number, yAmount: number, zAmount: number) {
+  const bottomNear = THREE.MathUtils.lerp(radii.xMinYMinZMin, radii.xMaxYMinZMin, xAmount);
+  const bottomFar = THREE.MathUtils.lerp(radii.xMinYMinZMax, radii.xMaxYMinZMax, xAmount);
+  const topNear = THREE.MathUtils.lerp(radii.xMinYMaxZMin, radii.xMaxYMaxZMin, xAmount);
+  const topFar = THREE.MathUtils.lerp(radii.xMinYMaxZMax, radii.xMaxYMaxZMax, xAmount);
+  return THREE.MathUtils.lerp(
+    THREE.MathUtils.lerp(bottomNear, bottomFar, zAmount),
+    THREE.MathUtils.lerp(topNear, topFar, zAmount),
+    yAmount,
+  );
+}
+
+function roundedAxisCoordinates(halfExtent: number, radii: BoxCornerRadii, samplesPerRadius: number) {
+  const values = [-halfExtent, 0, halfExtent];
+  const uniqueRadii = [...new Set(BOX_CORNER_KEYS.map((key) => Math.min(radii[key], halfExtent)).filter((radius) => radius > 1e-6))];
+  for (const radius of uniqueRadii) {
+    for (let sample = 1; sample <= samplesPerRadius; sample += 1) {
+      const offset = radius * sample / samplesPerRadius;
+      values.push(-halfExtent + offset, halfExtent - offset);
+    }
+  }
+  return values
+    .sort((left, right) => left - right)
+    .filter((value, index, sorted) => index === 0 || Math.abs(value - sorted[index - 1]!) > 1e-6);
+}
+
+function createAsymmetricRoundedBoxGeometry(
+  width: number,
+  height: number,
+  depth: number,
+  radii: BoxCornerRadii,
+  samplesPerRadius: number,
+) {
+  const halfExtents = [width / 2, height / 2, depth / 2] as const;
+  const coordinates = halfExtents.map((halfExtent) => roundedAxisCoordinates(halfExtent, radii, samplesPerRadius));
+  const positions: number[] = [];
+  const indices: number[] = [];
+  const point = new THREE.Vector3();
+  const innerPoint = new THREE.Vector3();
+  const delta = new THREE.Vector3();
+
+  const addRoundedPoint = (source: Vector3Tuple) => {
+    point.set(...source);
+    const radius = interpolateCornerRadius(
+      radii,
+      (point.x + halfExtents[0]) / width,
+      (point.y + halfExtents[1]) / height,
+      (point.z + halfExtents[2]) / depth,
+    );
+    if (radius > 1e-6) {
+      innerPoint.set(
+        THREE.MathUtils.clamp(point.x, -halfExtents[0] + radius, halfExtents[0] - radius),
+        THREE.MathUtils.clamp(point.y, -halfExtents[1] + radius, halfExtents[1] - radius),
+        THREE.MathUtils.clamp(point.z, -halfExtents[2] + radius, halfExtents[2] - radius),
+      );
+      delta.subVectors(point, innerPoint);
+      if (delta.lengthSq() > 1e-12) point.copy(innerPoint).add(delta.normalize().multiplyScalar(radius));
+    }
+    positions.push(point.x, point.y, point.z);
+  };
+
+  const faces = [
+    { axis: 0, sign: 1, u: 1, v: 2, reverse: false },
+    { axis: 0, sign: -1, u: 1, v: 2, reverse: true },
+    { axis: 1, sign: 1, u: 2, v: 0, reverse: false },
+    { axis: 1, sign: -1, u: 2, v: 0, reverse: true },
+    { axis: 2, sign: 1, u: 0, v: 1, reverse: false },
+    { axis: 2, sign: -1, u: 0, v: 1, reverse: true },
+  ] as const;
+
+  for (const face of faces) {
+    const uCoordinates = coordinates[face.u]!;
+    const vCoordinates = coordinates[face.v]!;
+    const offset = positions.length / 3;
+    for (const vCoordinate of vCoordinates) {
+      for (const uCoordinate of uCoordinates) {
+        const source: Vector3Tuple = [0, 0, 0];
+        source[face.axis] = halfExtents[face.axis] * face.sign;
+        source[face.u] = uCoordinate;
+        source[face.v] = vCoordinate;
+        addRoundedPoint(source);
+      }
+    }
+    for (let vIndex = 0; vIndex < vCoordinates.length - 1; vIndex += 1) {
+      for (let uIndex = 0; uIndex < uCoordinates.length - 1; uIndex += 1) {
+        const rowLength = uCoordinates.length;
+        const a = offset + vIndex * rowLength + uIndex;
+        const b = a + 1;
+        const d = offset + (vIndex + 1) * rowLength + uIndex;
+        const c = d + 1;
+        if (face.reverse) indices.push(a, c, b, a, d, c);
+        else indices.push(a, b, c, a, c, d);
+      }
+    }
+  }
+
+  const sourceGeometry = new THREE.BufferGeometry();
+  sourceGeometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  sourceGeometry.setIndex(indices);
+  const mergedGeometry = mergeVertices(sourceGeometry, 1e-5);
+  sourceGeometry.dispose();
+  const geometry = toCreasedNormals(mergedGeometry);
+  mergedGeometry.dispose();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
 export function createFeatureGeometry(feature: ModelFeature): THREE.BufferGeometry {
   if (feature.type === "box") {
+    const maximumRadius = Math.min(
+      feature.parameters.width,
+      feature.parameters.height,
+      feature.parameters.depth,
+    ) / 2;
+    const radii = clampBoxCornerRadii(resolveBoxCornerRadii(feature.parameters), maximumRadius);
+    const radius = radii[BOX_CORNER_KEYS[0]];
+    const largestRadius = Math.max(...BOX_CORNER_KEYS.map((key) => radii[key]));
+    if (largestRadius > 0) {
+      const segments = feature.parameters.cornerAlgorithm === "smooth" ? 8 : 3;
+      if (!boxCornerRadiiAreUniform(radii)) {
+        return createAsymmetricRoundedBoxGeometry(
+          feature.parameters.width,
+          feature.parameters.height,
+          feature.parameters.depth,
+          radii,
+          feature.parameters.cornerAlgorithm === "smooth" ? 4 : 2,
+        );
+      }
+      return new RoundedBoxGeometry(
+        feature.parameters.width,
+        feature.parameters.height,
+        feature.parameters.depth,
+        segments,
+        radius,
+      );
+    }
     return new THREE.BoxGeometry(
       feature.parameters.width,
       feature.parameters.height,
@@ -34,6 +181,46 @@ export function createFeatureGeometry(feature: ModelFeature): THREE.BufferGeomet
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
+}
+
+export function featureVolume(feature: ModelFeature) {
+  const geometry = createFeatureGeometry(feature);
+  try {
+    const position = geometry.getAttribute("position");
+    const index = geometry.index;
+    const triangleCount = index ? index.count / 3 : position.count / 3;
+    let signedVolume = 0;
+    for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+      const aIndex = (index ? index.getX(triangle * 3) : triangle * 3) * 3;
+      const bIndex = (index ? index.getX(triangle * 3 + 1) : triangle * 3 + 1) * 3;
+      const cIndex = (index ? index.getX(triangle * 3 + 2) : triangle * 3 + 2) * 3;
+      const ax = position.array[aIndex] ?? 0;
+      const ay = position.array[aIndex + 1] ?? 0;
+      const az = position.array[aIndex + 2] ?? 0;
+      const bx = position.array[bIndex] ?? 0;
+      const by = position.array[bIndex + 1] ?? 0;
+      const bz = position.array[bIndex + 2] ?? 0;
+      const cx = position.array[cIndex] ?? 0;
+      const cy = position.array[cIndex + 1] ?? 0;
+      const cz = position.array[cIndex + 2] ?? 0;
+      signedVolume += ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx);
+    }
+    const scale = feature.scale ?? [1, 1, 1];
+    return Math.abs(signedVolume / 6) * Math.abs(scale[0] * scale[1] * scale[2]);
+  } finally {
+    geometry.dispose();
+  }
+}
+
+export function featureTriangleCount(feature: ModelFeature) {
+  const geometry = createFeatureGeometry(feature);
+  try {
+    return geometry.index
+      ? Math.floor(geometry.index.count / 3)
+      : Math.floor(geometry.getAttribute("position").count / 3);
+  } finally {
+    geometry.dispose();
+  }
 }
 
 function composeMatrix(position: Vector3Tuple, rotation: Vector3Tuple, scale: Vector3Tuple = [1, 1, 1]) {

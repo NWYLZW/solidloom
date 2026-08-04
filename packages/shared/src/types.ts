@@ -1,6 +1,22 @@
 export type Unit = "mm" | "cm" | "in";
 export type FeatureOperation = "add" | "cut";
 export type Vector3Tuple = [number, number, number];
+export type CornerAlgorithm = "circular" | "smooth";
+export type FeatureMaterialPreset = "default" | "wood" | "metal" | "plastic" | "glass";
+export interface FeatureAppearance {
+  material?: FeatureMaterialPreset;
+  color?: string;
+}
+export type BoxCornerKey =
+  | "xMinYMinZMin"
+  | "xMaxYMinZMin"
+  | "xMaxYMinZMax"
+  | "xMinYMinZMax"
+  | "xMinYMaxZMin"
+  | "xMaxYMaxZMin"
+  | "xMaxYMaxZMax"
+  | "xMinYMaxZMax";
+export type BoxCornerRadii = Record<BoxCornerKey, number>;
 
 export interface FeatureBase {
   id: string;
@@ -9,6 +25,15 @@ export interface FeatureBase {
   position: Vector3Tuple;
   rotation: Vector3Tuple;
   scale?: Vector3Tuple;
+  appearance?: FeatureAppearance;
+  parameterExpressions?: Record<string, string>;
+}
+
+export interface ModelVariable {
+  id: string;
+  label: string;
+  value: number;
+  unit?: Unit;
 }
 
 export interface BoxFeature extends FeatureBase {
@@ -17,6 +42,9 @@ export interface BoxFeature extends FeatureBase {
     width: number;
     depth: number;
     height: number;
+    cornerRadius?: number;
+    cornerRadii?: BoxCornerRadii;
+    cornerAlgorithm?: CornerAlgorithm;
   };
 }
 
@@ -28,12 +56,58 @@ export interface CylinderFeature extends FeatureBase {
   };
 }
 
+export interface ProceduralRecess {
+  center: [number, number];
+  size: [number, number];
+  depth: number;
+}
+
+export interface RecessedDeckSource {
+  kind: "recessed-deck";
+  size: Vector3Tuple;
+  recesses: ProceduralRecess[];
+  outlineRadius: number;
+  edgeFilletRadius: number;
+}
+
+export interface RecessedPanelSource {
+  kind: "recessed-panel";
+  size: Vector3Tuple;
+  recessSize: Vector3Tuple;
+  outlineRadius: number;
+  recessRadius: number;
+  edgeFilletRadius: number;
+}
+
+export interface RoomShellSource {
+  kind: "room-shell";
+  size: Vector3Tuple;
+  wallThickness: number;
+  floorThickness: number;
+  autoHideSurfaces: boolean;
+  door: {
+    width: number;
+    height: number;
+    offsetZ: number;
+  };
+  window: {
+    fullWall?: boolean;
+    width: number;
+    height: number;
+    sillHeight: number;
+    offsetX: number;
+  };
+}
+
+export type ProceduralMeshSource = RecessedDeckSource | RecessedPanelSource | RoomShellSource;
+
 export interface MeshFeature extends FeatureBase {
   type: "mesh";
   parameters: {
     positions: number[];
     normals: number[];
     indices: number[];
+    source?: ProceduralMeshSource;
   };
 }
 
@@ -52,6 +126,7 @@ export interface FeatureGraph {
   version: 1;
   features: ModelFeature[];
   groups?: FeatureGroup[];
+  variables?: ModelVariable[];
 }
 
 export interface ModelRecord {
