@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { uniformBoxCornerRadii, type BoxFeature } from "@solidloom/shared";
-import { createFeatureGeometry, evaluateBoolean, evaluatePlaneCut, featureTriangleCount, featureVolume } from "../apps/web/src/meshOperations";
+import { uniformBoxCornerRadii, type BoxFeature, type CylinderFeature } from "@solidloom/shared";
+import { createFeatureGeometry, evaluateBoolean, evaluatePlaneCut, featureGeometryCacheKey, featureTriangleCount, featureVolume } from "../apps/web/src/meshOperations";
 
 const firstBox: BoxFeature = {
   id: "box-a",
@@ -21,6 +21,28 @@ const secondBox: BoxFeature = {
 };
 
 describe("mesh operations", () => {
+  it("reuses primitive geometry signatures and keeps cylinders at viewport-friendly density", () => {
+    const cylinder: CylinderFeature = {
+      id: "leg-a",
+      name: "桌腿",
+      type: "cylinder",
+      operation: "add",
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      parameters: { radius: 20, height: 720 },
+    };
+    expect(featureGeometryCacheKey(cylinder)).toBe(featureGeometryCacheKey({
+      ...cylinder,
+      id: "leg-b",
+      position: [500, 0, 0],
+    }));
+    expect(featureGeometryCacheKey({
+      ...cylinder,
+      parameters: { ...cylinder.parameters, radius: 24 },
+    })).not.toBe(featureGeometryCacheKey(cylinder));
+    expect(featureTriangleCount(cylinder)).toBe(128);
+  });
+
   it("serializes boolean results as persistent mesh features", () => {
     const result = evaluateBoolean([firstBox, secondBox], [], "union", "并集结果");
     expect(result.type).toBe("mesh");

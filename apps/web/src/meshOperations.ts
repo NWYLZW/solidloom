@@ -170,7 +170,7 @@ export function createFeatureGeometry(feature: ModelFeature): THREE.BufferGeomet
       feature.parameters.radius,
       feature.parameters.radius,
       feature.parameters.height,
-      64,
+      32,
     );
   }
 
@@ -181,6 +181,11 @@ export function createFeatureGeometry(feature: ModelFeature): THREE.BufferGeomet
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
+}
+
+export function featureGeometryCacheKey(feature: ModelFeature): string | null {
+  if (feature.type === "mesh") return null;
+  return `${feature.type}:${JSON.stringify(feature.parameters)}`;
 }
 
 export function featureVolume(feature: ModelFeature) {

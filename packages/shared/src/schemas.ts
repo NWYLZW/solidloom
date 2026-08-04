@@ -103,7 +103,7 @@ const featureBaseProperties = {
     type: "object",
     additionalProperties: false,
     properties: {
-      material: { type: "string", enum: ["default", "wood", "metal", "plastic", "glass"] },
+      material: { type: "string", enum: ["default", "wood", "metal", "plastic", "glass", "fabric", "rubber"] },
       color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
     },
   },
@@ -221,6 +221,184 @@ export const featureGroupSchema = {
   },
 } as const;
 
+export const articulationJointSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "name", "type", "groupId", "pivot", "axis", "value", "restValue", "min", "max"],
+  properties: {
+    id: { type: "string", minLength: 1 },
+    name: { type: "string", minLength: 1, maxLength: 120 },
+    type: { const: "revolute" },
+    groupId: { type: "string", minLength: 1 },
+    parentJointId: { type: "string", minLength: 1 },
+    pivot: vector3Schema,
+    axis: vector3Schema,
+    value: { type: "number" },
+    restValue: { type: "number" },
+    min: { type: "number" },
+    max: { type: "number" },
+  },
+} as const;
+
+export const articulationPosePresetSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "name", "jointValues"],
+  properties: {
+    id: { type: "string", minLength: 1, maxLength: 120 },
+    name: { type: "string", minLength: 1, maxLength: 120 },
+    durationMs: { type: "number", minimum: 100, maximum: 10_000 },
+    jointValues: {
+      type: "object",
+      propertyNames: { minLength: 1 },
+      additionalProperties: { type: "number" },
+      minProperties: 1,
+      maxProperties: 128,
+    },
+  },
+} as const;
+
+export const articulationAnimationClipSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "name", "durationMs", "loop", "keyframes"],
+  properties: {
+    id: { type: "string", minLength: 1, maxLength: 120 },
+    name: { type: "string", minLength: 1, maxLength: 120 },
+    durationMs: { type: "number", minimum: 100, maximum: 60_000 },
+    loop: { type: "boolean" },
+    keyframes: {
+      type: "array",
+      minItems: 2,
+      maxItems: 128,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["offset", "jointValues"],
+        properties: {
+          offset: { type: "number", minimum: 0, maximum: 1 },
+          jointValues: {
+            type: "object",
+            propertyNames: { minLength: 1 },
+            additionalProperties: { type: "number" },
+            minProperties: 1,
+            maxProperties: 128,
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+export const articulationLocomotionProfileSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "id",
+    "name",
+    "walkAnimationId",
+    "runAnimationId",
+    "defaultSpeed",
+    "minimumSpeed",
+    "maximumSpeed",
+    "walkReferenceSpeed",
+    "runReferenceSpeed",
+    "transitionStartSpeed",
+    "transitionEndSpeed",
+    "transitionDurationMs",
+  ],
+  properties: {
+    id: { type: "string", minLength: 1, maxLength: 120 },
+    name: { type: "string", minLength: 1, maxLength: 120 },
+    walkAnimationId: { type: "string", minLength: 1, maxLength: 120 },
+    runAnimationId: { type: "string", minLength: 1, maxLength: 120 },
+    defaultSpeed: { type: "number", minimum: 0 },
+    minimumSpeed: { type: "number", minimum: 0 },
+    maximumSpeed: { type: "number", exclusiveMinimum: 0 },
+    walkReferenceSpeed: { type: "number", exclusiveMinimum: 0 },
+    runReferenceSpeed: { type: "number", exclusiveMinimum: 0 },
+    transitionStartSpeed: { type: "number", minimum: 0 },
+    transitionEndSpeed: { type: "number", exclusiveMinimum: 0 },
+    transitionDurationMs: { type: "number", minimum: 100, maximum: 3_000 },
+  },
+} as const;
+
+export const navigationSurfaceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["enabled", "floorY", "bounds", "cellSize", "agentRadius", "agentHeight", "start"],
+  properties: {
+    enabled: { type: "boolean" },
+    floorY: { type: "number" },
+    bounds: {
+      type: "array",
+      items: { type: "number" },
+      minItems: 4,
+      maxItems: 4,
+    },
+    cellSize: { type: "number", exclusiveMinimum: 0 },
+    agentRadius: { type: "number", minimum: 0 },
+    agentHeight: { type: "number", exclusiveMinimum: 0 },
+    start: vector2Schema,
+  },
+} as const;
+
+export const modelReferenceInstanceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "name", "modelId", "position", "rotation"],
+  properties: {
+    id: { type: "string", minLength: 1 },
+    name: { type: "string", minLength: 1, maxLength: 120 },
+    modelId: { type: "string", minLength: 1 },
+    position: vector3Schema,
+    rotation: vector3Schema,
+    scale: vector3Schema,
+    jointValues: {
+      type: "object",
+      propertyNames: { minLength: 1 },
+      additionalProperties: { type: "number" },
+      maxProperties: 128,
+    },
+    roomSurfaceMode: { type: "string", enum: ["source", "interior", "exterior"] },
+    physics: {
+      type: "object",
+      additionalProperties: false,
+      required: ["bodyType"],
+      properties: {
+        bodyType: { type: "string", enum: ["static", "dynamic"] },
+        mass: { type: "number", exclusiveMinimum: 0 },
+        friction: { type: "number", minimum: 0, maximum: 1 },
+        linearDamping: { type: "number", minimum: 0 },
+      },
+    },
+    interactions: {
+      type: "array",
+      maxItems: 16,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "kind"],
+        properties: {
+          id: { type: "string", minLength: 1, maxLength: 120 },
+          kind: { type: "string", enum: ["power", "seat", "door", "articulation"] },
+          range: { type: "number", exclusiveMinimum: 0 },
+          targetFeatureIds: {
+            type: "array",
+            items: { type: "string", minLength: 1 },
+            uniqueItems: true,
+            maxItems: 16,
+          },
+          openAngle: { type: "number", minimum: -180, maximum: 180 },
+          jointId: { type: "string", minLength: 1, maxLength: 120 },
+          closedValue: { type: "number", minimum: -360, maximum: 360 },
+          openValue: { type: "number", minimum: -360, maximum: 360 },
+        },
+      },
+    },
+  },
+} as const;
+
 export const featureGraphSchema = {
   type: "object",
   additionalProperties: false,
@@ -235,6 +413,28 @@ export const featureGraphSchema = {
     groups: {
       type: "array",
       items: featureGroupSchema,
+      maxItems: 64,
+    },
+    joints: {
+      type: "array",
+      items: articulationJointSchema,
+      maxItems: 128,
+    },
+    poses: {
+      type: "array",
+      items: articulationPosePresetSchema,
+      maxItems: 64,
+    },
+    animations: {
+      type: "array",
+      items: articulationAnimationClipSchema,
+      maxItems: 64,
+    },
+    locomotion: articulationLocomotionProfileSchema,
+    navigation: navigationSurfaceSchema,
+    references: {
+      type: "array",
+      items: modelReferenceInstanceSchema,
       maxItems: 64,
     },
     variables: {

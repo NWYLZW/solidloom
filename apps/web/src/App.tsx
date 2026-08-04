@@ -22,25 +22,24 @@ import {
   FolderOpen,
   FolderTree,
   Languages,
+  Keyboard,
   Layers3,
+  Link2,
   Menu as MenuIcon,
   MessageSquareText,
   Monitor,
   Move3D,
   Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
   Pencil,
   Plus,
-  Redo2,
+  Route,
   Rotate3D,
-  Save,
   Scaling,
   Settings2,
   Slice,
   Sun,
-  Undo2,
   Combine,
+  X,
 } from "lucide-react";
 import {
   BOX_CORNER_KEYS,
@@ -78,10 +77,22 @@ import {
   replaceFeatureGraph,
   updateModel,
 } from "./api";
-import { Viewport3D, type TransformCommit, type TransformMode } from "./Viewport3D";
+import { Viewport3D, type NavigationCameraMode, type TransformCommit, type TransformMode } from "./Viewport3D";
+import { createLocomotionAnimation, resolveLocomotionState } from "./articulation/locomotion";
+import { useJointAnimation } from "./articulation/useJointAnimation";
+import { ModelActionsPanel } from "./components/ModelActionsPanel";
+import { SelectionSummary, type SelectionSummaryIcon } from "./components/SelectionSummary";
+import { StatusBar } from "./components/StatusBar";
+import { TopBar } from "./components/TopBar";
 import { resolveFeatureColor } from "./featureMaterials";
 import { evaluateBoolean, evaluatePlaneCut, featureTriangleCount, featureVolume, type BooleanOperation } from "./meshOperations";
 import { upsertModelInStableOrder } from "./modelCollection";
+import {
+  mergeLatestModelsPreservingIdentity,
+  referenceIdFromViewportGroupId,
+  referenceViewportGroupId,
+  resolveModelReferences,
+} from "./modelReferences";
 import { readTreeUrlState, writeTreeUrlState } from "./treeUrlState";
 
 type ServiceState = "checking" | "online" | "offline";
@@ -96,10 +107,12 @@ type EditorHistorySnapshot = {
   inspectorTab: InspectorTab;
   selectedFeatureIds: string[];
   selectedGroupId: string | null;
+  selectedReferenceId: string | null;
 };
 type TreeMenuTarget =
   | { kind: "tree" }
   | { kind: "model"; modelId: string }
+  | { kind: "reference"; referenceId: string }
   | { kind: "feature"; featureId: string }
   | { kind: "selection"; featureIds: string[] }
   | { kind: "group"; groupId: string };
@@ -134,6 +147,8 @@ const copyByLocale = {
     projectTree: "项目树",
     models: "模型",
     createModel: "新建模型",
+    addModelReference: "引用到当前模型",
+    removeModelReference: "移除模型引用",
     renameProject: "重命名项目",
     create: "创建",
     cancel: "取消",
@@ -160,6 +175,8 @@ const copyByLocale = {
     rotate: "旋转",
     orthographic: "正交",
     viewportPreview: "参数化模型预览",
+    viewportRendererFailed: "3D 视图暂时不可用，WebGL 上下文已丢失。",
+    reloadViewport: "重新载入工作台",
     viewRight: "右面",
     viewLeft: "左面",
     viewTop: "顶部",
@@ -178,6 +195,16 @@ const copyByLocale = {
     removeFromGroup: "移出分组",
     dissolveGroup: "解散分组",
     groupTransform: "分组变换",
+    referenceTransform: "引用实例变换",
+    modelReferences: "模型引用",
+    referencedModel: "源模型",
+    liveRevision: "实时修订",
+    referenceMissing: "引用的源模型不存在",
+    referenceName: "实例名称",
+    roomReferenceView: "房间显示方式",
+    roomReferenceSource: "跟随源模型",
+    roomReferenceInterior: "内部视图",
+    roomReferenceExterior: "完整外壳",
     groupName: "分组名称",
     groupMembers: "成员",
     position: "位置",
@@ -212,6 +239,8 @@ const copyByLocale = {
     materialMetal: "金属",
     materialPlastic: "塑料",
     materialGlass: "玻璃",
+    materialFabric: "织物",
+    materialRubber: "橡胶",
     color: "颜色",
     resetAppearance: "重置外观",
     useMaterialColor: "使用材质颜色",
@@ -278,6 +307,46 @@ const copyByLocale = {
     annotationGroup: "分组",
     annotationPath: "对象路径",
     annotationMembers: "成员",
+    navigationMode: "漫游模式",
+    navigationModeActive: "漫游模式 · 第一/第三人称单击视口锁定鼠标，移动鼠标控制镜头，Esc 退出",
+    navigationGodCamera: "上帝视角",
+    navigationFirstPerson: "第一人称",
+    navigationThirdPerson: "第三人称",
+    interactionPowerOn: "开启显示器",
+    interactionPowerOff: "关闭显示器",
+    interactionArticulationOpen: "打开笔记本",
+    interactionArticulationClose: "合上笔记本",
+    interactionSit: "坐下",
+    interactionStand: "起身",
+    interactionDoorOpen: "打开门",
+    interactionDoorClose: "关闭门",
+    interactionKeyHint: "E",
+    joint: "关节",
+    modelActions: "模型动作",
+    posePresets: "姿态预设",
+    animationClips: "循环动画",
+    locomotionSpeed: "移动速度",
+    locomotionIdle: "站立",
+    locomotionWalk: "走路",
+    locomotionTransition: "走跑过渡",
+    locomotionRun: "奔跑",
+    locomotionCycle: "步态周期",
+    locomotionBlend: "奔跑混合",
+    locomotionWalkReference: "走路基准",
+    locomotionRunReference: "奔跑基准",
+    locomotionTransitionStart: "过渡开始",
+    locomotionTransitionEnd: "过渡完成",
+    jointAngle: "开合角度",
+    jointRange: "活动范围",
+    jointTypeRevolute: "旋转关节",
+    jointClose: "合上",
+    jointOpen: "打开",
+    jointClosed: "关闭",
+    jointHalf: "半合",
+    jointExpanded: "展开",
+    keyboardShortcuts: "快捷键",
+    shortcutViewportHint: "点击 3D 视口后启用镜头快捷键；输入框获得焦点时不会触发。",
+    close: "关闭",
   },
   en: {
     pageTitle: "SolidLoom Modeling Workspace",
@@ -308,6 +377,8 @@ const copyByLocale = {
     projectTree: "Project tree",
     models: "Models",
     createModel: "Create model",
+    addModelReference: "Reference in current model",
+    removeModelReference: "Remove model reference",
     renameProject: "Rename project",
     create: "Create",
     cancel: "Cancel",
@@ -334,6 +405,8 @@ const copyByLocale = {
     rotate: "Rotate",
     orthographic: "Orthographic",
     viewportPreview: "Parametric model preview",
+    viewportRendererFailed: "The 3D view is temporarily unavailable because the WebGL context was lost.",
+    reloadViewport: "Reload workspace",
     viewRight: "Right",
     viewLeft: "Left",
     viewTop: "Top",
@@ -352,6 +425,16 @@ const copyByLocale = {
     removeFromGroup: "Remove from group",
     dissolveGroup: "Dissolve group",
     groupTransform: "Group transform",
+    referenceTransform: "Reference transform",
+    modelReferences: "Model references",
+    referencedModel: "Source model",
+    liveRevision: "Live revision",
+    referenceMissing: "Referenced source model is missing",
+    referenceName: "Instance name",
+    roomReferenceView: "Room display",
+    roomReferenceSource: "Follow source model",
+    roomReferenceInterior: "Interior view",
+    roomReferenceExterior: "Complete shell",
     groupName: "Group name",
     groupMembers: "Members",
     position: "Position",
@@ -386,6 +469,8 @@ const copyByLocale = {
     materialMetal: "Metal",
     materialPlastic: "Plastic",
     materialGlass: "Glass",
+    materialFabric: "Fabric",
+    materialRubber: "Rubber",
     color: "Color",
     resetAppearance: "Reset appearance",
     useMaterialColor: "Use material color",
@@ -452,6 +537,46 @@ const copyByLocale = {
     annotationGroup: "Group",
     annotationPath: "Object path",
     annotationMembers: "Members",
+    navigationMode: "Walk mode",
+    navigationModeActive: "Walk mode · In first/third person, click the viewport to lock the pointer; move to look; press Esc to exit",
+    navigationGodCamera: "God view",
+    navigationFirstPerson: "First person",
+    navigationThirdPerson: "Third person",
+    interactionPowerOn: "Turn on display",
+    interactionPowerOff: "Turn off display",
+    interactionArticulationOpen: "Open laptop",
+    interactionArticulationClose: "Close laptop",
+    interactionSit: "Sit down",
+    interactionStand: "Stand up",
+    interactionDoorOpen: "Open door",
+    interactionDoorClose: "Close door",
+    interactionKeyHint: "E",
+    joint: "Joint",
+    modelActions: "Model actions",
+    posePresets: "Pose presets",
+    animationClips: "Looping animations",
+    locomotionSpeed: "Movement speed",
+    locomotionIdle: "Standing",
+    locomotionWalk: "Walking",
+    locomotionTransition: "Walk-run blend",
+    locomotionRun: "Running",
+    locomotionCycle: "Gait cycle",
+    locomotionBlend: "Run blend",
+    locomotionWalkReference: "Walk reference",
+    locomotionRunReference: "Run reference",
+    locomotionTransitionStart: "Blend start",
+    locomotionTransitionEnd: "Blend end",
+    jointAngle: "Opening angle",
+    jointRange: "Motion range",
+    jointTypeRevolute: "Revolute joint",
+    jointClose: "Close",
+    jointOpen: "Open",
+    jointClosed: "Closed",
+    jointHalf: "Half open",
+    jointExpanded: "Expanded",
+    keyboardShortcuts: "Keyboard shortcuts",
+    shortcutViewportHint: "Click the 3D viewport to enable camera shortcuts. They stay inactive while editing a field.",
+    close: "Close",
   },
 } as const;
 
@@ -553,8 +678,12 @@ export function App() {
   const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>("features");
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(null);
   const [activeObjectTool, setActiveObjectTool] = useState<ObjectTool | null>(null);
   const [annotationMode, setAnnotationMode] = useState(false);
+  const [navigationMode, setNavigationMode] = useState(false);
+  const [navigationCameraMode, setNavigationCameraMode] = useState<NavigationCameraMode>("god");
+  const [locomotionSpeed, setLocomotionSpeed] = useState(0);
   const [booleanOperation, setBooleanOperation] = useState<BooleanOperation>("union");
   const [cutRotation, setCutRotation] = useState<Vector3Tuple>([0, 0, 0]);
   const [cutOffset, setCutOffset] = useState(0);
@@ -573,6 +702,7 @@ export function App() {
   const [renameProjectOpen, setRenameProjectOpen] = useState(false);
   const [libraryCollapsed, setLibraryCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [projectExpanded, setProjectExpanded] = useState(() => initialTreeUrlStateRef.current?.projectExpanded ?? true);
   const [modelsExpanded, setModelsExpanded] = useState(() => initialTreeUrlStateRef.current?.modelsExpanded ?? true);
   const [expandedModelIds, setExpandedModelIds] = useState<string[]>(() => initialTreeUrlStateRef.current?.expandedModelIds ?? []);
@@ -592,13 +722,156 @@ export function App() {
   const [historySize, setHistorySize] = useState({ redo: 0, undo: 0 });
   draftModelRef.current = draftModel;
   const copy = copyByLocale[locale];
+  const shortcutSections = useMemo(() => locale === "zh-CN" ? [
+    {
+      title: "镜头导航",
+      rows: [
+        ["W / A / S / D", "前进、左移、后退、右移"],
+        ["Q / E", "下降、上升"],
+        ["Shift / Option", "加速 / 精细移动"],
+        ["方向键", "环绕观察"],
+        ["F / Home", "聚焦选中对象 / 显示全部"],
+        ["1 / 3 / 7", "前视图 / 右视图 / 顶视图"],
+      ],
+    },
+    {
+      title: "选择与变换",
+      rows: [
+        ["Esc", "退出工具并清除选择"],
+        ["⌘ / Ctrl + 单击", "增减多选对象"],
+        ["M / R / Shift + S", "移动 / 旋转 / 缩放"],
+        ["Enter", "结束当前变换工具"],
+        ["⌘ / Ctrl + G", "将多选对象建立分组"],
+        ["⌘ / Ctrl + Shift + G", "解散当前分组"],
+      ],
+    },
+    {
+      title: "通用操作",
+      rows: [
+        ["⌘ / Ctrl + Z", "撤销"],
+        ["⌘ / Ctrl + Shift + Z", "重做"],
+        ["⌘ / Ctrl + S", "保存"],
+        ["⌘ / Ctrl + A", "选择当前模型的全部对象"],
+        ["?", "打开快捷键说明"],
+      ],
+    },
+  ] : [
+    {
+      title: "Camera navigation",
+      rows: [
+        ["W / A / S / D", "Forward, left, backward, right"],
+        ["Q / E", "Move down / up"],
+        ["Shift / Option", "Fast / precise movement"],
+        ["Arrow keys", "Orbit the camera"],
+        ["F / Home", "Frame selection / frame all"],
+        ["1 / 3 / 7", "Front / right / top view"],
+      ],
+    },
+    {
+      title: "Selection and transforms",
+      rows: [
+        ["Esc", "Exit the tool and clear selection"],
+        ["⌘ / Ctrl + click", "Toggle objects in the selection"],
+        ["M / R / Shift + S", "Move / rotate / scale"],
+        ["Enter", "Finish the current transform tool"],
+        ["⌘ / Ctrl + G", "Group the selected objects"],
+        ["⌘ / Ctrl + Shift + G", "Dissolve the selected group"],
+      ],
+    },
+    {
+      title: "General",
+      rows: [
+        ["⌘ / Ctrl + Z", "Undo"],
+        ["⌘ / Ctrl + Shift + Z", "Redo"],
+        ["⌘ / Ctrl + S", "Save"],
+        ["⌘ / Ctrl + A", "Select every object in the current model"],
+        ["?", "Open this shortcut guide"],
+      ],
+    },
+  ], [locale]);
   const viewLabels = useMemo<[string, string, string, string, string, string]>(
     () => [copy.viewRight, copy.viewLeft, copy.viewTop, copy.viewBottom, copy.viewFront, copy.viewBack],
     [copy],
   );
   const isDirty = comparableModel(savedModel) !== comparableModel(draftModel);
   const featureGroups = useMemo(() => draftModel?.featureGraph.groups ?? [], [draftModel?.featureGraph.groups]);
-  const selectedFeatures = !selectedGroupId
+  const locomotionProfile = draftModel?.featureGraph.locomotion;
+  const locomotionPreview = useMemo(() => locomotionProfile
+    ? createLocomotionAnimation(locomotionProfile, draftModel?.featureGraph.animations ?? [], locomotionSpeed)
+    : null, [draftModel?.featureGraph.animations, locomotionProfile, locomotionSpeed]);
+  const locomotionState = locomotionProfile
+    ? resolveLocomotionState(locomotionProfile, locomotionSpeed)
+    : "idle";
+  const modelReferences = useMemo(() => draftModel?.featureGraph.references ?? [], [draftModel?.featureGraph.references]);
+  const navigationDynamicBodies = useMemo(() => modelReferences.flatMap((reference) => (
+    reference.physics?.bodyType === "dynamic"
+      ? [{
+          friction: reference.physics.friction ?? 0.4,
+          groupId: referenceViewportGroupId(reference.id),
+          linearDamping: reference.physics.linearDamping ?? 2.6,
+          mass: reference.physics.mass ?? 20,
+        }]
+      : []
+  )), [modelReferences]);
+  const navigationInteractions = useMemo(() => modelReferences.flatMap((reference) => {
+    const groupId = referenceViewportGroupId(reference.id);
+    const sourceModel = models.find((model) => model.id === reference.modelId);
+    return (reference.interactions ?? []).flatMap((interaction) => {
+      const joint = interaction.kind === "articulation"
+        ? sourceModel?.featureGraph.joints?.find((candidate) => candidate.id === interaction.jointId)
+        : null;
+      if (interaction.kind === "articulation" && !joint) return [];
+      const jointDescriptor = joint
+        ? {
+            jointAxis: joint.axis,
+            jointClosedValue: interaction.closedValue ?? joint.min,
+            jointInitialValue: reference.jointValues?.[joint.id] ?? joint.value,
+            jointOpenValue: interaction.openValue ?? joint.value,
+            jointPivot: joint.pivot,
+          }
+        : {};
+      return [{
+        ...interaction,
+        groupId,
+        id: `${reference.id}:${interaction.id}`,
+        ...jointDescriptor,
+        targetFeatureIds: interaction.targetFeatureIds?.map((featureId) => `${groupId}:${featureId}`) ?? [],
+      }];
+    });
+  }), [modelReferences, models]);
+  const navigationInteractionLabels = useMemo(() => ({
+    articulationClose: copy.interactionArticulationClose,
+    articulationOpen: copy.interactionArticulationOpen,
+    doorClose: copy.interactionDoorClose,
+    doorOpen: copy.interactionDoorOpen,
+    keyHint: copy.interactionKeyHint,
+    powerOff: copy.interactionPowerOff,
+    powerOn: copy.interactionPowerOn,
+    sit: copy.interactionSit,
+    stand: copy.interactionStand,
+  }), [copy]);
+  const resolvedReferences = useMemo(
+    () => resolveModelReferences(draftModel?.featureGraph ?? { version: 1, features: [] }, models, draftModel?.id),
+    [draftModel?.featureGraph, draftModel?.id, models],
+  );
+  const viewportFeatures = useMemo(
+    () => [...(draftModel?.featureGraph.features ?? []), ...resolvedReferences.features],
+    [draftModel?.featureGraph.features, resolvedReferences.features],
+  );
+  const viewportGroups = useMemo(
+    () => [...featureGroups, ...resolvedReferences.groups],
+    [featureGroups, resolvedReferences.groups],
+  );
+  const selectedReference = selectedReferenceId
+    ? modelReferences.find((reference) => reference.id === selectedReferenceId) ?? null
+    : null;
+  const selectedReferenceSource = selectedReference
+    ? models.find((model) => model.id === selectedReference.modelId) ?? null
+    : null;
+  const selectedReferenceHasRoomShell = selectedReferenceSource?.featureGraph.features.some((feature) => (
+    feature.type === "mesh" && feature.parameters.source?.kind === "room-shell"
+  )) ?? false;
+  const selectedFeatures = !selectedGroupId && !selectedReferenceId
     ? draftModel?.featureGraph.features.filter((feature) => selectedFeatureIds.includes(feature.id)) ?? []
     : [];
   const selectedFeature = selectedFeatures.length === 1
@@ -626,10 +899,17 @@ export function App() {
   const selectedGroup = selectedGroupId
     ? featureGroups.find((group) => group.id === selectedGroupId) ?? null
     : null;
-  const selectedTransformTarget = selectedGroup ?? selectedFeature;
+  const selectedJoint = selectedGroup
+    ? draftModel?.featureGraph.joints?.find((joint) => joint.groupId === selectedGroup.id) ?? null
+    : null;
+  const selectedTransformTarget = selectedReference ?? selectedGroup ?? selectedFeature;
   const selectedViewportFeatureIds = useMemo(
-    () => selectedGroup ? selectedGroup.featureIds : selectedFeatureIds,
-    [selectedFeatureIds, selectedGroup],
+    () => selectedReference
+      ? resolvedReferences.groups.find((group) => group.id === referenceViewportGroupId(selectedReference.id))?.featureIds ?? []
+      : selectedGroup
+        ? selectedGroup.featureIds
+        : selectedFeatureIds,
+    [resolvedReferences.groups, selectedFeatureIds, selectedGroup, selectedReference],
   );
   const selectedOperationFeatures = useMemo(
     () => selectedViewportFeatureIds.flatMap((featureId) => {
@@ -682,6 +962,7 @@ export function App() {
     { id: "models", label: copy.models },
     ...(draftModel ? [{ id: `model-${draftModel.id}`, label: draftModel.name }] : []),
     ...(selectedGroup ? [{ id: `group-${selectedGroup.id}`, label: selectedGroup.name }] : []),
+    ...(selectedReference ? [{ id: `reference-${selectedReference.id}`, label: selectedReference.name }] : []),
     ...(selectedFeatureGroup ? [{ id: `group-${selectedFeatureGroup.id}`, label: selectedFeatureGroup.name }] : []),
     ...(selectedFeature ? [{ id: `feature-${selectedFeature.id}`, label: selectedFeature.name }] : []),
     ...(selectedFeatures.length > 1 ? [{ id: "selection", label: `${copy.selectedObjects} ${selectedFeatures.length}` }] : []),
@@ -708,6 +989,7 @@ export function App() {
     inspectorTab: activeInspectorTab,
     selectedFeatureIds: [...selectedFeatureIds],
     selectedGroupId,
+    selectedReferenceId,
   });
 
   const restoreHistorySnapshot = (snapshot: EditorHistorySnapshot) => {
@@ -718,6 +1000,7 @@ export function App() {
     setDraftModel(next);
     setSelectedFeatureIds([...snapshot.selectedFeatureIds]);
     setSelectedGroupId(snapshot.selectedGroupId);
+    setSelectedReferenceId(snapshot.selectedReferenceId);
     setActiveInspectorTab(snapshot.inspectorTab);
     setExpandedGroupIds([...snapshot.expandedGroupIds]);
     setTreeMenu(null);
@@ -738,6 +1021,60 @@ export function App() {
     setSaveState("idle");
     setStatusDetail("");
     syncHistorySize();
+  };
+
+  const jointAnimation = useJointAnimation((jointValues) => {
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        joints: (current.featureGraph.joints ?? []).map((joint) => {
+          const value = jointValues[joint.id];
+          return value === undefined ? joint : { ...joint, value };
+        }),
+      },
+    }));
+  });
+
+  const playLocomotionAtSpeed = (requestedSpeed: number) => {
+    const profile = draftModel?.featureGraph.locomotion;
+    const joints = draftModel?.featureGraph.joints ?? [];
+    if (!profile || joints.length === 0) return;
+    const nextSpeed = clamp(requestedSpeed, profile.minimumSpeed, profile.maximumSpeed);
+    setLocomotionSpeed(nextSpeed);
+    const locomotion = createLocomotionAnimation(profile, draftModel?.featureGraph.animations ?? [], nextSpeed);
+    if (locomotion) {
+      jointAnimation.startClip(locomotion.animation, joints, { transitionMs: profile.transitionDurationMs });
+      return;
+    }
+    const standingPose = draftModel?.featureGraph.poses?.find((pose) => pose.id === "cyber-figure-pose-stand")
+      ?? draftModel?.featureGraph.poses?.[0];
+    if (standingPose) jointAnimation.start(standingPose.jointValues, profile.transitionDurationMs, joints);
+    else jointAnimation.cancel();
+  };
+
+  const updateLocomotionProfile = (
+    key: "walkReferenceSpeed" | "runReferenceSpeed" | "transitionStartSpeed" | "transitionEndSpeed",
+    requestedValue: number,
+  ) => {
+    const profile = draftModel?.featureGraph.locomotion;
+    if (!profile || !Number.isFinite(requestedValue)) return;
+    const nextValue = key === "transitionStartSpeed"
+      ? clamp(requestedValue, profile.minimumSpeed, profile.transitionEndSpeed - 0.1)
+      : key === "transitionEndSpeed"
+        ? clamp(requestedValue, profile.transitionStartSpeed + 0.1, profile.maximumSpeed)
+        : clamp(requestedValue, 0.1, profile.maximumSpeed);
+    const nextProfile = { ...profile, [key]: nextValue };
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: { ...current.featureGraph, locomotion: nextProfile },
+    }));
+    const locomotion = createLocomotionAnimation(nextProfile, draftModel?.featureGraph.animations ?? [], locomotionSpeed);
+    if (locomotion) {
+      jointAnimation.startClip(locomotion.animation, draftModel?.featureGraph.joints ?? [], {
+        transitionMs: nextProfile.transitionDurationMs,
+      });
+    }
   };
 
   const undo = () => {
@@ -772,7 +1109,7 @@ export function App() {
     };
     window.addEventListener("keydown", handleHistoryShortcut);
     return () => window.removeEventListener("keydown", handleHistoryShortcut);
-  }, [activeInspectorTab, expandedGroupIds, historySize.redo, historySize.undo, selectedFeatureIds, selectedGroupId]);
+  }, [activeInspectorTab, expandedGroupIds, historySize.redo, historySize.undo, selectedFeatureIds, selectedGroupId, selectedReferenceId]);
 
   useEffect(() => {
     const handleToolShortcut = (event: KeyboardEvent) => {
@@ -784,7 +1121,13 @@ export function App() {
         || (target instanceof HTMLElement && target.isContentEditable)
         || selectedViewportFeatureIds.length === 0) return;
       const shortcut = event.key.toLowerCase();
-      const mode = shortcut === "m" ? "translate" : shortcut === "r" ? "rotate" : shortcut === "s" ? "scale" : null;
+      const mode = shortcut === "m" && !event.shiftKey
+        ? "translate"
+        : shortcut === "r" && !event.shiftKey
+          ? "rotate"
+          : shortcut === "s" && event.shiftKey
+            ? "scale"
+            : null;
       if (!mode) return;
       event.preventDefault();
       setOperationError("");
@@ -793,6 +1136,60 @@ export function App() {
     window.addEventListener("keydown", handleToolShortcut);
     return () => window.removeEventListener("keydown", handleToolShortcut);
   }, [selectedViewportFeatureIds.length]);
+
+  useEffect(() => {
+    const handleEditorShortcut = (event: KeyboardEvent) => {
+      const target = event.target;
+      const isEditableTarget = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || (target instanceof HTMLElement && target.isContentEditable);
+      if (isEditableTarget) return;
+
+      const shortcut = event.key.toLowerCase();
+      const commandModifier = event.metaKey || event.ctrlKey;
+      if (!commandModifier && !event.altKey && event.key === "?") {
+        event.preventDefault();
+        setMenuOpen(false);
+        setShortcutGuideOpen(true);
+        return;
+      }
+      if (!commandModifier && !event.altKey && event.key === "Enter" && activeObjectTool) {
+        event.preventDefault();
+        setActiveObjectTool(null);
+        return;
+      }
+      if (!commandModifier) return;
+
+      if (shortcut === "s" && !event.shiftKey) {
+        event.preventDefault();
+        void saveChanges();
+        return;
+      }
+      if (shortcut === "a" && !event.shiftKey) {
+        const featureIds = draftModel?.featureGraph.features.map((feature) => feature.id) ?? [];
+        if (featureIds.length === 0) return;
+        event.preventDefault();
+        setSelectedFeatureIds(featureIds);
+        setSelectedGroupId(null);
+        setSelectedReferenceId(null);
+        setActiveInspectorTab("features");
+        return;
+      }
+      if (shortcut !== "g") return;
+      if (event.shiftKey && selectedGroupId) {
+        event.preventDefault();
+        dissolveFeatureGroup(selectedGroupId);
+        return;
+      }
+      if (!event.shiftKey && selectedFeatureIds.length > 1 && !selectedReferenceId) {
+        event.preventDefault();
+        createFeatureGroup(selectedFeatureIds);
+      }
+    };
+    window.addEventListener("keydown", handleEditorShortcut);
+    return () => window.removeEventListener("keydown", handleEditorShortcut);
+  }, [activeObjectTool, draftModel?.featureGraph.features, selectedFeatureIds, selectedGroupId, selectedReferenceId]);
 
   useEffect(() => {
     if (selectedViewportFeatureIds.length === 0) setActiveObjectTool(null);
@@ -806,6 +1203,7 @@ export function App() {
     draftModelRef.current = nextDraft;
     setDraftModel(nextDraft);
     setSelectedGroupId((current) => next.featureGraph.groups?.some((group) => group.id === current) ? current : null);
+    setSelectedReferenceId((current) => next.featureGraph.references?.some((reference) => reference.id === current) ? current : null);
     setSelectedFeatureIds((current) => {
       const existing = current.filter((featureId) => model.featureGraph.features.some((feature) => feature.id === featureId));
       return existing.length > 0 ? existing : model.featureGraph.features[0] ? [model.featureGraph.features[0].id] : [];
@@ -817,6 +1215,11 @@ export function App() {
     setModels((current) => upsertModelInStableOrder(current, model));
     setSaveState("idle");
     setStatusDetail("");
+    if (!options.preserveHistory) {
+      jointAnimation.cancel();
+      setLocomotionSpeed(next.featureGraph.locomotion?.defaultSpeed ?? 0);
+      setNavigationMode(false);
+    }
   };
 
   useEffect(() => {
@@ -831,14 +1234,20 @@ export function App() {
           const normalized = cloneModel(firstModel);
           setSavedModel(normalized);
           setDraftModel(cloneModel(firstModel));
+          setLocomotionSpeed(normalized.featureGraph.locomotion?.defaultSpeed ?? 0);
           if (treeUrlState) {
             const validGroupIds = new Set((normalized.featureGraph.groups ?? []).map((group) => group.id));
+            const validReferenceIds = new Set((normalized.featureGraph.references ?? []).map((reference) => reference.id));
             const validFeatureIds = new Set(normalized.featureGraph.features.map((feature) => feature.id));
+            const selectedReferenceId = treeUrlState.selectedReferenceId && validReferenceIds.has(treeUrlState.selectedReferenceId)
+              ? treeUrlState.selectedReferenceId
+              : null;
             const selectedGroupId = treeUrlState.selectedGroupId && validGroupIds.has(treeUrlState.selectedGroupId)
               ? treeUrlState.selectedGroupId
               : null;
-            setSelectedGroupId(selectedGroupId);
-            setSelectedFeatureIds(selectedGroupId
+            setSelectedReferenceId(selectedReferenceId);
+            setSelectedGroupId(selectedReferenceId ? null : selectedGroupId);
+            setSelectedFeatureIds(selectedReferenceId || selectedGroupId
               ? []
               : treeUrlState.selectedFeatureIds.filter((featureId) => validFeatureIds.has(featureId)));
             const modelIds = new Set(modelList.items.map((model) => model.id));
@@ -857,11 +1266,34 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!draftModel || modelReferences.length === 0) return;
+    let cancelled = false;
+    const refreshReferencedModels = async () => {
+      try {
+        const latest = await listModels();
+        if (cancelled) return;
+        setModels((current) => mergeLatestModelsPreservingIdentity(current, latest.items));
+        setServiceState("online");
+      } catch {
+        if (!cancelled) setServiceState("offline");
+      }
+    };
+    const interval = window.setInterval(() => void refreshReferencedModels(), 2000);
+    window.addEventListener("focus", refreshReferencedModels);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshReferencedModels);
+    };
+  }, [draftModel?.id, modelReferences.length]);
+
+  useEffect(() => {
     if (!treeUrlReady) return;
     const nextUrl = writeTreeUrlState(window.location.href, {
       modelId: draftModel?.id ?? null,
       selectedFeatureIds,
       selectedGroupId,
+      selectedReferenceId,
       projectExpanded,
       modelsExpanded,
       expandedModelIds: draftModel && expandedModelIds.includes(draftModel.id) ? [draftModel.id] : [],
@@ -877,6 +1309,7 @@ export function App() {
     projectExpanded,
     selectedFeatureIds,
     selectedGroupId,
+    selectedReferenceId,
     treeUrlReady,
   ]);
 
@@ -918,10 +1351,18 @@ export function App() {
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (document.pointerLockElement) return;
+        event.preventDefault();
         setMenuOpen(false);
         setTreeMenu(null);
         setCreateDialogOpen(false);
         setRenameProjectOpen(false);
+        setShortcutGuideOpen(false);
+        setActiveObjectTool(null);
+        setAnnotationMode(false);
+        setSelectedFeatureIds([]);
+        setSelectedGroupId(null);
+        setSelectedReferenceId(null);
       }
     };
     document.addEventListener("pointerdown", closeMenu);
@@ -995,10 +1436,22 @@ export function App() {
   };
 
   const selectModel = async (model: ModelRecord) => {
-    if (draftModel?.id === model.id) return;
+    if (draftModel?.id === model.id) {
+      setSelectedFeatureIds([]);
+      setSelectedGroupId(null);
+      setSelectedReferenceId(null);
+      setActiveObjectTool(null);
+      setAnnotationMode(false);
+      setNavigationMode(false);
+      setActiveInspectorTab("features");
+      return;
+    }
     try {
       const freshModel = await getModel(model.id);
       applyModel(freshModel);
+      setSelectedFeatureIds([]);
+      setSelectedGroupId(null);
+      setSelectedReferenceId(null);
       setActiveInspectorTab("features");
     } catch (error) {
       setSaveState("error");
@@ -1340,10 +1793,19 @@ export function App() {
 
   const selectFeatureFromPointer = (featureId: string | null, additive: boolean) => {
     setTreeMenu(null);
+    const referenceId = featureId ? resolvedReferences.referenceIdByFeatureId.get(featureId) : null;
+    if (referenceId) {
+      setSelectedFeatureIds([]);
+      setSelectedGroupId(null);
+      setSelectedReferenceId(referenceId);
+      setActiveInspectorTab("features");
+      return;
+    }
     if (!featureId) {
       if (!additive) {
         setSelectedFeatureIds([]);
         setSelectedGroupId(null);
+        setSelectedReferenceId(null);
         setActiveInspectorTab("properties");
       }
       return;
@@ -1352,6 +1814,7 @@ export function App() {
     if (!additive) {
       setSelectedFeatureIds([featureId]);
       setSelectedGroupId(null);
+      setSelectedReferenceId(null);
       setActiveInspectorTab("features");
       return;
     }
@@ -1362,6 +1825,7 @@ export function App() {
       return base.includes(featureId) ? base.filter((id) => id !== featureId) : [...base, featureId];
     });
     setSelectedGroupId(null);
+    setSelectedReferenceId(null);
     setActiveInspectorTab("features");
   };
 
@@ -1369,6 +1833,7 @@ export function App() {
     if (!additive) {
       setSelectedFeatureIds([]);
       setSelectedGroupId(group.id);
+      setSelectedReferenceId(null);
       setActiveInspectorTab("features");
       return;
     }
@@ -1382,6 +1847,7 @@ export function App() {
         : [...new Set([...base, ...group.featureIds])];
     });
     setSelectedGroupId(null);
+    setSelectedReferenceId(null);
     setActiveInspectorTab("features");
   };
 
@@ -1440,6 +1906,7 @@ export function App() {
     ]);
     setSelectedFeatureIds([]);
     setSelectedGroupId(groupId);
+    setSelectedReferenceId(null);
     setActiveInspectorTab("features");
     setExpandedGroupIds((current) => [...current, groupId]);
     setTreeMenu(null);
@@ -1467,7 +1934,14 @@ export function App() {
   };
 
   const dissolveFeatureGroup = (groupId: string) => {
-    updateFeatureGroups((groups) => groups.filter((group) => group.id !== groupId));
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        groups: (current.featureGraph.groups ?? []).filter((group) => group.id !== groupId),
+        joints: (current.featureGraph.joints ?? []).filter((joint) => joint.groupId !== groupId),
+      },
+    }));
     if (selectedGroupId === groupId) setSelectedGroupId(null);
     setActiveInspectorTab("properties");
     setExpandedGroupIds((current) => current.filter((id) => id !== groupId));
@@ -1486,6 +1960,96 @@ export function App() {
       const vector = [...group[key]] as Vector3Tuple;
       vector[index] = value;
       return { ...group, [key]: vector };
+    }));
+  };
+
+  const updateJointValue = (jointId: string, value: number, minimum: number, maximum: number) => {
+    if (!Number.isFinite(value)) return;
+    jointAnimation.cancel();
+    setLocomotionSpeed(0);
+    const nextValue = clamp(value, minimum, maximum);
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        joints: (current.featureGraph.joints ?? []).map((joint) => joint.id === jointId
+          ? { ...joint, value: nextValue }
+          : joint),
+      },
+    }));
+  };
+
+  const updateSelectedJointValue = (value: number) => {
+    if (!selectedJoint) return;
+    updateJointValue(selectedJoint.id, value, selectedJoint.min, selectedJoint.max);
+  };
+
+  const updateSelectedReferenceName = (name: string) => {
+    if (!selectedReference || !name.trim()) return;
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        references: (current.featureGraph.references ?? []).map((reference) => reference.id === selectedReference.id
+          ? { ...reference, name }
+          : reference),
+      },
+    }));
+  };
+
+  const addModelReference = (modelId: string) => {
+    if (!draftModel || modelId === draftModel.id) return;
+    const source = models.find((model) => model.id === modelId);
+    if (!source) return;
+    const referenceId = `model-reference-${crypto.randomUUID()}`;
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        references: [
+          ...(current.featureGraph.references ?? []),
+          {
+            id: referenceId,
+            name: `${source.name} · ${locale === "zh-CN" ? "引用" : "Reference"}`,
+            modelId: source.id,
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+          },
+        ],
+      },
+    }));
+    setSelectedFeatureIds([]);
+    setSelectedGroupId(null);
+    setSelectedReferenceId(referenceId);
+    setActiveInspectorTab("features");
+    setExpandedModelIds((current) => current.includes(draftModel.id) ? current : [...current, draftModel.id]);
+    setTreeMenu(null);
+  };
+
+  const removeModelReference = (referenceId: string) => {
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        references: (current.featureGraph.references ?? []).filter((reference) => reference.id !== referenceId),
+      },
+    }));
+    if (selectedReferenceId === referenceId) setSelectedReferenceId(null);
+    setActiveInspectorTab("properties");
+    setTreeMenu(null);
+  };
+
+  const updateSelectedReferenceRoomSurfaceMode = (roomSurfaceMode: "source" | "interior" | "exterior") => {
+    if (!selectedReference) return;
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        references: (current.featureGraph.references ?? []).map((reference) => reference.id === selectedReference.id
+          ? { ...reference, roomSurfaceMode }
+          : reference),
+      },
     }));
   };
 
@@ -1508,6 +2072,13 @@ export function App() {
           if (key === "scale" && uniformScale) vector.fill(value);
           else vector[index] = value;
           return { ...group, [key]: vector };
+        }),
+        references: (current.featureGraph.references ?? []).map((reference) => {
+          if (!selectedReference || reference.id !== selectedReference.id) return reference;
+          const vector = [...(key === "scale" ? reference.scale ?? [1, 1, 1] : reference[key])] as Vector3Tuple;
+          if (key === "scale" && uniformScale) vector.fill(value);
+          else vector[index] = value;
+          return { ...reference, [key]: vector };
         }),
       },
     }));
@@ -1538,6 +2109,15 @@ export function App() {
             rotation: transform.rotation,
             scale: transform.scale.map((value) => Math.max(0.001, Math.abs(value))) as Vector3Tuple,
           } : group;
+        }),
+        references: (current.featureGraph.references ?? []).map((reference) => {
+          const transform = groupTransforms.get(referenceViewportGroupId(reference.id));
+          return transform ? {
+            ...reference,
+            position: transform.position,
+            rotation: transform.rotation,
+            scale: transform.scale.map((value) => Math.max(0.001, Math.abs(value))) as Vector3Tuple,
+          } : reference;
         }),
       },
     }));
@@ -1589,8 +2169,55 @@ export function App() {
   const toggleObjectTool = (tool: ObjectTool) => {
     setOperationError("");
     setAnnotationMode(false);
+    setNavigationMode(false);
     setActiveObjectTool((current) => current === tool ? null : tool);
   };
+
+  const selectionSummaryTitle = selectedReference?.name
+    ?? selectedGroup?.name
+    ?? selectedFeature?.name
+    ?? `${copy.selectedObjects} ${selectedFeatures.length}`;
+  const selectionSummarySubtitle = selectedReference
+    ? copy.modelReferences
+    : selectedGroup
+      ? copy.groups
+      : selectedFeatures.length > 1
+        ? copy.multipleSelection
+        : `${selectedFeature?.type === "box" ? copy.box : selectedFeature?.type === "cylinder" ? copy.cylinder : selectedProceduralSource?.kind === "room-shell" ? copy.roomShell : selectedProceduralSource ? copy.proceduralShell : copy.mesh} · ${selectedFeature ? copy[selectedFeature.operation] : ""}`;
+  const selectionSummaryIcon: SelectionSummaryIcon = selectedReference
+    ? "reference"
+    : selectedGroup
+      ? "group"
+      : selectedFeatures.length > 1
+        ? "multiple"
+        : selectedFeature?.type === "box"
+          ? "box"
+          : selectedFeature?.type === "cylinder"
+            ? "cylinder"
+            : "multiple";
+  const selectionSummaryEntries = selectedFeature
+    ? [
+      { label: copy.size, value: selectedFeatureSize },
+      { label: copy.position, value: `${selectedFeature.position.map(formatNumber).join(", ")} ${draftModel?.unit}` },
+      { label: copy.volume, value: `${formatNumber(selectedFeatureVolume)} ${draftModel?.unit}³` },
+      { label: copy.triangles, value: numberFormatter.format(selectedFeatureTriangles) },
+    ]
+    : selectedGroup
+      ? [
+        { label: copy.groupMembers, value: numberFormatter.format(selectedGroup.featureIds.length) },
+        { label: copy.position, value: `${selectedGroup.position.map(formatNumber).join(", ")} ${draftModel?.unit}` },
+        { label: copy.rotationLabel, value: selectedGroup.rotation.map((value) => `${formatNumber(value)}°`).join(", ") },
+      ]
+      : selectedReference
+        ? [
+          { label: copy.referencedModel, value: selectedReferenceSource?.name ?? copy.referenceMissing },
+          { label: copy.liveRevision, value: selectedReferenceSource ? numberFormatter.format(selectedReferenceSource.revision) : "—" },
+          { label: copy.position, value: `${selectedReference.position.map(formatNumber).join(", ")} ${draftModel?.unit}` },
+          { label: copy.rotationLabel, value: selectedReference.rotation.map((value) => `${formatNumber(value)}°`).join(", ") },
+        ]
+        : selectedFeatures.length > 1
+          ? [{ label: copy.groupMembers, value: numberFormatter.format(selectedFeatures.length) }]
+          : [];
 
   return (
     <div
@@ -1600,38 +2227,27 @@ export function App() {
         "--inspector-width": `${inspectorWidth}px`,
       } as CSSProperties}
     >
-      <header className="topbar">
-        {!libraryCollapsed && (
-          <div className="brand" aria-label="SolidLoom">
-            <span className="brand-mark"><Layers3 size={18} /></span>
-            <span className="brand-name">SolidLoom</span>
-            <button className="collapse-button" type="button" aria-label={copy.collapseLibrary} title={copy.collapseLibrary} onClick={() => setLibraryCollapsed(true)}>
-              <PanelLeftClose size={16} />
-            </button>
-          </div>
-        )}
-
-        <div className="topbar-main">
-          {libraryCollapsed && (
-            <button className="expand-button" type="button" aria-label={copy.expandLibrary} title={copy.expandLibrary} onClick={() => setLibraryCollapsed(false)}>
-              <PanelLeftOpen size={16} />
-            </button>
-          )}
-          <div className="document-title">
-            <FileBox size={15} />
-            <span>{draftModel?.name ?? copy.noModel}</span>
-            {draftModel && <small>{copy.revision} {draftModel.revision}</small>}
-          </div>
-        </div>
-
-        <div className="top-actions">
-          <button className="icon-button" type="button" aria-label={copy.undo} title={copy.undo} disabled={historySize.undo === 0} onClick={undo}><Undo2 size={16} /></button>
-          <button className="icon-button" type="button" aria-label={copy.redo} title={copy.redo} disabled={historySize.redo === 0} onClick={redo}><Redo2 size={16} /></button>
-          <button className="icon-button save-button" type="button" aria-label={copy.save} title={copy.save} disabled={!isDirty || saveState === "saving"} onClick={saveChanges}>
-            <Save size={16} />
-          </button>
-        </div>
-      </header>
+      <TopBar
+        canRedo={historySize.redo > 0}
+        canSave={isDirty && saveState !== "saving"}
+        canUndo={historySize.undo > 0}
+        collapsed={libraryCollapsed}
+        labels={{
+          collapseLibrary: copy.collapseLibrary,
+          expandLibrary: copy.expandLibrary,
+          noModel: copy.noModel,
+          redo: copy.redo,
+          revision: copy.revision,
+          save: copy.save,
+          undo: copy.undo,
+        }}
+        modelName={draftModel?.name}
+        onCollapseChange={setLibraryCollapsed}
+        onRedo={redo}
+        onSave={saveChanges}
+        onUndo={undo}
+        revision={draftModel?.revision}
+      />
 
       {!libraryCollapsed && (
         <aside className="library-panel">
@@ -1687,7 +2303,7 @@ export function App() {
                   <div className="tree-group tree-models" role="group">
                     {models.length > 0 ? models.map((model) => {
                       const isCurrentModel = draftModel?.id === model.id;
-                      const isSelectedModel = isCurrentModel && selectedFeatureIds.length === 0 && !selectedGroup;
+                      const isSelectedModel = isCurrentModel && selectedFeatureIds.length === 0 && !selectedGroup && !selectedReference;
                       const isModelExpanded = isCurrentModel && expandedModelIds.includes(model.id);
                       return (
                         <div className="tree-model-entry" role="none" key={model.id}>
@@ -1703,13 +2319,15 @@ export function App() {
                                 void selectModel(model).then(() => {
                                   setSelectedFeatureIds([]);
                                   setSelectedGroupId(null);
-                                  setActiveInspectorTab("properties");
+                                  setSelectedReferenceId(null);
+                                  setActiveInspectorTab("features");
                                 });
                                 setExpandedModelIds((current) => current.includes(model.id) ? current : [...current, model.id]);
-                              } else if (selectedFeatureIds.length > 0 || selectedGroup) {
+                              } else if (selectedFeatureIds.length > 0 || selectedGroup || selectedReference) {
                                 setSelectedFeatureIds([]);
                                 setSelectedGroupId(null);
-                                setActiveInspectorTab("properties");
+                                setSelectedReferenceId(null);
+                                setActiveInspectorTab("features");
                               } else {
                                 setExpandedModelIds((current) => current.includes(model.id)
                                   ? current.filter((id) => id !== model.id)
@@ -1734,6 +2352,36 @@ export function App() {
 
                           {isModelExpanded && draftModel && (
                             <div className="tree-group tree-features" role="group">
+                              {modelReferences.map((reference) => {
+                                const source = models.find((model) => model.id === reference.modelId);
+                                const isSelected = selectedReference?.id === reference.id;
+                                return (
+                                  <button
+                                    className={`tree-row tree-feature tree-reference${isSelected ? " selected" : ""}`}
+                                    data-depth="3"
+                                    type="button"
+                                    role="treeitem"
+                                    aria-selected={isSelected}
+                                    key={reference.id}
+                                    onClick={() => {
+                                      setSelectedFeatureIds([]);
+                                      setSelectedGroupId(null);
+                                      setSelectedReferenceId(reference.id);
+                                      setActiveInspectorTab("features");
+                                    }}
+                                    onContextMenu={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      openContextMenu(event.clientX, event.clientY, { kind: "reference", referenceId: reference.id });
+                                    }}
+                                  >
+                                    <span className="tree-spacer" />
+                                    <Link2 size={15} />
+                                    <span>{reference.name}</span>
+                                    <small>{source ? `${copy.revision} ${source.revision}` : "!"}</small>
+                                  </button>
+                                );
+                              })}
                               {featureGroups.map((group) => {
                                 const isGroupExpanded = expandedGroupIds.includes(group.id);
                                 const isGroupSelected = selectedGroup?.id === group.id
@@ -1870,7 +2518,25 @@ export function App() {
                 </button>
               )}
 
-              {draftModel && treeMenu.target.kind !== "group"
+              {draftModel && treeMenu.target.kind === "model" && treeMenu.target.modelId !== draftModel.id && (
+                <button type="button" role="menuitem" onClick={() => {
+                  if (treeMenu.target.kind === "model") addModelReference(treeMenu.target.modelId);
+                }}>
+                  <Link2 size={15} />
+                  <span>{copy.addModelReference}</span>
+                </button>
+              )}
+
+              {treeMenu.target.kind === "reference" && (
+                <button type="button" role="menuitem" onClick={() => {
+                  if (treeMenu.target.kind === "reference") removeModelReference(treeMenu.target.referenceId);
+                }}>
+                  <FolderMinus size={15} />
+                  <span>{copy.removeModelReference}</span>
+                </button>
+              )}
+
+              {draftModel && treeMenu.target.kind !== "group" && treeMenu.target.kind !== "reference"
                 && (treeMenu.target.kind !== "model" || treeMenu.target.modelId === draftModel.id) && (
                 <button
                   type="button"
@@ -1931,6 +2597,14 @@ export function App() {
                 <nav className="menu-links">
                   <a href="/llms.txt" target="_blank" rel="noreferrer"><Braces size={16} /><span>{copy.agentGuide}</span><ExternalLink size={13} /></a>
                   <a href="/docs" target="_blank" rel="noreferrer"><CircleDot size={16} /><span>{copy.apiDocs}</span><ExternalLink size={13} /></a>
+                  <button type="button" onClick={() => {
+                    setMenuOpen(false);
+                    setShortcutGuideOpen(true);
+                  }}>
+                    <Keyboard size={16} />
+                    <span>{copy.keyboardShortcuts}</span>
+                    <kbd>?</kbd>
+                  </button>
                 </nav>
                 <div className="menu-divider" />
                 <div className="preference-group">
@@ -1971,7 +2645,15 @@ export function App() {
 
       {libraryCollapsed && treeMenu && (
         <div className="tree-context-menu" ref={treeMenuRef} role="menu" style={{ left: treeMenu.x, top: treeMenu.y }}>
-          {treeMenu.target.kind !== "group" && (
+          {treeMenu.target.kind === "reference" && (
+            <button type="button" role="menuitem" onClick={() => {
+              if (treeMenu.target.kind === "reference") removeModelReference(treeMenu.target.referenceId);
+            }}>
+              <FolderMinus size={15} />
+              <span>{copy.removeModelReference}</span>
+            </button>
+          )}
+          {treeMenu.target.kind !== "group" && treeMenu.target.kind !== "reference" && (
             <button type="button" role="menuitem" onClick={() => createFeatureGroup(contextFeatureIds)}>
               <Folder size={15} />
               <span>{copy.createGroup}</span>
@@ -2011,7 +2693,7 @@ export function App() {
                 <Plus size={16} />
               </button>
             )}
-            {draftModel && selectedFeatures.length === 0 && !selectedGroup && (
+            {draftModel && selectedFeatures.length === 0 && !selectedGroup && !selectedReference && (
               <>
                 <button type="button" aria-label={copy.metadata} title={copy.metadata} className={activeInspectorTab === "properties" ? "tool-active" : ""} onClick={() => setActiveInspectorTab("properties")}>
                   <FileBox size={16} />
@@ -2029,14 +2711,16 @@ export function App() {
                 <button type="button" className={activeObjectTool === "rotate" ? "tool-active" : ""} aria-label={copy.rotateTool} title={`${copy.rotateTool} [R]`} onClick={() => toggleObjectTool("rotate")}>
                   <Rotate3D size={16} />
                 </button>
-                <button type="button" className={activeObjectTool === "scale" ? "tool-active" : ""} aria-label={copy.scaleTool} title={`${copy.scaleTool} [S]`} onClick={() => toggleObjectTool("scale")}>
+                <button type="button" className={activeObjectTool === "scale" ? "tool-active" : ""} aria-label={copy.scaleTool} title={`${copy.scaleTool} [Shift+S]`} onClick={() => toggleObjectTool("scale")}>
                   <Scaling size={16} />
                 </button>
-                <span className="viewport-tool-divider" aria-hidden="true" />
-                <button type="button" className={activeObjectTool === "plane-cut" ? "tool-active" : ""} aria-label={copy.planeCutTool} title={copy.planeCutTool} onClick={() => toggleObjectTool("plane-cut")}>
-                  <Slice size={16} />
-                </button>
-                {selectedViewportFeatureIds.length > 1 && (
+                {!selectedReference && <span className="viewport-tool-divider" aria-hidden="true" />}
+                {!selectedReference && (
+                  <button type="button" className={activeObjectTool === "plane-cut" ? "tool-active" : ""} aria-label={copy.planeCutTool} title={copy.planeCutTool} onClick={() => toggleObjectTool("plane-cut")}>
+                    <Slice size={16} />
+                  </button>
+                )}
+                {!selectedReference && selectedViewportFeatureIds.length > 1 && (
                   <button type="button" className={activeObjectTool === "boolean" ? "tool-active" : ""} aria-label={copy.booleanTool} title={copy.booleanTool} onClick={() => toggleObjectTool("boolean")}>
                     <Combine size={16} />
                   </button>
@@ -2073,6 +2757,23 @@ export function App() {
             {draftModel && (
               <>
                 <span className="viewport-tool-divider" aria-hidden="true" />
+                {draftModel.featureGraph.navigation?.enabled && (
+                  <button
+                    type="button"
+                    className={navigationMode ? "tool-active" : ""}
+                    aria-label={copy.navigationMode}
+                    aria-pressed={navigationMode}
+                    title={copy.navigationMode}
+                    onClick={() => {
+                      setActiveObjectTool(null);
+                      setAnnotationMode(false);
+                      setOperationError("");
+                      setNavigationMode((value) => !value);
+                    }}
+                  >
+                    <Route size={16} />
+                  </button>
+                )}
                 <button
                   type="button"
                   className={annotationMode ? "tool-active" : ""}
@@ -2081,6 +2782,7 @@ export function App() {
                   title={copy.annotationAssist}
                   onClick={() => {
                     setActiveObjectTool(null);
+                    setNavigationMode(false);
                     setOperationError("");
                     setAnnotationMode((value) => !value);
                   }}
@@ -2193,7 +2895,7 @@ export function App() {
           </section>
         )}
 
-        {draftModel && draftModel.featureGraph.features.length > 0 && (
+        {draftModel && viewportFeatures.length > 0 && (
           <Viewport3D
             annotationMode={annotationMode}
             annotationStrings={{
@@ -2211,13 +2913,25 @@ export function App() {
               roomShell: copy.roomShell,
             }}
             cutPlane={activeObjectTool === "plane-cut" ? { offset: cutOffset, rotation: cutRotation } : null}
-            features={draftModel.featureGraph.features}
-            groups={featureGroups}
+            features={viewportFeatures}
+            groups={viewportGroups}
+            jointAnimation={jointAnimation.request}
+            joints={draftModel.featureGraph.joints ?? []}
             label={copy.viewportPreview}
             modelId={draftModel.id}
             modelName={draftModel.name}
+            rendererFailureLabel={copy.viewportRendererFailed}
+            rendererReloadLabel={copy.reloadViewport}
             onSelectFeature={selectFeatureFromPointer}
             onSelectGroup={(groupId) => {
+              const referenceId = referenceIdFromViewportGroupId(groupId);
+              if (referenceId) {
+                setSelectedFeatureIds([]);
+                setSelectedGroupId(null);
+                setSelectedReferenceId(referenceId);
+                setActiveInspectorTab("features");
+                return;
+              }
               const group = featureGroups.find((item) => item.id === groupId);
               if (group) selectGroupFromTree(group, false);
             }}
@@ -2226,8 +2940,22 @@ export function App() {
               else setTreeMenu(null);
             }}
             onTransformCommit={commitViewportTransforms}
+            navigation={draftModel.featureGraph.navigation ?? null}
+            navigationCameraLabels={{
+              god: copy.navigationGodCamera,
+              "first-person": copy.navigationFirstPerson,
+              "third-person": copy.navigationThirdPerson,
+            }}
+            navigationCameraMode={navigationCameraMode}
+            navigationDynamicBodies={navigationDynamicBodies}
+            navigationInteractions={navigationInteractions}
+            navigationInteractionLabels={navigationInteractionLabels}
+            navigationMode={navigationMode}
+            navigationModeLabel={copy.navigationModeActive}
+            onJointAnimationComplete={jointAnimation.complete}
+            onNavigationCameraModeChange={setNavigationCameraMode}
             selectedFeatureIds={selectedViewportFeatureIds}
-            selectedGroupId={selectedGroup?.id ?? null}
+            selectedGroupId={selectedReference ? referenceViewportGroupId(selectedReference.id) : selectedGroup?.id ?? null}
             theme={theme}
             transformMode={transformMode}
             viewCubeLabel={copy.viewCube}
@@ -2235,42 +2963,14 @@ export function App() {
           />
         )}
 
-        {(selectedFeatures.length > 0 || selectedGroup) && (
-          <aside className="selection-summary" aria-label={copy.selectionSummary}>
-            <div className="selection-summary-heading">
-              <span className="selection-summary-icon" aria-hidden="true">
-                {selectedGroup ? <Folder size={16} /> : selectedFeatures.length > 1 ? <Layers3 size={16} /> : selectedFeature?.type === "box" ? <Cuboid size={16} /> : selectedFeature?.type === "cylinder" ? <Cylinder size={16} /> : <Layers3 size={16} />}
-              </span>
-              <span>
-                <strong>{selectedGroup?.name ?? selectedFeature?.name ?? `${copy.selectedObjects} ${selectedFeatures.length}`}</strong>
-                <small>{selectedGroup
-                  ? copy.groups
-                  : selectedFeatures.length > 1
-                    ? copy.multipleSelection
-                  : `${selectedFeature?.type === "box" ? copy.box : selectedFeature?.type === "cylinder" ? copy.cylinder : selectedProceduralSource?.kind === "room-shell" ? copy.roomShell : selectedProceduralSource ? copy.proceduralShell : copy.mesh} · ${selectedFeature ? copy[selectedFeature.operation] : ""}`}</small>
-              </span>
-            </div>
-            <dl>
-              {selectedFeature && (
-                <>
-                  <div><dt>{copy.size}</dt><dd>{selectedFeatureSize}</dd></div>
-                  <div><dt>{copy.position}</dt><dd>{selectedFeature.position.map(formatNumber).join(", ")} {draftModel?.unit}</dd></div>
-                  <div><dt>{copy.volume}</dt><dd>{formatNumber(selectedFeatureVolume)} {draftModel?.unit}³</dd></div>
-                  <div><dt>{copy.triangles}</dt><dd>{numberFormatter.format(selectedFeatureTriangles)}</dd></div>
-                </>
-              )}
-              {selectedGroup && (
-                <>
-                  <div><dt>{copy.groupMembers}</dt><dd>{numberFormatter.format(selectedGroup.featureIds.length)}</dd></div>
-                  <div><dt>{copy.position}</dt><dd>{selectedGroup.position.map(formatNumber).join(", ")} {draftModel?.unit}</dd></div>
-                  <div><dt>{copy.rotationLabel}</dt><dd>{selectedGroup.rotation.map((value) => `${formatNumber(value)}°`).join(", ")}</dd></div>
-                </>
-              )}
-              {selectedFeatures.length > 1 && (
-                <div><dt>{copy.groupMembers}</dt><dd>{numberFormatter.format(selectedFeatures.length)}</dd></div>
-              )}
-            </dl>
-          </aside>
+        {(selectedFeatures.length > 0 || selectedGroup || selectedReference) && (
+          <SelectionSummary
+            entries={selectionSummaryEntries}
+            icon={selectionSummaryIcon}
+            label={copy.selectionSummary}
+            subtitle={selectionSummarySubtitle}
+            title={selectionSummaryTitle}
+          />
         )}
 
         {!draftModel && (
@@ -2311,8 +3011,8 @@ export function App() {
           {activeInspectorTab === "features" ? (
             <div className="inspector-lower-pane">
               <section className="inspector-section properties">
-                <div className="section-title"><span>{selectedGroup ? copy.groupTransform : copy.parameters}</span><Settings2 size={15} /></div>
-                {selectedFeatures.length === 0 && !selectedGroup && (draftModel?.featureGraph.variables?.length ?? 0) > 0 && (
+                <div className="section-title"><span>{selectedReference ? copy.referenceTransform : selectedGroup ? copy.groupTransform : copy.parameters}</span><Settings2 size={15} /></div>
+                {selectedFeatures.length === 0 && !selectedGroup && !selectedReference && (draftModel?.featureGraph.variables?.length ?? 0) > 0 && (
                   <div className="model-variable-editor">
                     <strong>{copy.modelVariables}</strong>
                     <p>{copy.modelVariablesHint}</p>
@@ -2323,6 +3023,64 @@ export function App() {
                       </label>
                     ))}
                   </div>
+                )}
+                {selectedFeatures.length === 0 && !selectedGroup && !selectedReference && (draftModel?.featureGraph.joints?.length ?? 0) > 0 && (
+                  <ModelActionsPanel
+                    activeAnimationId={jointAnimation.activeClipId}
+                    animations={draftModel?.featureGraph.animations ?? []}
+                    joints={draftModel?.featureGraph.joints ?? []}
+                    locomotion={locomotionProfile}
+                    locomotionBlend={locomotionPreview?.blend ?? 0}
+                    locomotionCycleDurationMs={locomotionPreview?.cycleDurationMs ?? null}
+                    locomotionSpeed={locomotionSpeed}
+                    locomotionState={locomotionState}
+                    poses={draftModel?.featureGraph.poses ?? []}
+                    labels={{
+                      angle: copy.jointAngle,
+                      animations: copy.animationClips,
+                      closed: copy.jointClosed,
+                      expanded: copy.jointExpanded,
+                      half: copy.jointHalf,
+                      modelActions: copy.modelActions,
+                      locomotionBlend: copy.locomotionBlend,
+                      locomotionCycle: copy.locomotionCycle,
+                      locomotionIdle: copy.locomotionIdle,
+                      locomotionRun: copy.locomotionRun,
+                      locomotionRunReference: copy.locomotionRunReference,
+                      locomotionSpeed: copy.locomotionSpeed,
+                      locomotionTransitionEnd: copy.locomotionTransitionEnd,
+                      locomotionTransitionStart: copy.locomotionTransitionStart,
+                      locomotionTransition: copy.locomotionTransition,
+                      locomotionWalk: copy.locomotionWalk,
+                      locomotionWalkReference: copy.locomotionWalkReference,
+                      posePresets: copy.posePresets,
+                      range: copy.jointRange,
+                      revolute: copy.jointTypeRevolute,
+                    }}
+                    onJointValueChange={(joint, value) => updateJointValue(joint.id, value, joint.min, joint.max)}
+                    onLocomotionProfileChange={updateLocomotionProfile}
+                    onLocomotionSpeedChange={playLocomotionAtSpeed}
+                    onAnimationSelect={(animation) => {
+                      if (jointAnimation.activeClipId === animation.id) {
+                        setLocomotionSpeed(0);
+                        const standingPose = draftModel?.featureGraph.poses?.find((pose) => pose.id === "cyber-figure-pose-stand");
+                        if (standingPose) jointAnimation.start(standingPose.jointValues, standingPose.durationMs ?? 600, draftModel?.featureGraph.joints ?? []);
+                        else jointAnimation.cancel();
+                        return;
+                      }
+                      if (locomotionProfile?.walkAnimationId === animation.id) setLocomotionSpeed(locomotionProfile.walkReferenceSpeed);
+                      if (locomotionProfile?.runAnimationId === animation.id) setLocomotionSpeed(locomotionProfile.runReferenceSpeed);
+                      jointAnimation.startClip(
+                        animation,
+                        draftModel?.featureGraph.joints ?? [],
+                        locomotionProfile ? { transitionMs: locomotionProfile.transitionDurationMs } : {},
+                      );
+                    }}
+                    onPoseSelect={(pose) => {
+                      setLocomotionSpeed(0);
+                      jointAnimation.start(pose.jointValues, pose.durationMs ?? 600, draftModel?.featureGraph.joints ?? []);
+                    }}
+                  />
                 )}
                 {selectedGroup && (
                   <>
@@ -2342,6 +3100,63 @@ export function App() {
                     ))}
                     {(["X", "Y", "Z"] as const).map((axis, index) => (
                       <label key={`rotation-${axis}`}>{copy.rotationLabel} {axis} <span><input aria-label={`${copy.rotationLabel} ${axis}`} type="number" step="1" value={selectedGroup.rotation[index]} onChange={(event) => updateSelectedGroupVector("rotation", index, Number(event.target.value))} /> °</span></label>
+                    ))}
+                    {selectedJoint && (
+                      <div className="joint-editor">
+                        <strong>{copy.joint} · {copy.jointTypeRevolute}</strong>
+                        <label>{copy.jointAngle}
+                          <span><input aria-label={copy.jointAngle} type="number" step="1" min={selectedJoint.min} max={selectedJoint.max} value={selectedJoint.value} onChange={(event) => updateSelectedJointValue(Number(event.target.value))} /> °</span>
+                        </label>
+                        <input className="joint-range" aria-label={copy.jointAngle} type="range" step="1" min={selectedJoint.min} max={selectedJoint.max} value={selectedJoint.value} onChange={(event) => updateSelectedJointValue(Number(event.target.value))} />
+                        <small>{copy.jointRange} · {selectedJoint.min}°–{selectedJoint.max}°</small>
+                        <div className="joint-actions">
+                          <button type="button" onClick={() => updateSelectedJointValue(selectedJoint.min)}>{copy.jointClose}</button>
+                          <button type="button" onClick={() => updateSelectedJointValue(selectedJoint.restValue)}>{copy.jointOpen}</button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                {selectedReference && (
+                  <>
+                    <label className="group-name-row">
+                      {copy.referenceName}
+                      <input
+                        className="group-name-input"
+                        aria-label={copy.referenceName}
+                        value={selectedReference.name}
+                        maxLength={120}
+                        onChange={(event) => updateSelectedReferenceName(event.target.value)}
+                      />
+                    </label>
+                    <p className="group-member-count">
+                      {copy.referencedModel} · {selectedReferenceSource?.name ?? copy.referenceMissing}
+                      {selectedReferenceSource ? ` · ${copy.liveRevision} ${selectedReferenceSource.revision}` : ""}
+                    </p>
+                    {selectedReferenceHasRoomShell && (
+                      <label>{copy.roomReferenceView}
+                        <select
+                          aria-label={copy.roomReferenceView}
+                          value={selectedReference.roomSurfaceMode ?? "source"}
+                          onChange={(event) => updateSelectedReferenceRoomSurfaceMode(event.target.value as "source" | "interior" | "exterior")}
+                        >
+                          <option value="source">{copy.roomReferenceSource}</option>
+                          <option value="interior">{copy.roomReferenceInterior}</option>
+                          <option value="exterior">{copy.roomReferenceExterior}</option>
+                        </select>
+                      </label>
+                    )}
+                    {resolvedReferences.issues.filter((issue) => issue.referenceId === selectedReference.id).map((issue) => (
+                      <p className="parameter-expression-error" key={`${issue.kind}-${issue.message}`}>{issue.message}</p>
+                    ))}
+                    {(["X", "Y", "Z"] as const).map((axis, index) => (
+                      <label key={`reference-position-${axis}`}>{copy.position} {axis} <span><input aria-label={`${copy.position} ${axis}`} type="number" step="0.1" value={selectedReference.position[index]} onChange={(event) => updateSelectedTransformVector("position", index, Number(event.target.value))} /> {draftModel?.unit}</span></label>
+                    ))}
+                    {(["X", "Y", "Z"] as const).map((axis, index) => (
+                      <label key={`reference-rotation-${axis}`}>{copy.rotationLabel} {axis} <span><input aria-label={`${copy.rotationLabel} ${axis}`} type="number" step="1" value={selectedReference.rotation[index]} onChange={(event) => updateSelectedTransformVector("rotation", index, Number(event.target.value))} /> °</span></label>
+                    ))}
+                    {(["X", "Y", "Z"] as const).map((axis, index) => (
+                      <label key={`reference-scale-${axis}`}>{copy.scaleTool} {axis} <span><input aria-label={`${copy.scaleTool} ${axis}`} type="number" min="1" step="1" value={(selectedReference.scale?.[index] ?? 1) * 100} onChange={(event) => updateSelectedTransformVector("scale", index, Number(event.target.value) / 100)} /> %</span></label>
                     ))}
                   </>
                 )}
@@ -2496,6 +3311,8 @@ export function App() {
                         <option value="metal">{copy.materialMetal}</option>
                         <option value="plastic">{copy.materialPlastic}</option>
                         <option value="glass">{copy.materialGlass}</option>
+                        <option value="fabric">{copy.materialFabric}</option>
+                        <option value="rubber">{copy.materialRubber}</option>
                       </select>
                     </label>
                     <label>{copy.color}
@@ -2513,7 +3330,7 @@ export function App() {
                   </div>
                 )}
                 {selectedFeatures.length > 1 && <p className="inspector-empty">{copy.selectedObjects} · {selectedFeatures.length}</p>}
-                {selectedFeatures.length === 0 && !selectedGroup && (draftModel?.featureGraph.variables?.length ?? 0) === 0 && <p className="inspector-empty">{copy.noSelection}</p>}
+                {selectedFeatures.length === 0 && !selectedGroup && !selectedReference && (draftModel?.featureGraph.variables?.length ?? 0) === 0 && (draftModel?.featureGraph.joints?.length ?? 0) === 0 && <p className="inspector-empty">{copy.noSelection}</p>}
               </section>
             </div>
           ) : (
@@ -2542,47 +3359,49 @@ export function App() {
         </div>
       </aside>
 
-      <footer className="statusbar" aria-label={copy.workspaceStatus}>
-        <div className="status-main">
-          <nav className="status-breadcrumb" aria-label={copy.currentPath}>
-            <ol>
-              {statusPath.map((segment, index) => (
-                <li key={segment.id}>
-                  {index > 0 && <ChevronRight size={10} aria-hidden="true" />}
-                  <span aria-current={index === statusPath.length - 1 ? "page" : undefined} title={segment.label}>{segment.label}</span>
-                </li>
+      <StatusBar
+        detail={statusDetail}
+        editorStatusClass={editorStatusClass}
+        labels={{ currentPath: copy.currentPath, unit: copy.unit, units: copy.units, workspaceStatus: copy.workspaceStatus }}
+        onUnitChange={(unit) => updateDraftWithHistory((current) => ({ ...current, unit }))}
+        path={statusPath}
+        saveLabel={saveLabel}
+        serviceLabel={serviceLabel}
+        serviceState={serviceState}
+        showEditorStatus={showEditorStatus}
+        unit={draftModel?.unit}
+      />
+
+      {shortcutGuideOpen && (
+        <div className="dialog-backdrop" role="presentation" onPointerDown={(event) => {
+          if (event.currentTarget === event.target) setShortcutGuideOpen(false);
+        }}>
+          <section className="shortcut-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcut-guide-title">
+            <header className="shortcut-dialog-heading">
+              <div id="shortcut-guide-title"><Keyboard size={17} /><span>{copy.keyboardShortcuts}</span></div>
+              <button type="button" aria-label={copy.close} title={copy.close} onClick={() => setShortcutGuideOpen(false)}>
+                <X size={16} />
+              </button>
+            </header>
+            <p>{copy.shortcutViewportHint}</p>
+            <div className="shortcut-sections">
+              {shortcutSections.map((section) => (
+                <section className="shortcut-section" key={section.title}>
+                  <h3>{section.title}</h3>
+                  <dl>
+                    {section.rows.map(([keys, description]) => (
+                      <div className="shortcut-row" key={keys}>
+                        <dt><kbd>{keys}</kbd></dt>
+                        <dd>{description}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
               ))}
-            </ol>
-          </nav>
-          {showEditorStatus && (
-            <div className="status-feedback">
-              <span className="status-divider" aria-hidden="true" />
-              <span className={`status-primary ${editorStatusClass}`}><span className="status-ready-dot" />{saveLabel}</span>
-              {statusDetail && <><span className="status-divider" aria-hidden="true" /><span className="status-detail">{statusDetail}</span></>}
             </div>
-          )}
+          </section>
         </div>
-        <div className="status-right">
-          <label className={`status-unit-picker${draftModel ? "" : " disabled"}`} title={`${copy.unit}: ${draftModel?.unit ?? "mm"}`}>
-            <span>{copy.units} {draftModel?.unit ?? "mm"}</span>
-            <ChevronDown size={9} aria-hidden="true" />
-            <select
-              aria-label={copy.unit}
-              disabled={!draftModel}
-              value={draftModel?.unit ?? "mm"}
-              onChange={(event) => {
-                updateDraftWithHistory((current) => ({ ...current, unit: event.target.value as Unit }));
-              }}
-            >
-              <option value="mm">mm</option>
-              <option value="cm">cm</option>
-              <option value="in">in</option>
-            </select>
-          </label>
-          <span className="status-divider" aria-hidden="true" />
-          <span className={`status-service ${serviceState}`}><span className="state-dot" />{serviceLabel}</span>
-        </div>
-      </footer>
+      )}
 
       {createDialogOpen && (
         <div className="dialog-backdrop" role="presentation" onPointerDown={(event) => {

@@ -54,6 +54,9 @@ export function inspectFeatureGraph(graph: FeatureGraph): GraphInspection {
   const issues: GraphIssue[] = [];
   const seen = new Set<string>();
   const groupIds = new Set<string>();
+  const jointIds = new Set<string>();
+  const jointGroupIds = new Set<string>();
+  const referenceIds = new Set<string>();
   const groupedFeatureIds = new Set<string>();
 
   for (const [index, feature] of graph.features.entries()) {
@@ -87,6 +90,16 @@ export function inspectFeatureGraph(graph: FeatureGraph): GraphInspection {
     }
   }
 
+  for (const reference of graph.references ?? []) {
+    if (referenceIds.has(reference.id)) {
+      issues.push({ level: "error", message: "Model reference ids must be unique." });
+    }
+    referenceIds.add(reference.id);
+    if ((reference.scale ?? [1, 1, 1]).some((value) => value <= 0)) {
+      issues.push({ level: "error", message: "Model reference scale components must be positive." });
+    }
+  }
+
   for (const group of graph.groups ?? []) {
     if (groupIds.has(group.id)) {
       issues.push({ level: "error", message: "Feature group ids must be unique." });
@@ -103,6 +116,68 @@ export function inspectFeatureGraph(graph: FeatureGraph): GraphInspection {
         issues.push({ level: "error", featureId, message: "A feature may only belong to one feature group." });
       }
       groupedFeatureIds.add(featureId);
+    }
+  }
+
+  for (const joint of graph.joints ?? []) {
+    if (jointIds.has(joint.id)) issues.push({ level: "error", message: "Articulation joint ids must be unique." });
+    jointIds.add(joint.id);
+    if (!groupIds.has(joint.groupId)) issues.push({ level: "error", message: "Articulation joints may only target existing feature groups." });
+    if (jointGroupIds.has(joint.groupId)) issues.push({ level: "error", message: "A feature group may only be controlled by one articulation joint." });
+    jointGroupIds.add(joint.groupId);
+    if (joint.axis.every((component) => Math.abs(component) < 0.000001)) {
+      issues.push({ level: "error", message: "Articulation joint axes must be non-zero." });
+    }
+    if (joint.min > joint.max || joint.value < joint.min || joint.value > joint.max || joint.restValue < joint.min || joint.restValue > joint.max) {
+      issues.push({ level: "error", message: "Articulation joint values must remain inside their minimum and maximum range." });
+    }
+  }
+
+  const poseIds = new Set<string>();
+  const jointById = new Map((graph.joints ?? []).map((joint) => [joint.id, joint]));
+  for (const pose of graph.poses ?? []) {
+    if (poseIds.has(pose.id)) issues.push({ level: "error", message: "Articulation pose ids must be unique." });
+    poseIds.add(pose.id);
+    for (const [jointId, value] of Object.entries(pose.jointValues)) {
+      const joint = jointById.get(jointId);
+      if (!joint) {
+        issues.push({ level: "error", message: "Articulation poses may only target existing joints." });
+      } else if (value < joint.min || value > joint.max) {
+        issues.push({ level: "error", message: "Articulation pose values must remain inside the target joint range." });
+      }
+    }
+  }
+
+  const animationIds = new Set<string>();
+  for (const animation of graph.animations ?? []) {
+    if (animationIds.has(animation.id)) issues.push({ level: "error", message: "Articulation animation ids must be unique." });
+    animationIds.add(animation.id);
+    if (animation.keyframes[0]?.offset !== 0 || animation.keyframes.at(-1)?.offset !== 1) {
+      issues.push({ level: "error", message: "Articulation animations must start at offset 0 and end at offset 1." });
+    }
+    for (let index = 1; index < animation.keyframes.length; index += 1) {
+      if (animation.keyframes[index]!.offset <= animation.keyframes[index - 1]!.offset) {
+        issues.push({ level: "error", message: "Articulation animation keyframe offsets must be strictly increasing." });
+      }
+    }
+    for (const keyframe of animation.keyframes) {
+      for (const [jointId, value] of Object.entries(keyframe.jointValues)) {
+        const joint = jointById.get(jointId);
+        if (!joint) {
+          issues.push({ level: "error", message: "Articulation animation keyframes may only target existing joints." });
+        } else if (value < joint.min || value > joint.max) {
+          issues.push({ level: "error", message: "Articulation animation values must remain inside the target joint range." });
+        }
+      }
+    }
+  }
+
+  if (graph.navigation) {
+    const [minX, maxX, minZ, maxZ] = graph.navigation.bounds;
+    if (minX >= maxX || minZ >= maxZ) issues.push({ level: "error", message: "Navigation bounds must define a positive walkable area." });
+    const [startX, startZ] = graph.navigation.start;
+    if (startX < minX || startX > maxX || startZ < minZ || startZ > maxZ) {
+      issues.push({ level: "error", message: "The navigation start point must lie inside the walkable bounds." });
     }
   }
 

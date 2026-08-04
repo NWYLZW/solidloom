@@ -34,6 +34,7 @@ describe("SolidLoom model service", () => {
     expect(skill.statusCode).toBe(200);
     expect(skill.body).toContain("name: solidloom-api-models");
     expect(skill.body).toContain("Status: available.");
+    expect(skill.body).toContain("proximity actions for power, seating, doors, and articulated joints");
   });
 
   it("creates, lists, reads, updates, and deletes a versioned model", async () => {
@@ -95,6 +96,38 @@ describe("SolidLoom model service", () => {
       rotation: [0, 0, 15],
       scale: [1, 1, 1],
     }];
+    graph.references = [{
+      id: "desk-instance",
+      name: "办公桌 · 引用",
+      modelId: "desk-model-id",
+      position: [100, 0, 200],
+      rotation: [0, 45, 0],
+      scale: [1, 1, 1],
+      jointValues: { "screen-hinge": 72 },
+      physics: { bodyType: "dynamic", mass: 18, friction: 0.4, linearDamping: 3 },
+      interactions: [{ id: "seat", kind: "seat", range: 680 }],
+    }];
+    graph.joints = [{
+      id: "mounting-hinge",
+      name: "安装转轴",
+      type: "revolute",
+      groupId: "mounting-parts",
+      pivot: [0, 0, 0],
+      axis: [0, 0, 1],
+      value: 45,
+      restValue: 0,
+      min: 0,
+      max: 90,
+    }];
+    graph.navigation = {
+      enabled: true,
+      floorY: 0,
+      bounds: [-500, 500, -500, 500],
+      cellSize: 50,
+      agentRadius: 20,
+      agentHeight: 180,
+      start: [0, 0],
+    };
     const replacedResponse = await app.inject({
       method: "PUT",
       url: `/api/models/${created.id}/features`,
@@ -114,6 +147,19 @@ describe("SolidLoom model service", () => {
     });
     expect(replaced.featureGraph.features[0].scale).toEqual([1.2, 1, 1]);
     expect(replaced.featureGraph.features[0].appearance).toEqual({ material: "wood", color: "#8A5A34" });
+    expect(replaced.featureGraph.references[0]).toEqual({
+      id: "desk-instance",
+      name: "办公桌 · 引用",
+      modelId: "desk-model-id",
+      position: [100, 0, 200],
+      rotation: [0, 45, 0],
+      scale: [1, 1, 1],
+      jointValues: { "screen-hinge": 72 },
+      physics: { bodyType: "dynamic", mass: 18, friction: 0.4, linearDamping: 3 },
+      interactions: [{ id: "seat", kind: "seat", range: 680 }],
+    });
+    expect(replaced.featureGraph.joints[0]).toMatchObject({ id: "mounting-hinge", value: 45, groupId: "mounting-parts" });
+    expect(replaced.featureGraph.navigation).toMatchObject({ enabled: true, bounds: [-500, 500, -500, 500] });
 
     const staleDelete = await app.inject({ method: "DELETE", url: `/api/models/${created.id}?expectedRevision=2` });
     expect(staleDelete.statusCode).toBe(409);
@@ -183,6 +229,29 @@ describe("SolidLoom model service", () => {
       ],
     };
     const response = await app.inject({ method: "POST", url: "/api/models", payload: { name: "重叠分组", featureGraph: graph } });
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toMatchObject({ error: "invalid_feature_graph" });
+  });
+
+  it("rejects joints with invalid group targets, axes, or ranges", async () => {
+    const graph = {
+      version: 1,
+      features: [],
+      groups: [],
+      joints: [{
+        id: "invalid-hinge",
+        name: "无效转轴",
+        type: "revolute",
+        groupId: "missing-group",
+        pivot: [0, 0, 0],
+        axis: [0, 0, 0],
+        value: 120,
+        restValue: 0,
+        min: 0,
+        max: 90,
+      }],
+    };
+    const response = await app.inject({ method: "POST", url: "/api/models", payload: { name: "无效关节模型", featureGraph: graph } });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toMatchObject({ error: "invalid_feature_graph" });
   });

@@ -43,4 +43,16 @@ describe("feature materials", () => {
     expect(glass.depthWrite).toBe(false);
     expect((glass as THREE.MeshPhysicalMaterial).transmission).toBeGreaterThan(0.5);
   });
+
+  it("distinguishes woven fabric from matte rubber", () => {
+    const fabric = createFeatureMaterial(feature({ material: "fabric" }));
+    const rubber = createFeatureMaterial(feature({ material: "rubber" }));
+    materials.push(fabric, rubber);
+
+    expect(fabric.map).toBeInstanceOf(THREE.DataTexture);
+    expect(fabric.roughness).toBeGreaterThan(0.9);
+    expect(rubber.map).toBeNull();
+    expect(rubber.roughness).toBeGreaterThan(0.8);
+    expect(rubber.metalness).toBeLessThan(0.1);
+  });
 });

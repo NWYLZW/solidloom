@@ -1,12 +1,87 @@
 import { describe, expect, it } from "vitest";
 import {
   applyFeatureGraphExpressions,
+  createCyberOfficeSpaceModel,
   cyberFactoryModels,
   regenerateProceduralMeshFeature,
   synchronizeRoomAssemblyFeatures,
 } from "@solidloom/shared";
 
 describe("cyber factory examples", () => {
+  it("builds the office space from live model references instead of copied geometry", () => {
+    const space = createCyberOfficeSpaceModel({
+      roomId: "room-model",
+      deskId: "desk-model",
+      monitorId: "monitor-model",
+      laptopId: "laptop-model",
+      chairId: "chair-model",
+    });
+    expect(space.name).toBe("赛博办公空间");
+    expect(space.featureGraph?.features).toEqual([]);
+    expect(space.featureGraph?.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({ modelId: "room-model", name: "房间 · 引用", position: [0, -160, 0], roomSurfaceMode: "interior" }),
+      expect.objectContaining({ modelId: "desk-model", name: "第 1 排 · 工位 1 · 办公桌" }),
+      expect.objectContaining({ modelId: "monitor-model", name: "第 1 排 · 工位 1 · 显示器 1" }),
+      expect.objectContaining({ modelId: "laptop-model", name: "第 1 排 · 工位 1 · 笔记本" }),
+      expect.objectContaining({ modelId: "chair-model", name: "第 1 排 · 工位 1 · 人体工学椅" }),
+    ]));
+    expect(space.featureGraph?.references).toHaveLength(37);
+    const desks = space.featureGraph?.references?.filter((reference) => reference.modelId === "desk-model") ?? [];
+    expect(desks.map((reference) => reference.position)).toEqual([
+      [-3000, 0, 418],
+      [-1000, 0, 418],
+      [1000, 0, 418],
+      [3000, 0, 418],
+      [-3000, 0, -418],
+      [-1000, 0, -418],
+      [1000, 0, -418],
+      [3000, 0, -418],
+    ]);
+    expect(desks.every((reference) => reference.scale?.[0] === 1.25)).toBe(true);
+    expect(desks.slice(0, 4).every((reference) => reference.rotation[1] === 180)).toBe(true);
+    expect(desks.slice(4).every((reference) => reference.rotation[1] === 0)).toBe(true);
+    expect(space.featureGraph?.references?.filter((reference) => reference.modelId === "chair-model").every((reference) => reference.position[1] === 0)).toBe(true);
+    expect(space.featureGraph?.references?.filter((reference) => reference.modelId === "chair-model").every((reference) => (
+      reference.physics?.bodyType === "dynamic"
+      && reference.physics.mass === 16
+      && reference.physics.friction === 0.42
+      && reference.interactions?.[0]?.kind === "seat"
+    ))).toBe(true);
+    expect(space.featureGraph?.references?.filter((reference) => reference.modelId === "laptop-model").every((reference) => reference.position[1] === 770)).toBe(true);
+    const laptops = space.featureGraph?.references?.filter((reference) => reference.modelId === "laptop-model") ?? [];
+    expect(new Set(laptops.map((reference) => reference.position[0])).size).toBe(8);
+    expect(new Set(laptops.map((reference) => reference.rotation[1])).size).toBe(8);
+    expect(laptops.slice(0, 4).every((reference) => Math.abs(reference.rotation[1]) <= 12)).toBe(true);
+    expect(laptops.slice(4).every((reference) => Math.abs(reference.rotation[1] - 180) <= 12)).toBe(true);
+    const laptopAngles = laptops.map((reference) => reference.jointValues?.["cyber-laptop-screen-hinge"]);
+    expect(laptopAngles.filter((angle) => angle === 0)).toHaveLength(2);
+    expect(new Set(laptopAngles).size).toBeGreaterThanOrEqual(6);
+    const monitors = space.featureGraph?.references?.filter((reference) => reference.modelId === "monitor-model") ?? [];
+    expect(monitors).toHaveLength(12);
+    expect(monitors.every((reference) => reference.position[1] === 760)).toBe(true);
+    expect(monitors.every((reference) => (
+      reference.interactions?.[0]?.kind === "power" && reference.interactions[0].range === 1350
+    ))).toBe(true);
+    expect(laptops.every((reference) => (
+      reference.interactions?.[0]?.kind === "articulation"
+      && reference.interactions[0].range === 1050
+      && reference.interactions[0].jointId === "cyber-laptop-screen-hinge"
+      && reference.interactions[0].closedValue === 0
+      && reference.interactions[0].openValue === 102
+    ))).toBe(true);
+    const chairs = space.featureGraph?.references?.filter((reference) => reference.modelId === "chair-model") ?? [];
+    expect(new Set(chairs.map((reference) => reference.position[0])).size).toBe(8);
+    expect(new Set(chairs.map((reference) => reference.rotation[1])).size).toBe(8);
+    expect(space.featureGraph?.references?.find((reference) => reference.modelId === "room-model")?.interactions)
+      .toEqual([expect.objectContaining({ kind: "door", openAngle: 88 })]);
+    expect(space.featureGraph?.navigation).toMatchObject({
+      enabled: true,
+      floorY: 0,
+      agentRadius: 260,
+      agentHeight: 1720,
+    });
+  });
+
   it("defines the six requested models with stable grouped features", () => {
     expect(cyberFactoryModels.map((model) => model.name)).toEqual([
       "办公桌",
@@ -17,7 +92,7 @@ describe("cyber factory examples", () => {
       "简易人体工学椅",
       "极简风小人",
     ]);
-    expect(cyberFactoryModels.reduce((total, model) => total + (model.featureGraph?.features.length ?? 0), 0)).toBe(88);
+    expect(cyberFactoryModels.reduce((total, model) => total + (model.featureGraph?.features.length ?? 0), 0)).toBe(82);
 
     for (const model of cyberFactoryModels) {
       const graph = model.featureGraph;
@@ -28,6 +103,61 @@ describe("cyber factory examples", () => {
       if (model.name === "房间") {
         expect(graph.features).toHaveLength(6);
         expect(graph.groups).toHaveLength(3);
+      } else if (model.name === "极简风小人") {
+        expect(graph.features).toHaveLength(14);
+        expect(graph.groups).toHaveLength(9);
+        expect(graph.joints).toHaveLength(8);
+        expect(graph.joints?.filter((joint) => joint.parentJointId)).toHaveLength(4);
+        expect(graph.joints?.find((joint) => joint.id === "cyber-figure-left-elbow")?.parentJointId).toBe("cyber-figure-left-shoulder");
+        expect(graph.joints?.find((joint) => joint.id === "cyber-figure-right-knee")?.parentJointId).toBe("cyber-figure-right-hip");
+        expect(graph.poses?.map((pose) => pose.name)).toEqual(["站立", "招手", "屈膝"]);
+        expect(graph.animations?.map((animation) => animation.name)).toEqual(["走路", "奔跑"]);
+        expect(graph.locomotion).toMatchObject({
+          name: "移动速度",
+          walkReferenceSpeed: 1.4,
+          runReferenceSpeed: 3.6,
+          transitionStartSpeed: 1.7,
+          transitionEndSpeed: 2.7,
+        });
+        expect(graph.animations?.every((animation) => (
+          animation.loop
+          && animation.keyframes.length === 5
+          && animation.keyframes[0]?.offset === 0
+          && animation.keyframes.at(-1)?.offset === 1
+          && animation.keyframes.every((keyframe) => Object.keys(keyframe.jointValues).length === 8)
+        ))).toBe(true);
+        expect(graph.features.some((feature) => feature.id === "cyber-figure-base")).toBe(false);
+        const head = graph.features.find((feature) => feature.id === "cyber-figure-head");
+        expect(head?.type).toBe("mesh");
+        if (head?.type === "mesh") {
+          expect(head.parameters.positions.length).toBeGreaterThan(1_000);
+          expect(head.parameters.indices.length).toBeGreaterThan(1_000);
+        }
+        expect(graph.features.filter((feature) => feature.id.includes("hand") && feature.type === "mesh")).toHaveLength(2);
+        expect(graph.features.filter((feature) => feature.id.includes("foot") && feature.type === "mesh")).toHaveLength(2);
+      } else if (model.name === "主机箱") {
+        const removedFeatureIds = [
+          "cyber-tower-carry-rail",
+          "cyber-tower-top-vent",
+          "cyber-tower-io",
+          "cyber-tower-foot-left",
+          "cyber-tower-foot-right",
+          "cyber-tower-light-strip",
+        ];
+        expect(graph.features.map((feature) => feature.id)).not.toEqual(expect.arrayContaining(removedFeatureIds));
+        expect(graph.features.some((feature) => (
+          feature.type === "box"
+          && feature.parameters.width === 260
+          && feature.parameters.height === 520
+          && feature.parameters.depth === 470
+        ))).toBe(false);
+        const glassPanel = graph.features.find((feature) => feature.id === "cyber-tower-side-panel");
+        expect(glassPanel).toMatchObject({
+          type: "box",
+          position: [126, 270, 0],
+          appearance: { material: "glass" },
+          parameters: { width: 8, height: 496, depth: 438 },
+        });
       } else {
         expect(graph.features.length).toBeGreaterThanOrEqual(6);
         expect(graph.groups?.length).toBeGreaterThanOrEqual(2);
@@ -47,6 +177,17 @@ describe("cyber factory examples", () => {
     }
   });
 
+  it("assigns editable materials and colors to every factory model feature", () => {
+    for (const model of cyberFactoryModels) {
+      const features = model.featureGraph?.features ?? [];
+      expect(features.length).toBeGreaterThan(0);
+      expect(features.every((feature) => Boolean(feature.appearance?.material))).toBe(true);
+      expect(features.every((feature) => /^#[0-9A-F]{6}$/.test(feature.appearance?.color ?? ""))).toBe(true);
+      expect(new Set(features.map((feature) => feature.appearance?.material)).size).toBeGreaterThanOrEqual(2);
+      expect(new Set(features.map((feature) => feature.appearance?.color)).size).toBeGreaterThanOrEqual(2);
+    }
+  });
+
   it("builds a closed room shell with adjustable size and view-aware surfaces", () => {
     const room = cyberFactoryModels.find((model) => model.name === "房间")!;
     const shell = room.featureGraph!.features.find((feature) => feature.id === "cyber-room-shell");
@@ -54,12 +195,12 @@ describe("cyber factory examples", () => {
     expect(shell?.type === "mesh" ? shell.parameters.indices.length : 0).toBe(252);
     expect(shell?.type === "mesh" ? shell.parameters.source : null).toMatchObject({
       kind: "room-shell",
-      size: [4200, 2800, 3600],
+      size: [9600, 2800, 6000],
       wallThickness: 120,
       floorThickness: 160,
       autoHideSurfaces: false,
       door: { width: 920, height: 2100, offsetZ: -650 },
-      window: { fullWall: true, width: 3960, height: 2480, sillHeight: 0, offsetX: 0 },
+      window: { fullWall: true, width: 9360, height: 2480, sillHeight: 0, offsetX: 0 },
     });
     expect(room.featureGraph!.features.map((feature) => feature.id)).toEqual(expect.arrayContaining([
       "cyber-room-door",
@@ -86,7 +227,7 @@ describe("cyber factory examples", () => {
       depth: 120,
       height: 2480,
     });
-    expect(rightFrame?.position).toEqual([2040, 1400, -1740]);
+    expect(rightFrame?.position).toEqual([4740, 1400, -2940]);
     expect(rightFrame?.parameterExpressions?.["parameters.width"]).toBe("var(--wall-thickness)");
     expect(rightFrame?.parameterExpressions?.["parameters.depth"]).toBe("var(--wall-thickness)");
     const resizedGraph = applyFeatureGraphExpressions({
@@ -165,7 +306,7 @@ describe("cyber factory examples", () => {
     expect(screenShell?.type === "mesh" ? screenShell.parameters.indices.length / 3 : 0).toBeGreaterThan(200);
     expect(screenShell?.type === "mesh" ? screenShell.parameters.source : null).toMatchObject({
       kind: "recessed-panel",
-      size: [380, 240, 7],
+      size: [380, 260, 7],
       edgeFilletRadius: 3,
     });
     if (screenShell?.type === "mesh" && screenShell.parameters.source) {
@@ -204,5 +345,16 @@ describe("cyber factory examples", () => {
       "cyber-laptop-camera": { material: "plastic", color: "#11171B" },
     });
     expect(graph.groups?.find((group) => group.id === "cyber-laptop-screen-group")?.featureIds).toHaveLength(3);
+    expect(graph.joints).toEqual([
+      expect.objectContaining({
+        id: "cyber-laptop-screen-hinge",
+        groupId: "cyber-laptop-screen-group",
+        type: "revolute",
+        value: 102,
+        restValue: 102,
+        min: 0,
+        max: 135,
+      }),
+    ]);
   });
 });

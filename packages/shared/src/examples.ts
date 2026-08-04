@@ -7,6 +7,7 @@ import type {
   FeatureGroup,
   MeshFeature,
   ModelFeature,
+  ModelReferenceInstance,
   ModelVariable,
   ProceduralMeshSource,
   RoomShellSource,
@@ -24,6 +25,19 @@ function withAppearance<T extends ModelFeature>(
     ...feature,
     appearance: { material, color },
   };
+}
+
+type AppearanceDefinition = { material: FeatureMaterialPreset; color: string };
+
+function withFeatureAppearances<T extends ModelFeature>(
+  features: T[],
+  defaultAppearance: AppearanceDefinition,
+  overrides: Record<string, AppearanceDefinition> = {},
+): T[] {
+  return features.map((feature) => {
+    const appearance = overrides[feature.id] ?? defaultAppearance;
+    return withAppearance(feature, appearance.material, appearance.color);
+  });
 }
 
 function withParameterExpressions<T extends ModelFeature>(
@@ -74,6 +88,75 @@ function cylinder(
     rotation,
     parameters: { radius, height },
   };
+}
+
+function ellipsoid(
+  id: string,
+  name: string,
+  radii: Vector3Tuple,
+  position: Vector3Tuple,
+  widthSegments = 24,
+  heightSegments = 16,
+): MeshFeature {
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const indices: number[] = [];
+  for (let verticalIndex = 0; verticalIndex <= heightSegments; verticalIndex += 1) {
+    const phi = verticalIndex / heightSegments * Math.PI;
+    const sinPhi = Math.sin(phi);
+    const cosPhi = Math.cos(phi);
+    for (let horizontalIndex = 0; horizontalIndex <= widthSegments; horizontalIndex += 1) {
+      const theta = horizontalIndex / widthSegments * Math.PI * 2;
+      const normal: Vector3Tuple = [
+        sinPhi * Math.cos(theta),
+        cosPhi,
+        sinPhi * Math.sin(theta),
+      ];
+      positions.push(normal[0] * radii[0], normal[1] * radii[1], normal[2] * radii[2]);
+      const scaledNormal: Vector3Tuple = [
+        normal[0] / radii[0],
+        normal[1] / radii[1],
+        normal[2] / radii[2],
+      ];
+      const normalLength = Math.hypot(...scaledNormal) || 1;
+      normals.push(
+        scaledNormal[0] / normalLength,
+        scaledNormal[1] / normalLength,
+        scaledNormal[2] / normalLength,
+      );
+    }
+  }
+  const rowSize = widthSegments + 1;
+  for (let verticalIndex = 0; verticalIndex < heightSegments; verticalIndex += 1) {
+    for (let horizontalIndex = 0; horizontalIndex < widthSegments; horizontalIndex += 1) {
+      const topLeft = verticalIndex * rowSize + horizontalIndex;
+      const bottomLeft = topLeft + rowSize;
+      const bottomRight = bottomLeft + 1;
+      const topRight = topLeft + 1;
+      if (verticalIndex !== 0) indices.push(topLeft, topRight, bottomLeft);
+      if (verticalIndex !== heightSegments - 1) indices.push(topRight, bottomRight, bottomLeft);
+    }
+  }
+  return {
+    id,
+    name,
+    type: "mesh",
+    operation: "add",
+    position,
+    rotation: origin,
+    parameters: { positions, normals, indices },
+  };
+}
+
+function sphere(
+  id: string,
+  name: string,
+  radius: number,
+  position: Vector3Tuple,
+  widthSegments = 24,
+  heightSegments = 16,
+): MeshFeature {
+  return ellipsoid(id, name, [radius, radius, radius], position, widthSegments, heightSegments);
 }
 
 function group(id: string, name: string, features: ModelFeature[]): FeatureGroup {
@@ -759,24 +842,31 @@ export function regenerateProceduralMeshFeature(feature: MeshFeature, source: Pr
 }
 
 function createDesk(): CreateModelInput {
-  const surface = [
+  const surface = withFeatureAppearances([
     box("cyber-desk-top", "桌面", [1600, 34, 760], [0, 743, 0]),
     cylinder("cyber-desk-grommet-left", "左穿线孔", 34, 10, [-520, 765, 255]),
     cylinder("cyber-desk-grommet-right", "右穿线孔", 34, 10, [520, 765, 255]),
-  ];
-  const frame = [
+  ], { material: "wood", color: "#76513B" }, {
+    "cyber-desk-grommet-left": { material: "metal", color: "#273137" },
+    "cyber-desk-grommet-right": { material: "metal", color: "#273137" },
+  });
+  const frame = withFeatureAppearances([
     box("cyber-desk-leg-fl", "左前桌腿", [54, 720, 54], [-710, 360, -300]),
     box("cyber-desk-leg-fr", "右前桌腿", [54, 720, 54], [710, 360, -300]),
     box("cyber-desk-leg-bl", "左后桌腿", [54, 720, 54], [-710, 360, 300]),
     box("cyber-desk-leg-br", "右后桌腿", [54, 720, 54], [710, 360, 300]),
     box("cyber-desk-crossbar", "后横梁", [1420, 70, 42], [0, 590, 300]),
     box("cyber-desk-modesty", "挡板", [1120, 300, 20], [0, 445, 315]),
-  ];
-  const accessories = [
+  ], { material: "metal", color: "#4B5960" }, {
+    "cyber-desk-modesty": { material: "metal", color: "#5C686E" },
+  });
+  const accessories = withFeatureAppearances([
     box("cyber-desk-cable-tray", "线缆托盘", [1080, 70, 120], [0, 635, 240]),
     box("cyber-desk-control-rail", "控制导轨", [360, 42, 54], [420, 705, -350]),
     cylinder("cyber-desk-height-button", "升降按钮", 18, 22, [540, 704, -386], [90, 0, 0]),
-  ];
+  ], { material: "metal", color: "#38464D" }, {
+    "cyber-desk-height-button": { material: "plastic", color: "#B7D83A" },
+  });
   const features = [...surface, ...frame, ...accessories];
   return model("办公桌", "赛博工厂工作站使用的宽幅办公桌，包含穿线孔、线缆托盘和控制导轨。", features, [
     group("cyber-desk-surface", "桌面组件", surface),
@@ -786,23 +876,29 @@ function createDesk(): CreateModelInput {
 }
 
 function createMonitor(): CreateModelInput {
-  const display = [
+  const display = withFeatureAppearances([
     box("cyber-monitor-shell", "显示器外壳", [670, 400, 34], [0, 500, 0]),
     box("cyber-monitor-panel", "显示面板", [628, 354, 8], [0, 500, 21]),
     box("cyber-monitor-camera", "顶部摄像头", [72, 24, 26], [0, 718, -8]),
     cylinder("cyber-monitor-camera-lens", "摄像头镜头", 8, 8, [0, 718, 25], [90, 0, 0]),
-  ];
-  const stand = [
+  ], { material: "plastic", color: "#263138" }, {
+    "cyber-monitor-panel": { material: "glass", color: "#173A49" },
+    "cyber-monitor-camera": { material: "plastic", color: "#151C20" },
+    "cyber-monitor-camera-lens": { material: "glass", color: "#58BFD4" },
+  });
+  const stand = withFeatureAppearances([
     cylinder("cyber-monitor-hinge", "俯仰转轴", 38, 110, [0, 330, -8], [0, 0, 90]),
     box("cyber-monitor-neck", "升降支柱", [68, 270, 54], [0, 205, -34]),
     box("cyber-monitor-base", "稳定底座", [360, 22, 235], [0, 11, 45]),
     box("cyber-monitor-base-bevel", "底座前沿", [300, 18, 60], [0, 24, -70], [8, 0, 0]),
-  ];
-  const accents = [
+  ], { material: "metal", color: "#748188" });
+  const accents = withFeatureAppearances([
     box("cyber-monitor-light-left", "左氛围灯", [10, 280, 12], [-314, 500, 19]),
     box("cyber-monitor-light-right", "右氛围灯", [10, 280, 12], [314, 500, 19]),
     cylinder("cyber-monitor-control", "控制旋钮", 16, 14, [260, 306, 25], [90, 0, 0]),
-  ];
+  ], { material: "plastic", color: "#71D7DE" }, {
+    "cyber-monitor-control": { material: "metal", color: "#B5C0C5" },
+  });
   const features = [...display, ...stand, ...accents];
   return model("电脑显示器", "带摄像头、升降支架和双侧氛围灯的赛博风显示器。", features, [
     group("cyber-monitor-display", "显示组件", display),
@@ -812,38 +908,41 @@ function createMonitor(): CreateModelInput {
 }
 
 function createTower(): CreateModelInput {
-  const chassis = [
-    box("cyber-tower-chassis", "主机箱体", [260, 520, 470], [0, 280, 0]),
-    box("cyber-tower-side-panel", "侧透面板", [224, 430, 14], [137, 300, 0]),
+  const chassis = withFeatureAppearances([
+    box("cyber-tower-chassis", "机箱背板", [260, 504, 14], [0, 270, -228]),
+    box("cyber-tower-bottom-frame", "底部框架", [260, 18, 470], [0, 9, 0]),
+    box("cyber-tower-top-frame", "顶部框架", [260, 18, 470], [0, 531, 0]),
+    box("cyber-tower-left-panel", "左侧板", [14, 504, 442], [-123, 270, 0]),
+    box("cyber-tower-side-panel", "右侧玻璃面板", [8, 496, 438], [126, 270, 0]),
     box("cyber-tower-front-panel", "前置面板", [220, 470, 18], [0, 292, 244]),
-    box("cyber-tower-foot-left", "左支脚", [84, 28, 420], [-72, 14, 6]),
-    box("cyber-tower-foot-right", "右支脚", [84, 28, 420], [72, 14, 6]),
-  ];
-  const cooling: ModelFeature[] = [-145, 0, 145].map((offset, index) => (
+  ], { material: "metal", color: "#354047" }, {
+    "cyber-tower-side-panel": { material: "glass", color: "#5B8FA1" },
+    "cyber-tower-front-panel": { material: "plastic", color: "#20282D" },
+  });
+  const rawCooling: ModelFeature[] = [-145, 0, 145].map((offset, index) => (
     cylinder(`cyber-tower-fan-${index + 1}`, `前置风扇 ${index + 1}`, 62, 12, [0, 292 + offset, 258], [90, 0, 0])
   ));
-  cooling.push(
-    box("cyber-tower-top-vent", "顶部散热格栅", [170, 12, 280], [0, 546, 10]),
+  rawCooling.push(
     cylinder("cyber-tower-rear-fan", "后置风扇", 54, 12, [0, 390, -241], [90, 0, 0]),
   );
-  const controls = [
+  const cooling = withFeatureAppearances(rawCooling, { material: "plastic", color: "#34434B" });
+  const controls = withFeatureAppearances([
     cylinder("cyber-tower-power", "电源按钮", 18, 14, [78, 510, 225], [90, 0, 0]),
-    box("cyber-tower-io", "顶部接口区", [108, 10, 42], [-52, 554, -150]),
-    box("cyber-tower-light-strip", "前置灯带", [12, 420, 10], [98, 292, 258]),
-    box("cyber-tower-carry-rail", "顶部提手", [150, 36, 42], [0, 590, 80]),
-  ];
+  ], { material: "plastic", color: "#252E33" }, {
+    "cyber-tower-power": { material: "plastic", color: "#C8E94B" },
+  });
   const features = [...chassis, ...cooling, ...controls];
-  return model("主机箱", "三风扇散热、侧透面板和顶部提手构成的赛博工厂计算主机。", features, [
+  return model("主机箱", "采用空心金属框架、右侧玻璃面板和三风扇散热的赛博工厂计算主机。", features, [
     group("cyber-tower-chassis-group", "机箱结构", chassis),
     group("cyber-tower-cooling", "散热系统", cooling),
-    group("cyber-tower-controls", "控制与灯效", controls),
+    group("cyber-tower-controls", "控制组件", controls),
   ]);
 }
 
 function createLaptop(): CreateModelInput {
   // The screen's lower-front edge is anchored to the base's rear-right edge;
   // its thinner shell extends behind the deck instead of into it.
-  const screenCenter: Vector3Tuple = [0, 125.65, -148.37];
+  const screenCenter: Vector3Tuple = [0, 135.42, -150.45];
   const screenRotation: Vector3Tuple = [-12, 0, 0];
   const screenPosition = (offset: Vector3Tuple) => offsetWithXRotation(screenCenter, offset, screenRotation[0]);
   const base = [
@@ -879,8 +978,8 @@ function createLaptop(): CreateModelInput {
       recessedRoundedPanel(
         "cyber-laptop-screen-shell",
         "屏幕外壳",
-        [380, 240, 7],
-        [370, 230, 3],
+        [380, 260, 7],
+        [370, 250, 3],
         screenCenter,
         screenRotation,
         6,
@@ -891,21 +990,34 @@ function createLaptop(): CreateModelInput {
       "#87949E",
     ),
     withAppearance(
-      box("cyber-laptop-screen-panel", "显示屏", [368, 228, 1], screenPosition([0, 0, 1]), screenRotation, { radius: 0.5, algorithm: "smooth" }),
+      box("cyber-laptop-screen-panel", "显示屏", [368, 248, 1], screenPosition([0, 0, 1]), screenRotation, { radius: 0.5, algorithm: "smooth" }),
       "glass",
       "#102A38",
     ),
     withAppearance(
-      box("cyber-laptop-camera", "屏幕摄像头", [18, 3.5, 0.6], screenPosition([0, 117.25, 1.8]), screenRotation, { radius: 0.3, algorithm: "circular" }),
+      box("cyber-laptop-camera", "屏幕摄像头", [18, 3.5, 0.6], screenPosition([0, 127.25, 1.8]), screenRotation, { radius: 0.3, algorithm: "circular" }),
       "plastic",
       "#11171B",
     ),
   ];
   const features = [...base, ...screen];
-  return model("笔记本", "展开状态的轻薄赛博笔记本，包含内嵌简化键盘、前置触控板和窄边框内嵌显示屏。", features, [
+  const laptop = model("笔记本", "带可调屏幕转轴的轻薄赛博笔记本，包含内嵌简化键盘、前置触控板和窄边框内嵌显示屏。", features, [
     group("cyber-laptop-base-group", "键盘底座", base),
     group("cyber-laptop-screen-group", "屏幕组件", screen),
   ]);
+  laptop.featureGraph!.joints = [{
+    id: "cyber-laptop-screen-hinge",
+    name: "屏幕转轴",
+    type: "revolute",
+    groupId: "cyber-laptop-screen-group",
+    pivot: [0, 9, -120],
+    axis: [-1, 0, 0],
+    value: 102,
+    restValue: 102,
+    min: 0,
+    max: 135,
+  }];
+  return laptop;
 }
 
 function roomAssemblyFeatures(source: RoomShellSource): ModelFeature[] {
@@ -1032,9 +1144,9 @@ export function synchronizeRoomAssemblyFeatures(features: ModelFeature[], source
 
 function createRoom(): CreateModelInput {
   const variables: ModelVariable[] = [
-    { id: "--room-width", label: "整体宽度", value: 4200, unit: "mm" },
+    { id: "--room-width", label: "整体宽度", value: 9600, unit: "mm" },
     { id: "--room-height", label: "整体高度", value: 2800, unit: "mm" },
-    { id: "--room-depth", label: "整体深度", value: 3600, unit: "mm" },
+    { id: "--room-depth", label: "整体深度", value: 6000, unit: "mm" },
     { id: "--wall-thickness", label: "墙体厚度", value: 120, unit: "mm" },
     { id: "--floor-thickness", label: "地板与天花板厚度", value: 160, unit: "mm" },
     { id: "--door-width", label: "门宽", value: 920, unit: "mm" },
@@ -1043,12 +1155,12 @@ function createRoom(): CreateModelInput {
   ];
   const source: RoomShellSource = {
     kind: "room-shell",
-    size: [4200, 2800, 3600],
+    size: [9600, 2800, 6000],
     wallThickness: 120,
     floorThickness: 160,
     autoHideSurfaces: false,
     door: { width: 920, height: 2100, offsetZ: -650 },
-    window: { fullWall: true, width: 3960, height: 2480, sillHeight: 0, offsetX: 0 },
+    window: { fullWall: true, width: 9360, height: 2480, sillHeight: 0, offsetX: 0 },
   };
   const shell = withParameterExpressions(
     withAppearance(
@@ -1091,7 +1203,7 @@ function createRoom(): CreateModelInput {
 }
 
 function createChair(): CreateModelInput {
-  const base = [
+  const base = withFeatureAppearances([
     cylinder("cyber-chair-column", "升降气杆", 38, 420, [0, 275, 0]),
     cylinder("cyber-chair-hub", "五星脚中心", 86, 55, [0, 72, 0]),
     ...[0, 72, 144, 216, 288].flatMap((angle, index) => {
@@ -1105,21 +1217,34 @@ function createChair(): CreateModelInput {
         cylinder(`cyber-chair-wheel-${index + 1}`, `脚轮 ${index + 1}`, 38, 28, [wheelX, 38, wheelZ], [90, 0, angle]),
       ];
     }),
-  ];
-  const seat = [
+  ], { material: "metal", color: "#657279" }, Object.fromEntries(
+    Array.from({ length: 5 }, (_, index) => [
+      `cyber-chair-wheel-${index + 1}`,
+      { material: "rubber", color: "#262C2F" } satisfies AppearanceDefinition,
+    ]),
+  ));
+  const seat = withFeatureAppearances([
     box("cyber-chair-seat", "坐垫", [520, 78, 480], [0, 525, -5], [-4, 0, 0]),
     box("cyber-chair-seat-front", "瀑布前沿", [480, 92, 90], [0, 510, 220], [8, 0, 0]),
     box("cyber-chair-back", "人体工学靠背", [500, 650, 74], [0, 875, -205], [-8, 0, 0]),
     box("cyber-chair-lumbar", "腰部支撑", [380, 125, 54], [0, 760, -155], [-8, 0, 0]),
     box("cyber-chair-headrest", "头枕", [330, 135, 68], [0, 1235, -250], [-10, 0, 0]),
-  ];
-  const arms = [
+  ], { material: "fabric", color: "#627780" }, {
+    "cyber-chair-seat": { material: "fabric", color: "#71868E" },
+    "cyber-chair-seat-front": { material: "fabric", color: "#71868E" },
+    "cyber-chair-lumbar": { material: "fabric", color: "#82969D" },
+  });
+  const arms = withFeatureAppearances([
     box("cyber-chair-arm-post-left", "左扶手立柱", [42, 280, 42], [-310, 690, -5]),
     box("cyber-chair-arm-post-right", "右扶手立柱", [42, 280, 42], [310, 690, -5]),
     box("cyber-chair-arm-left", "左扶手", [92, 42, 330], [-310, 835, -45]),
     box("cyber-chair-arm-right", "右扶手", [92, 42, 330], [310, 835, -45]),
     cylinder("cyber-chair-recline", "后仰调节旋钮", 44, 36, [292, 520, -130], [0, 0, 90]),
-  ];
+  ], { material: "plastic", color: "#37444A" }, {
+    "cyber-chair-arm-post-left": { material: "metal", color: "#66757B" },
+    "cyber-chair-arm-post-right": { material: "metal", color: "#66757B" },
+    "cyber-chair-recline": { material: "plastic", color: "#AECF42" },
+  });
   const features = [...base, ...seat, ...arms];
   return model("简易人体工学椅", "带五星脚、腰托、头枕和可调扶手的简易人体工学椅。", features, [
     group("cyber-chair-base-group", "移动底座", base),
@@ -1129,35 +1254,110 @@ function createChair(): CreateModelInput {
 }
 
 function createFigure(): CreateModelInput {
-  const body = [
-    cylinder("cyber-figure-head", "头部", 112, 176, [0, 1590, 0]),
-    cylinder("cyber-figure-neck", "颈部", 55, 80, [0, 1458, 0]),
-    box("cyber-figure-torso", "躯干", [360, 440, 190], [0, 1205, 0]),
-    box("cyber-figure-waist", "腰部", [260, 150, 160], [0, 910, 0]),
-    cylinder("cyber-figure-shoulders", "肩部横轴", 72, 510, [0, 1380, 0], [0, 0, 90]),
-    cylinder("cyber-figure-hips", "髋部横轴", 64, 300, [0, 825, 0], [0, 0, 90]),
-  ];
-  const limbs = [
-    cylinder("cyber-figure-arm-left", "左臂", 56, 520, [-270, 1130, 0], [0, 0, -8]),
-    cylinder("cyber-figure-arm-right", "右臂", 56, 520, [270, 1130, 0], [0, 0, 8]),
-    cylinder("cyber-figure-hand-left", "左手", 70, 88, [-305, 830, 0]),
-    cylinder("cyber-figure-hand-right", "右手", 70, 88, [305, 830, 0]),
-    cylinder("cyber-figure-leg-left", "左腿", 72, 700, [-105, 430, 0], [0, 0, -2]),
-    cylinder("cyber-figure-leg-right", "右腿", 72, 700, [105, 430, 0], [0, 0, 2]),
-    box("cyber-figure-foot-left", "左脚", [160, 86, 270], [-105, 55, -58]),
-    box("cyber-figure-foot-right", "右脚", [160, 86, 270], [105, 55, -58]),
-  ];
-  const accents = [
-    box("cyber-figure-face", "面部显示区", [130, 72, 10], [0, 1610, -108]),
-    cylinder("cyber-figure-core", "胸口核心", 48, 18, [0, 1245, -105], [90, 0, 0]),
-    cylinder("cyber-figure-base", "展示底盘", 320, 24, [0, 12, 0]),
-  ];
-  const features = [...body, ...limbs, ...accents];
-  return model("极简风小人", "以基础几何体构成的极简赛博工人，可作为空间尺度和场景角色参考。", features, [
-    group("cyber-figure-body-group", "身体主体", body),
-    group("cyber-figure-limbs-group", "四肢", limbs),
-    group("cyber-figure-accents-group", "赛博细节", accents),
+  const body = withFeatureAppearances([
+    sphere("cyber-figure-head", "头部", 110, [0, 1660, 0]),
+    cylinder("cyber-figure-torso", "躯干中轴", 30, 560, [0, 1280, 0]),
+  ], { material: "plastic", color: "#A9B9B5" }, {
+    "cyber-figure-head": { material: "plastic", color: "#C1CDC9" },
+  });
+  const leftShoulder = withFeatureAppearances([
+    cylinder("cyber-figure-upper-arm-left", "左上臂", 26, 320, [-82.5, 1342, 0], [0, 0, -31]),
+  ], { material: "metal", color: "#8EA3A3" });
+  const rightShoulder = withFeatureAppearances([
+    cylinder("cyber-figure-upper-arm-right", "右上臂", 26, 320, [82.5, 1342, 0], [0, 0, 31]),
+  ], { material: "metal", color: "#8EA3A3" });
+  const leftHip = withFeatureAppearances([
+    cylinder("cyber-figure-upper-leg-left", "左大腿", 30, 475, [-38.75, 764, 0], [0, 0, -10]),
+  ], { material: "metal", color: "#8EA3A3" });
+  const rightHip = withFeatureAppearances([
+    cylinder("cyber-figure-upper-leg-right", "右大腿", 30, 475, [38.75, 764, 0], [0, 0, 10]),
+  ], { material: "metal", color: "#8EA3A3" });
+  const leftElbow = withFeatureAppearances([
+    cylinder("cyber-figure-forearm-left", "左前臂", 26, 320, [-247.5, 1068, 0], [0, 0, -31]),
+    sphere("cyber-figure-hand-left", "左手", 48, [-330, 931, 0]),
+  ], { material: "metal", color: "#8EA3A3" });
+  const rightElbow = withFeatureAppearances([
+    cylinder("cyber-figure-forearm-right", "右前臂", 26, 320, [247.5, 1068, 0], [0, 0, 31]),
+    sphere("cyber-figure-hand-right", "右手", 48, [330, 931, 0]),
+  ], { material: "metal", color: "#8EA3A3" });
+  const leftKnee = withFeatureAppearances([
+    cylinder("cyber-figure-lower-leg-left", "左小腿", 30, 475, [-121.25, 296, 0], [0, 0, -10]),
+    ellipsoid("cyber-figure-foot-left", "左脚", [78, 42, 138], [-162, 50, 55]),
+  ], { material: "metal", color: "#8EA3A3" });
+  const rightKnee = withFeatureAppearances([
+    cylinder("cyber-figure-lower-leg-right", "右小腿", 30, 475, [121.25, 296, 0], [0, 0, 10]),
+    ellipsoid("cyber-figure-foot-right", "右脚", [78, 42, 138], [162, 50, 55]),
+  ], { material: "metal", color: "#8EA3A3" });
+  const features = [...body, ...leftShoulder, ...rightShoulder, ...leftHip, ...rightHip, ...leftElbow, ...rightElbow, ...leftKnee, ...rightKnee];
+  const figure = model("极简风小人", "由球形头部、躯干中轴、可弯曲四肢和圆润端点构成的关节火柴人，用于空间尺度、姿态和场景角色参考。", features, [
+    group("cyber-figure-body-group", "身体中轴", body),
+    group("cyber-figure-left-shoulder-group", "左肩以下", leftShoulder),
+    group("cyber-figure-right-shoulder-group", "右肩以下", rightShoulder),
+    group("cyber-figure-left-elbow-group", "左肘以下", leftElbow),
+    group("cyber-figure-right-elbow-group", "右肘以下", rightElbow),
+    group("cyber-figure-left-hip-group", "左髋以下", leftHip),
+    group("cyber-figure-right-hip-group", "右髋以下", rightHip),
+    group("cyber-figure-left-knee-group", "左膝以下", leftKnee),
+    group("cyber-figure-right-knee-group", "右膝以下", rightKnee),
   ]);
+  figure.featureGraph!.joints = [
+    { id: "cyber-figure-left-shoulder", name: "左肩", type: "revolute", groupId: "cyber-figure-left-shoulder-group", pivot: [0, 1479, 0], axis: [1, 0, 0], value: 0, restValue: 0, min: -130, max: 65 },
+    { id: "cyber-figure-right-shoulder", name: "右肩", type: "revolute", groupId: "cyber-figure-right-shoulder-group", pivot: [0, 1479, 0], axis: [1, 0, 0], value: 0, restValue: 0, min: -130, max: 65 },
+    { id: "cyber-figure-left-elbow", name: "左手肘", type: "revolute", groupId: "cyber-figure-left-elbow-group", parentJointId: "cyber-figure-left-shoulder", pivot: [-165, 1205, 0], axis: [1, 0, 0], value: 0, restValue: 0, min: -135, max: 25 },
+    { id: "cyber-figure-right-elbow", name: "右手肘", type: "revolute", groupId: "cyber-figure-right-elbow-group", parentJointId: "cyber-figure-right-shoulder", pivot: [165, 1205, 0], axis: [1, 0, 0], value: 0, restValue: 0, min: -135, max: 25 },
+    { id: "cyber-figure-left-hip", name: "左髋", type: "revolute", groupId: "cyber-figure-left-hip-group", pivot: [0, 998, 0], axis: [1, 0, 0], value: 0, restValue: 0, min: -65, max: 45 },
+    { id: "cyber-figure-right-hip", name: "右髋", type: "revolute", groupId: "cyber-figure-right-hip-group", pivot: [0, 998, 0], axis: [1, 0, 0], value: 0, restValue: 0, min: -65, max: 45 },
+    { id: "cyber-figure-left-knee", name: "左膝", type: "revolute", groupId: "cyber-figure-left-knee-group", parentJointId: "cyber-figure-left-hip", pivot: [-80, 530, 0], axis: [1, 0, 0], value: 0, restValue: 0, min: 0, max: 120 },
+    { id: "cyber-figure-right-knee", name: "右膝", type: "revolute", groupId: "cyber-figure-right-knee-group", parentJointId: "cyber-figure-right-hip", pivot: [80, 530, 0], axis: [1, 0, 0], value: 0, restValue: 0, min: 0, max: 120 },
+  ];
+  figure.featureGraph!.poses = [
+    { id: "cyber-figure-pose-stand", name: "站立", durationMs: 650, jointValues: { "cyber-figure-left-shoulder": 0, "cyber-figure-right-shoulder": 0, "cyber-figure-left-elbow": 0, "cyber-figure-right-elbow": 0, "cyber-figure-left-hip": 0, "cyber-figure-right-hip": 0, "cyber-figure-left-knee": 0, "cyber-figure-right-knee": 0 } },
+    { id: "cyber-figure-pose-wave", name: "招手", durationMs: 720, jointValues: { "cyber-figure-left-shoulder": -118, "cyber-figure-right-shoulder": 0, "cyber-figure-left-elbow": -72, "cyber-figure-right-elbow": 0, "cyber-figure-left-hip": 0, "cyber-figure-right-hip": 0, "cyber-figure-left-knee": 0, "cyber-figure-right-knee": 0 } },
+    { id: "cyber-figure-pose-crouch", name: "屈膝", durationMs: 820, jointValues: { "cyber-figure-left-shoulder": -18, "cyber-figure-right-shoulder": -18, "cyber-figure-left-elbow": -28, "cyber-figure-right-elbow": -28, "cyber-figure-left-hip": -20, "cyber-figure-right-hip": -20, "cyber-figure-left-knee": 72, "cyber-figure-right-knee": 72 } },
+  ];
+  figure.featureGraph!.animations = [
+    {
+      id: "cyber-figure-animation-walk",
+      name: "走路",
+      durationMs: 1_080,
+      loop: true,
+      keyframes: [
+        { offset: 0, jointValues: { "cyber-figure-left-shoulder": 24, "cyber-figure-right-shoulder": -26, "cyber-figure-left-elbow": -14, "cyber-figure-right-elbow": -20, "cyber-figure-left-hip": -28, "cyber-figure-right-hip": 22, "cyber-figure-left-knee": 6, "cyber-figure-right-knee": 18 } },
+        { offset: 0.25, jointValues: { "cyber-figure-left-shoulder": 2, "cyber-figure-right-shoulder": -4, "cyber-figure-left-elbow": -18, "cyber-figure-right-elbow": -24, "cyber-figure-left-hip": 5, "cyber-figure-right-hip": -8, "cyber-figure-left-knee": 10, "cyber-figure-right-knee": 58 } },
+        { offset: 0.5, jointValues: { "cyber-figure-left-shoulder": -26, "cyber-figure-right-shoulder": 24, "cyber-figure-left-elbow": -20, "cyber-figure-right-elbow": -14, "cyber-figure-left-hip": 22, "cyber-figure-right-hip": -28, "cyber-figure-left-knee": 18, "cyber-figure-right-knee": 6 } },
+        { offset: 0.75, jointValues: { "cyber-figure-left-shoulder": -4, "cyber-figure-right-shoulder": 2, "cyber-figure-left-elbow": -24, "cyber-figure-right-elbow": -18, "cyber-figure-left-hip": -8, "cyber-figure-right-hip": 5, "cyber-figure-left-knee": 58, "cyber-figure-right-knee": 10 } },
+        { offset: 1, jointValues: { "cyber-figure-left-shoulder": 24, "cyber-figure-right-shoulder": -26, "cyber-figure-left-elbow": -14, "cyber-figure-right-elbow": -20, "cyber-figure-left-hip": -28, "cyber-figure-right-hip": 22, "cyber-figure-left-knee": 6, "cyber-figure-right-knee": 18 } },
+      ],
+    },
+    {
+      id: "cyber-figure-animation-run",
+      name: "奔跑",
+      durationMs: 640,
+      loop: true,
+      keyframes: [
+        { offset: 0, jointValues: { "cyber-figure-left-shoulder": 38, "cyber-figure-right-shoulder": -46, "cyber-figure-left-elbow": -58, "cyber-figure-right-elbow": -72, "cyber-figure-left-hip": -46, "cyber-figure-right-hip": 32, "cyber-figure-left-knee": 12, "cyber-figure-right-knee": 68 } },
+        { offset: 0.25, jointValues: { "cyber-figure-left-shoulder": 4, "cyber-figure-right-shoulder": -8, "cyber-figure-left-elbow": -64, "cyber-figure-right-elbow": -78, "cyber-figure-left-hip": 8, "cyber-figure-right-hip": -24, "cyber-figure-left-knee": 42, "cyber-figure-right-knee": 96 } },
+        { offset: 0.5, jointValues: { "cyber-figure-left-shoulder": -46, "cyber-figure-right-shoulder": 38, "cyber-figure-left-elbow": -72, "cyber-figure-right-elbow": -58, "cyber-figure-left-hip": 32, "cyber-figure-right-hip": -46, "cyber-figure-left-knee": 68, "cyber-figure-right-knee": 12 } },
+        { offset: 0.75, jointValues: { "cyber-figure-left-shoulder": -8, "cyber-figure-right-shoulder": 4, "cyber-figure-left-elbow": -78, "cyber-figure-right-elbow": -64, "cyber-figure-left-hip": -24, "cyber-figure-right-hip": 8, "cyber-figure-left-knee": 96, "cyber-figure-right-knee": 42 } },
+        { offset: 1, jointValues: { "cyber-figure-left-shoulder": 38, "cyber-figure-right-shoulder": -46, "cyber-figure-left-elbow": -58, "cyber-figure-right-elbow": -72, "cyber-figure-left-hip": -46, "cyber-figure-right-hip": 32, "cyber-figure-left-knee": 12, "cyber-figure-right-knee": 68 } },
+      ],
+    },
+  ];
+  figure.featureGraph!.locomotion = {
+    id: "cyber-figure-locomotion",
+    name: "移动速度",
+    walkAnimationId: "cyber-figure-animation-walk",
+    runAnimationId: "cyber-figure-animation-run",
+    defaultSpeed: 0,
+    minimumSpeed: 0,
+    maximumSpeed: 5,
+    walkReferenceSpeed: 1.4,
+    runReferenceSpeed: 3.6,
+    transitionStartSpeed: 1.7,
+    transitionEndSpeed: 2.7,
+    transitionDurationMs: 420,
+  };
+  return figure;
 }
 
 export const cyberFactoryModels: CreateModelInput[] = [
@@ -1169,3 +1369,177 @@ export const cyberFactoryModels: CreateModelInput[] = [
   createChair(),
   createFigure(),
 ];
+
+export interface CyberOfficeSpaceModelIds {
+  roomId: string;
+  deskId: string;
+  monitorId: string;
+  laptopId: string;
+  chairId: string;
+}
+
+export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): CreateModelInput {
+  const floorThickness = 160;
+  const finishedFloorY = 0;
+  const deskSurfaceY = finishedFloorY + 760;
+  const laptopClearance = 10;
+  const stationCount = 4;
+  const deskScale: Vector3Tuple = [1.25, 1, 1.1];
+  const connectedDeskWidth = 2000;
+  const connectedDeskDepth = 836;
+  const stationVariations = [
+    { laptopX: -185, laptopZ: 32, laptopYaw: -9, laptopAngle: 0, chairX: 105, chairZ: 55, chairYaw: -13, monitorXs: [-30], monitorYaw: 4 },
+    { laptopX: 150, laptopZ: -18, laptopYaw: 7, laptopAngle: 78, chairX: -75, chairZ: -35, chairYaw: 10, monitorXs: [-390, 350], monitorYaw: -2 },
+    { laptopX: -95, laptopZ: 44, laptopYaw: -5, laptopAngle: 112, chairX: 135, chairZ: -60, chairYaw: -8, monitorXs: [145], monitorYaw: -5 },
+    { laptopX: 205, laptopZ: 8, laptopYaw: 11, laptopAngle: 94, chairX: -120, chairZ: 72, chairYaw: 15, monitorXs: [-335, 405], monitorYaw: 3 },
+    { laptopX: 175, laptopZ: -38, laptopYaw: -10, laptopAngle: 0, chairX: -95, chairZ: 48, chairYaw: 12, monitorXs: [-120], monitorYaw: 5 },
+    { laptopX: -145, laptopZ: 24, laptopYaw: 6, laptopAngle: 126, chairX: 125, chairZ: -75, chairYaw: -14, monitorXs: [-410, 330], monitorYaw: -3 },
+    { laptopX: 75, laptopZ: -46, laptopYaw: -7, laptopAngle: 68, chairX: -145, chairZ: 30, chairYaw: 9, monitorXs: [110], monitorYaw: 6 },
+    { laptopX: -210, laptopZ: 15, laptopYaw: 9, laptopAngle: 104, chairX: 80, chairZ: 68, chairYaw: -11, monitorXs: [-360, 385], monitorYaw: 2 },
+  ] as const;
+  const rowReferences = [
+    {
+      rowNumber: 1,
+      deskZ: connectedDeskDepth / 2,
+      deskRotation: [0, 180, 0] as Vector3Tuple,
+      laptopZOffset: 170,
+      laptopRotation: [0, 0, 0] as Vector3Tuple,
+      chairZOffset: 1070,
+      chairRotation: [0, 180, 0] as Vector3Tuple,
+    },
+    {
+      rowNumber: 2,
+      deskZ: -connectedDeskDepth / 2,
+      deskRotation: [0, 0, 0] as Vector3Tuple,
+      laptopZOffset: -170,
+      laptopRotation: [0, 180, 0] as Vector3Tuple,
+      chairZOffset: -1070,
+      chairRotation: [0, 0, 0] as Vector3Tuple,
+    },
+  ];
+  const stationReferences = rowReferences.flatMap((row) => (
+    Array.from({ length: stationCount }, (_, index): ModelReferenceInstance[] => {
+      const stationNumber = index + 1;
+      const centerX = (index - (stationCount - 1) / 2) * connectedDeskWidth;
+      const instanceSuffix = `${row.rowNumber}-${stationNumber}`;
+      const displayPrefix = `第 ${row.rowNumber} 排 · 工位 ${stationNumber}`;
+      const variation = stationVariations[(row.rowNumber - 1) * stationCount + index]!;
+      const rowFacingSign = row.rowNumber === 1 ? 1 : -1;
+      const monitorReferences: ModelReferenceInstance[] = variation.monitorXs.map((monitorX, monitorIndex) => {
+        const inwardYaw = variation.monitorXs.length === 1
+          ? variation.monitorYaw
+          : (monitorX < 0 ? 7 : -7) * rowFacingSign + variation.monitorYaw;
+        return {
+          id: `cyber-office-monitor-${instanceSuffix}-${monitorIndex + 1}-reference`,
+          name: `${displayPrefix} · 显示器 ${monitorIndex + 1}`,
+          modelId: ids.monitorId,
+          position: [
+            centerX + monitorX,
+            deskSurfaceY,
+            row.deskZ - rowFacingSign * (145 + monitorIndex * 16),
+          ],
+          rotation: [0, row.laptopRotation[1] + inwardYaw, 0],
+          scale: [0.88, 0.88, 0.88],
+          interactions: [{
+            id: "display-power",
+            kind: "power",
+            range: 1350,
+            targetFeatureIds: ["cyber-monitor-panel", "cyber-monitor-light-left", "cyber-monitor-light-right"],
+          }],
+        };
+      });
+      return [
+        {
+          id: `cyber-office-desk-${instanceSuffix}-reference`,
+          name: `${displayPrefix} · 办公桌`,
+          modelId: ids.deskId,
+          position: [centerX, finishedFloorY, row.deskZ],
+          rotation: row.deskRotation,
+          scale: deskScale,
+        },
+        {
+          id: `cyber-office-laptop-${instanceSuffix}-reference`,
+          name: `${displayPrefix} · 笔记本`,
+          modelId: ids.laptopId,
+          position: [
+            centerX + variation.laptopX,
+            deskSurfaceY + laptopClearance,
+            row.deskZ + row.laptopZOffset + variation.laptopZ,
+          ],
+          rotation: [0, row.laptopRotation[1] + variation.laptopYaw, 0],
+          scale: [1, 1, 1],
+          jointValues: { "cyber-laptop-screen-hinge": variation.laptopAngle },
+          interactions: [{
+            id: "computer-power",
+            kind: "articulation",
+            range: 1050,
+            targetFeatureIds: [
+              "cyber-laptop-screen-shell",
+              "cyber-laptop-screen-panel",
+              "cyber-laptop-camera",
+            ],
+            jointId: "cyber-laptop-screen-hinge",
+            closedValue: 0,
+            openValue: 102,
+          }],
+        },
+        ...monitorReferences,
+        {
+          id: `cyber-office-chair-${instanceSuffix}-reference`,
+          name: `${displayPrefix} · 人体工学椅`,
+          modelId: ids.chairId,
+          position: [
+            centerX + variation.chairX,
+            finishedFloorY,
+            row.deskZ + row.chairZOffset + variation.chairZ,
+          ],
+          rotation: [0, row.chairRotation[1] + variation.chairYaw, 0],
+          scale: [1, 1, 1],
+          physics: {
+            bodyType: "dynamic",
+            mass: 16,
+            friction: 0.42,
+            linearDamping: 2.8,
+          },
+          interactions: [{ id: "seat", kind: "seat", range: 680 }],
+        },
+      ];
+    }).flat()
+  ));
+  const references: ModelReferenceInstance[] = [{
+    id: "cyber-office-room-reference",
+    name: "房间 · 引用",
+    modelId: ids.roomId,
+    position: [0, -floorThickness, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1],
+    roomSurfaceMode: "interior",
+    interactions: [{
+      id: "door",
+      kind: "door",
+      range: 920,
+      targetFeatureIds: ["cyber-room-door", "cyber-room-door-handle"],
+      openAngle: 88,
+    }],
+  }, ...stationReferences];
+  return {
+    name: "赛博办公空间",
+    description: "通过实时模型引用组成的两排八工位办公空间；连续桌面上的笔记本、显示器和椅子采用可复现的自然错落布局，并始终使用源模型的最新修订。",
+    unit: "mm",
+    featureGraph: {
+      version: 1,
+      features: [],
+      groups: [],
+      references,
+      navigation: {
+        enabled: true,
+        floorY: 0,
+        bounds: [-4680, 4680, -2880, 2880],
+        cellSize: 160,
+        agentRadius: 260,
+        agentHeight: 1720,
+        start: [-3900, 2100],
+      },
+    },
+  };
+}

@@ -7,6 +7,8 @@ export const FEATURE_MATERIAL_COLORS: Record<FeatureMaterialPreset, string> = {
   metal: "#aab2b8",
   plastic: "#7f9278",
   glass: "#9ccfd5",
+  fabric: "#71858a",
+  rubber: "#303638",
 };
 
 export function resolveFeatureColor(feature: ModelFeature) {
@@ -34,6 +36,30 @@ function createWoodGrainTexture() {
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(1.5, 1.5);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function createFabricWeaveTexture() {
+  const size = 32;
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const warp = x % 4 < 2 ? 9 : -7;
+      const weft = y % 4 < 2 ? 7 : -5;
+      const shade = 224 + warp + weft;
+      const offset = (y * size + x) * 4;
+      data[offset] = shade;
+      data[offset + 1] = shade;
+      data[offset + 2] = shade;
+      data[offset + 3] = 255;
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(4, 4);
   texture.needsUpdate = true;
   return texture;
 }
@@ -93,6 +119,21 @@ export function createFeatureMaterial(feature: ModelFeature): THREE.MeshStandard
       ior: 1.45,
       depthWrite: false,
       side: THREE.DoubleSide,
+    });
+  }
+  if (preset === "fabric") {
+    return new THREE.MeshStandardMaterial({
+      ...common,
+      map: createFabricWeaveTexture(),
+      roughness: 0.94,
+      metalness: 0,
+    });
+  }
+  if (preset === "rubber") {
+    return new THREE.MeshStandardMaterial({
+      ...common,
+      roughness: 0.88,
+      metalness: 0.02,
     });
   }
   return new THREE.MeshStandardMaterial({

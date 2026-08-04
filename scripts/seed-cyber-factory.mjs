@@ -1,4 +1,4 @@
-import { cyberFactoryModels } from "@solidloom/shared";
+import { createCyberOfficeSpaceModel, cyberFactoryModels } from "@solidloom/shared";
 
 const server = (process.env.SOLIDLOOM_URL ?? "http://127.0.0.1:4310").replace(/\/+$/, "");
 
@@ -73,6 +73,51 @@ for (const specification of [...cyberFactoryModels].reverse()) {
   }
   const model = await request("/api/models", { method: "POST", body: specification });
   created.push({ id: model.id, name: model.name, features: model.featureGraph.features.length });
+}
+
+const sourceModels = await request("/api/models");
+const sourceByName = new Map(sourceModels.items.map((item) => [item.name, item]));
+const room = sourceByName.get("房间");
+const desk = sourceByName.get("办公桌");
+const monitor = sourceByName.get("电脑显示器");
+const laptop = sourceByName.get("笔记本");
+const chair = sourceByName.get("简易人体工学椅");
+if (!room || !desk || !monitor || !laptop || !chair) throw new Error("创建办公空间前必须先存在房间、办公桌、电脑显示器、笔记本和简易人体工学椅模型。");
+
+const spaceSpecification = createCyberOfficeSpaceModel({
+  roomId: room.id,
+  deskId: desk.id,
+  monitorId: monitor.id,
+  laptopId: laptop.id,
+  chairId: chair.id,
+});
+const existingSpace = sourceByName.get(spaceSpecification.name);
+if (!existingSpace) {
+  const space = await request("/api/models", { method: "POST", body: spaceSpecification });
+  created.push({ id: space.id, name: space.name, features: space.featureGraph.features.length, references: space.featureGraph.references?.length ?? 0 });
+} else {
+  let current = existingSpace;
+  let changed = false;
+  if (current.description !== spaceSpecification.description || current.unit !== spaceSpecification.unit) {
+    current = await request(`/api/models/${encodeURIComponent(current.id)}`, {
+      method: "PATCH",
+      body: {
+        expectedRevision: current.revision,
+        description: spaceSpecification.description,
+        unit: spaceSpecification.unit,
+      },
+    });
+    changed = true;
+  }
+  if (canonicalJson(current.featureGraph) !== canonicalJson(spaceSpecification.featureGraph)) {
+    current = await request(`/api/models/${encodeURIComponent(current.id)}/features`, {
+      method: "PUT",
+      body: { expectedRevision: current.revision, featureGraph: spaceSpecification.featureGraph },
+    });
+    changed = true;
+  }
+  if (changed) replaced.push({ id: current.id, name: current.name, revision: current.revision, features: current.featureGraph.features.length, references: current.featureGraph.references?.length ?? 0 });
+  else skipped.push(spaceSpecification.name);
 }
 
 process.stdout.write(`${JSON.stringify({ project: "赛博工厂", created, replaced, skipped }, null, 2)}\n`);

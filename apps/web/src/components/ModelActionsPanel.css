@@ -1,0 +1,139 @@
+.model-actions-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.model-actions-panel > strong,
+.model-actions-panel > small,
+.model-actions-joint > small {
+  color: var(--color-muted);
+  font-size: 9px;
+}
+
+.model-actions-panel > strong {
+  font-weight: 750;
+  letter-spacing: 0.06em;
+}
+
+.model-actions-presets,
+.model-actions-animations,
+.model-actions-joint-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.model-actions-presets {
+  margin-bottom: 2px;
+}
+
+.model-actions-locomotion {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.model-actions-locomotion label,
+.model-actions-locomotion label > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.model-actions-locomotion label > span {
+  min-width: 0;
+  justify-content: flex-start;
+}
+
+.model-actions-locomotion small {
+  color: var(--color-muted);
+  font-size: 9px;
+}
+
+.model-actions-locomotion output {
+  flex: 0 0 auto;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.model-actions-locomotion-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+
+.model-actions-locomotion-settings label {
+  display: grid;
+  align-items: start;
+  justify-content: stretch;
+  gap: 4px;
+  color: var(--color-muted);
+  font-size: 9px;
+}
+
+.model-actions-locomotion-settings label > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-muted);
+}
+
+.model-actions-locomotion-settings input {
+  min-width: 0;
+  width: 100%;
+}
+
+.model-actions-animations {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 2px;
+}
+
+.model-actions-presets button,
+.model-actions-animations button,
+.model-actions-joint-buttons button {
+  min-height: 31px;
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 5px;
+  color: var(--color-text);
+  background: var(--color-control);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.model-actions-presets button:hover,
+.model-actions-animations button:hover,
+.model-actions-joint-buttons button:hover {
+  background: var(--color-control-selected);
+}
+
+.model-actions-animations button.active {
+  border-color: #9cad74;
+  background: var(--color-control-selected);
+}
+
+.model-actions-joint {
+  display: grid;
+  gap: 8px;
+}
+
+.model-actions-joint-name {
+  display: grid;
+  gap: 2px;
+}
+
+.model-actions-joint-name small {
+  color: var(--color-muted);
+  font-size: 9px;
+}
+
+.properties input.model-actions-range {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: #9cad74;
+}
