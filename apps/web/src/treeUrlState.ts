@@ -2,6 +2,7 @@ export interface TreeUrlState {
   modelId: string | null;
   selectedFeatureIds: string[];
   selectedGroupId: string | null;
+  selectedReferenceId: string | null;
   projectExpanded: boolean;
   modelsExpanded: boolean;
   expandedModelIds: string[];
@@ -12,6 +13,7 @@ const treeParameterNames = [
   "tree",
   "model",
   "group",
+  "reference",
   "feature",
   "project",
   "models",
@@ -30,6 +32,7 @@ export function readTreeUrlState(href: string): TreeUrlState | null {
     modelId: url.searchParams.get("model"),
     selectedFeatureIds: uniqueValues(url.searchParams.getAll("feature")),
     selectedGroupId: url.searchParams.get("group"),
+    selectedReferenceId: url.searchParams.get("reference"),
     projectExpanded: url.searchParams.get("project") !== "closed",
     modelsExpanded: url.searchParams.get("models") !== "closed",
     expandedModelIds: uniqueValues(url.searchParams.getAll("openModel")),
@@ -42,7 +45,9 @@ export function writeTreeUrlState(href: string, state: TreeUrlState) {
   for (const name of treeParameterNames) url.searchParams.delete(name);
   url.searchParams.set("tree", "1");
   if (state.modelId) url.searchParams.set("model", state.modelId);
-  if (state.selectedGroupId) {
+  if (state.selectedReferenceId) {
+    url.searchParams.set("reference", state.selectedReferenceId);
+  } else if (state.selectedGroupId) {
     url.searchParams.set("group", state.selectedGroupId);
   } else {
     for (const featureId of uniqueValues(state.selectedFeatureIds)) {

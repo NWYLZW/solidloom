@@ -1,0 +1,48 @@
+.topbar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: var(--library-width) 1fr auto;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-topbar);
+}
+
+.brand,
+.document-title,
+.top-actions {
+  display: flex;
+  align-items: center;
+}
+
+.brand { grid-column: 1; min-width: 0; height: 100%; padding: 0 10px; gap: 8px; border-right: 1px solid var(--color-border); }
+.brand-mark { display: grid; place-items: center; width: 28px; height: 28px; color: #d8ff45; background: #171a15; border-radius: 7px; }
+.brand-name { overflow: hidden; font-weight: 760; letter-spacing: -0.02em; text-overflow: ellipsis; white-space: nowrap; }
+.collapse-button { flex: 0 0 auto; margin-left: auto; cursor: pointer; }
+.topbar-main { position: relative; grid-column: 2; display: flex; align-items: center; justify-content: center; min-width: 0; height: 100%; }
+.expand-button { position: absolute; left: 10px; cursor: pointer; }
+.collapse-button:hover, .expand-button:hover { color: var(--color-text); background: var(--color-control-selected); }
+.document-title { justify-self: center; min-width: 0; max-width: calc(100% - 80px); gap: 7px; color: var(--color-muted); font-size: 13px; }
+.document-title span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-title svg, .document-title small { flex: 0 0 auto; }
+.document-title small { color: var(--color-muted); font-size: 9px; }
+.top-actions { grid-column: 3; height: 100%; gap: 6px; padding: 0 12px; }
+
+.icon-button,
+.collapse-button,
+.expand-button {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  padding: 0;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 6px;
+  color: var(--color-muted);
+  background: var(--color-control);
+}
+
+.icon-button:disabled { color: #a9aca5; }
+.save-button { border-color: transparent; background: var(--color-control-selected); }
+.save-button:not(:disabled) { color: var(--color-text); cursor: pointer; }
+.save-button:disabled { opacity: 0.64; }

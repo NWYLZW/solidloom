@@ -2,7 +2,7 @@ export type Unit = "mm" | "cm" | "in";
 export type FeatureOperation = "add" | "cut";
 export type Vector3Tuple = [number, number, number];
 export type CornerAlgorithm = "circular" | "smooth";
-export type FeatureMaterialPreset = "default" | "wood" | "metal" | "plastic" | "glass";
+export type FeatureMaterialPreset = "default" | "wood" | "metal" | "plastic" | "glass" | "fabric" | "rubber";
 export interface FeatureAppearance {
   material?: FeatureMaterialPreset;
   color?: string;
@@ -122,10 +122,108 @@ export interface FeatureGroup {
   scale?: Vector3Tuple;
 }
 
+export interface RevoluteJoint {
+  id: string;
+  name: string;
+  type: "revolute";
+  groupId: string;
+  parentJointId?: string;
+  pivot: Vector3Tuple;
+  axis: Vector3Tuple;
+  value: number;
+  restValue: number;
+  min: number;
+  max: number;
+}
+
+export type ArticulationJoint = RevoluteJoint;
+
+export interface ArticulationPosePreset {
+  id: string;
+  name: string;
+  durationMs?: number;
+  jointValues: Record<string, number>;
+}
+
+export interface ArticulationAnimationKeyframe {
+  offset: number;
+  jointValues: Record<string, number>;
+}
+
+export interface ArticulationAnimationClip {
+  id: string;
+  name: string;
+  durationMs: number;
+  loop: boolean;
+  keyframes: ArticulationAnimationKeyframe[];
+}
+
+export interface ArticulationLocomotionProfile {
+  id: string;
+  name: string;
+  walkAnimationId: string;
+  runAnimationId: string;
+  defaultSpeed: number;
+  minimumSpeed: number;
+  maximumSpeed: number;
+  walkReferenceSpeed: number;
+  runReferenceSpeed: number;
+  transitionStartSpeed: number;
+  transitionEndSpeed: number;
+  transitionDurationMs: number;
+}
+
+export interface NavigationSurface {
+  enabled: boolean;
+  floorY: number;
+  bounds: [number, number, number, number];
+  cellSize: number;
+  agentRadius: number;
+  agentHeight: number;
+  start: [number, number];
+}
+
+export interface ModelReferencePhysics {
+  bodyType: "static" | "dynamic";
+  mass?: number;
+  friction?: number;
+  linearDamping?: number;
+}
+
+export interface ModelReferenceInteraction {
+  id: string;
+  kind: "power" | "seat" | "door" | "articulation";
+  range?: number;
+  targetFeatureIds?: string[];
+  openAngle?: number;
+  jointId?: string;
+  closedValue?: number;
+  openValue?: number;
+}
+
+export interface ModelReferenceInstance {
+  id: string;
+  name: string;
+  modelId: string;
+  position: Vector3Tuple;
+  rotation: Vector3Tuple;
+  scale?: Vector3Tuple;
+  jointValues?: Record<string, number>;
+  roomSurfaceMode?: "source" | "interior" | "exterior";
+  physics?: ModelReferencePhysics;
+  interactions?: ModelReferenceInteraction[];
+}
+
 export interface FeatureGraph {
   version: 1;
   features: ModelFeature[];
   groups?: FeatureGroup[];
+  joints?: ArticulationJoint[];
+  poses?: ArticulationPosePreset[];
+  animations?: ArticulationAnimationClip[];
+  locomotion?: ArticulationLocomotionProfile;
+  navigation?: NavigationSurface;
+  references?: ModelReferenceInstance[];
   variables?: ModelVariable[];
 }
 

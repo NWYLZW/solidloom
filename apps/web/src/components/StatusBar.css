@@ -1,0 +1,26 @@
+.statusbar { grid-column: 1 / -1; grid-row: 3; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 0 10px; color: #9fa399; background: #181b16; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.status-main, .status-feedback, .status-right { display: flex; align-items: center; min-width: 0; gap: 10px; }
+.status-right { justify-content: flex-end; }
+.status-unit-picker { position: relative; display: flex; align-items: center; height: 20px; gap: 3px; padding: 0 4px; border-radius: 3px; color: #c6cac1; cursor: pointer; transition: color 120ms ease, background 120ms ease; }
+.status-unit-picker:hover, .status-unit-picker:focus-within { color: #f0f2ed; background: #2b3029; }
+.status-unit-picker.disabled { color: #777c74; cursor: default; }
+.status-unit-picker > span, .status-unit-picker > svg { pointer-events: none; }
+.status-unit-picker select { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; opacity: 0; }
+.status-unit-picker select:disabled { cursor: default; }
+.status-primary, .status-service { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
+.status-primary { color: #d5d8d0; }
+.status-ready-dot { width: 5px; height: 5px; border-radius: 50%; background: #78ad7f; }
+.status-primary.saving .status-ready-dot, .status-primary.dirty .status-ready-dot { background: #c0a848; }
+.status-primary.error .status-ready-dot { background: #bd6257; }
+.status-primary.idle .status-ready-dot, .status-primary.saved .status-ready-dot { background: #78ad7f; }
+.status-detail { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d8b6ae; }
+.status-divider { width: 1px; height: 10px; background: #393e37; }
+.status-service .state-dot { width: 5px; height: 5px; box-shadow: none; }
+.status-service.online .state-dot { background: #67a872; }
+.status-service.offline .state-dot { background: #bd6257; }
+.status-breadcrumb { min-width: 0; overflow: hidden; }
+.status-breadcrumb ol { display: flex; align-items: center; justify-content: flex-start; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.status-breadcrumb li { display: flex; align-items: center; min-width: 0; }
+.status-breadcrumb li svg { flex: 0 0 auto; margin: 0 4px; color: #62685f; }
+.status-breadcrumb li span { min-width: 0; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-breadcrumb li:last-child span { color: #d5d8d0; font-weight: 650; }

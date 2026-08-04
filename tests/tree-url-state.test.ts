@@ -7,6 +7,7 @@ describe("tree URL state", () => {
       modelId: "model-1",
       selectedFeatureIds: ["feature-1", "feature-2"],
       selectedGroupId: null,
+      selectedReferenceId: null,
       projectExpanded: true,
       modelsExpanded: true,
       expandedModelIds: ["model-1"],
@@ -18,6 +19,7 @@ describe("tree URL state", () => {
       modelId: "model-1",
       selectedFeatureIds: ["feature-1", "feature-2"],
       selectedGroupId: null,
+      selectedReferenceId: null,
       projectExpanded: true,
       modelsExpanded: true,
       expandedModelIds: ["model-1"],
@@ -30,6 +32,7 @@ describe("tree URL state", () => {
       modelId: "model-1",
       selectedFeatureIds: ["ignored-while-a-group-is-selected"],
       selectedGroupId: "group-1",
+      selectedReferenceId: null,
       projectExpanded: false,
       modelsExpanded: false,
       expandedModelIds: [],
@@ -39,10 +42,30 @@ describe("tree URL state", () => {
       modelId: "model-1",
       selectedFeatureIds: [],
       selectedGroupId: "group-1",
+      selectedReferenceId: null,
       projectExpanded: false,
       modelsExpanded: false,
       expandedModelIds: [],
       expandedGroupIds: [],
+    });
+  });
+
+  it("stores a selected model reference instead of a local group or feature", () => {
+    const href = writeTreeUrlState("http://127.0.0.1:4311/", {
+      modelId: "workspace-1",
+      selectedFeatureIds: ["ignored"],
+      selectedGroupId: "ignored",
+      selectedReferenceId: "desk-reference",
+      projectExpanded: true,
+      modelsExpanded: true,
+      expandedModelIds: ["workspace-1"],
+      expandedGroupIds: [],
+    });
+    expect(readTreeUrlState(href)).toMatchObject({
+      modelId: "workspace-1",
+      selectedFeatureIds: [],
+      selectedGroupId: null,
+      selectedReferenceId: "desk-reference",
     });
   });
 
