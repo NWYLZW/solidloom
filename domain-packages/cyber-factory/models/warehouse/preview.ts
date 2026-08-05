@@ -7,9 +7,9 @@ import {
   defaultWarehousePalletParameters,
   defaultWarehouseRackParameters,
   defaultWarehouseStackerCraneParameters,
-  defaultWarehouseStackerCranePose,
   defaultWarehouseToteParameters,
   createWarehouseStackerCrane,
+  normalizeWarehouseStackerCranePose,
   planWarehouseRetrieval,
   warehouseRackBayX,
   warehouseRackShelfY,
@@ -130,13 +130,13 @@ const assetConfigs: Record<AssetKey, AssetPreviewConfig> = {
   },
   stacker: {
     title: "参数化巷道堆垛机",
-    summary: "独立模型默认与货架拣选面贴合组合；跨度、高度、载货台和货叉仍可独立配置。",
+    summary: "默认停靠左侧，载货台留出托盘净空；货叉完整伸至托盘远端后再挂接。",
     defaults: valuesOf(defaultWarehouseStackerCraneParameters),
     parameters: [
-      { key: "railLength", label: "轨道长度", minimum: 3_500, maximum: 30_000, step: 500, unit: "毫米" },
+      { key: "railLength", label: "轨道长度", minimum: 3_500, maximum: 30_000, step: 100, unit: "毫米" },
       { key: "mastHeight", label: "立柱高度", minimum: 2_400, maximum: 8_000, step: 100, unit: "毫米" },
-      { key: "carriageWidth", label: "载货台宽度", minimum: 700, maximum: 1_600, step: 50, unit: "毫米" },
-      { key: "carriageDepth", label: "载货台深度", minimum: 600, maximum: 1_400, step: 50, unit: "毫米" },
+      { key: "carriageWidth", label: "载货台宽度", minimum: 1_120, maximum: 1_600, step: 20, unit: "毫米" },
+      { key: "carriageDepth", label: "载货台深度", minimum: 850, maximum: 1_400, step: 50, unit: "毫米" },
       { key: "forkReach", label: "货叉行程", minimum: 400, maximum: 2_400, step: 50, unit: "毫米" },
     ],
     createDefinition: (parameters) => createWarehouseStackerCraneDefinition(parameters as Partial<WarehouseStackerCraneParameters>),
@@ -389,7 +389,13 @@ interface StackerAnimationState {
   lastRenderedAt: number;
 }
 
-let stackerPose: WarehouseStackerCranePose = { ...defaultWarehouseStackerCranePose };
+function stackerHomePose() {
+  return normalizeWarehouseStackerCranePose(
+    parameterValues.stacker as unknown as WarehouseStackerCraneParameters,
+  );
+}
+
+let stackerPose: WarehouseStackerCranePose = stackerHomePose();
 let stackerPlan: ValidWarehouseRetrievalPlan | null = null;
 let stackerAnimation: StackerAnimationState | null = null;
 
@@ -439,9 +445,17 @@ function renderStackerScene(
     if (cargoMode === "rack") {
       cargoPosition = [plan.targetPose.travelX, shelfY, rackPosition[2]];
     } else if (cargoMode === "fork") {
-      cargoPosition = [pose.travelX, pose.liftY + 32, -stackerParameters.carriageDepth / 2 - pose.forkExtension];
+      cargoPosition = [
+        pose.travelX,
+        pose.liftY - 30,
+        rackPosition[2] + plan.targetPose.forkExtension - pose.forkExtension,
+      ];
     } else {
-      cargoPosition = [pose.travelX, pose.liftY + 32, 0];
+      cargoPosition = [
+        pose.travelX,
+        pose.liftY - 30,
+        rackPosition[2] + plan.targetPose.forkExtension,
+      ];
     }
     drawUnits += buildAsset(pallet, cargoPosition);
     marker("#54D5C4", [
@@ -455,7 +469,7 @@ function renderStackerScene(
     const distance = Math.max(5_800, railLength * 0.9, stackerParameters.mastHeight * 1.8);
     setCamera(
       [distance * 0.8, Math.max(3_900, stackerParameters.mastHeight * 1.35), distance],
-      [900, stackerParameters.mastHeight * 0.46, -700],
+      [-250, stackerParameters.mastHeight * 0.46, -700],
       3_200,
       Math.max(18_000, railLength * 2.5),
     );
@@ -570,7 +584,7 @@ function renderParameterControls(asset: AssetKey) {
       if (asset === "stacker") {
         stackerAnimation = null;
         stackerPlan = null;
-        stackerPose = { ...defaultWarehouseStackerCranePose };
+        stackerPose = stackerHomePose();
         stackerTaskStatus.textContent = "参数已更新，请重新执行取货演示。";
       }
       renderCurrentMode();
@@ -591,7 +605,7 @@ function selectMode(mode: PreviewMode) {
   stackerTaskPanel.hidden = mode !== "stacker";
   stackerAnimation = null;
   if (mode === "stacker") {
-    stackerPose = { ...defaultWarehouseStackerCranePose };
+    stackerPose = stackerHomePose();
     stackerPlan = null;
     stackerTaskStatus.removeAttribute("data-error");
     stackerTaskStatus.textContent = "输入稳定格口 ID 后生成动作计划。";
@@ -612,7 +626,7 @@ resetParameters.addEventListener("click", () => {
   if (currentMode === "stacker") {
     stackerAnimation = null;
     stackerPlan = null;
-    stackerPose = { ...defaultWarehouseStackerCranePose };
+    stackerPose = stackerHomePose();
     stackerTaskStatus.textContent = "参数已恢复，请重新执行取货演示。";
   }
   renderParameterControls(currentMode);
@@ -637,7 +651,7 @@ runStackerDemo.addEventListener("click", () => {
   if (!plan.valid) {
     stackerAnimation = null;
     stackerPlan = null;
-    stackerPose = { ...defaultWarehouseStackerCranePose };
+    stackerPose = stackerHomePose();
     stackerTaskStatus.dataset.error = "true";
     stackerTaskStatus.textContent = plan.message;
     renderStackerScene(stackerPose, "rack", "格口校验失败");
@@ -645,7 +659,7 @@ runStackerDemo.addEventListener("click", () => {
   }
   stackerTaskStatus.removeAttribute("data-error");
   stackerPlan = plan;
-  stackerPose = { ...defaultWarehouseStackerCranePose };
+  stackerPose = stackerHomePose();
   stackerAnimation = {
     plan,
     stepIndex: 0,

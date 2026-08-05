@@ -72,6 +72,11 @@ export type WarehouseRetrievalPlan = {
   message: string;
 };
 
+const warehouseStackerTravelBaseDepthScale = 1.18;
+const warehouseStackerTravelEndClearance = 180;
+const warehouseStackerForkBackClearance = 30;
+const warehouseStackerForkCargoOvertravel = 30;
+
 export const defaultWarehouseRackParameters: WarehouseRackParameters = {
   bayCount: 3,
   levelCount: 4,
@@ -100,15 +105,19 @@ export const defaultWarehouseCartParameters: WarehouseCartParameters = {
 };
 
 export const defaultWarehouseStackerCraneParameters: WarehouseStackerCraneParameters = {
-  railLength: defaultWarehouseRackParameters.bayCount * defaultWarehouseRackParameters.bayWidth + 200,
+  railLength: defaultWarehouseRackParameters.bayCount * defaultWarehouseRackParameters.bayWidth + 500,
   mastHeight: defaultWarehouseRackParameters.height,
-  carriageWidth: 900,
-  carriageDepth: 700,
-  forkReach: 700,
+  carriageWidth: 1_160,
+  carriageDepth: 900,
+  forkReach: 1_000,
 };
 
 export const defaultWarehouseStackerCranePose: WarehouseStackerCranePose = {
-  travelX: 0,
+  travelX: -(
+    defaultWarehouseStackerCraneParameters.railLength / 2
+    - defaultWarehouseStackerCraneParameters.carriageWidth / 2
+    - warehouseStackerTravelEndClearance
+  ),
   liftY: 320,
   forkExtension: 0,
 };
@@ -138,7 +147,6 @@ const rubberAppearance: FeatureAppearance = { material: "rubber", color: "#20282
 const stackerFrameAppearance: FeatureAppearance = { material: "metal", color: "#E3A62F" };
 const stackerCarriageAppearance: FeatureAppearance = { material: "metal", color: "#D6E0E2" };
 const stackerForkAppearance: FeatureAppearance = { material: "metal", color: "#5BC6B5" };
-const warehouseStackerTravelBaseDepthScale = 1.18;
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
@@ -477,10 +485,20 @@ export function normalizeWarehouseStackerCraneParameters(
   return {
     railLength: clamp(input.railLength ?? defaultWarehouseStackerCraneParameters.railLength, 3_500, 30_000),
     mastHeight: clamp(input.mastHeight ?? defaultWarehouseStackerCraneParameters.mastHeight, 2_400, 8_000),
-    carriageWidth: clamp(input.carriageWidth ?? defaultWarehouseStackerCraneParameters.carriageWidth, 700, 1_600),
-    carriageDepth: clamp(input.carriageDepth ?? defaultWarehouseStackerCraneParameters.carriageDepth, 600, 1_400),
+    carriageWidth: clamp(input.carriageWidth ?? defaultWarehouseStackerCraneParameters.carriageWidth, 1_120, 1_600),
+    carriageDepth: clamp(input.carriageDepth ?? defaultWarehouseStackerCraneParameters.carriageDepth, 850, 1_400),
     forkReach: clamp(input.forkReach ?? defaultWarehouseStackerCraneParameters.forkReach, 400, 2_400),
   };
+}
+
+export function warehouseStackerMaximumTravel(
+  input: Partial<WarehouseStackerCraneParameters> = {},
+) {
+  const parameters = normalizeWarehouseStackerCraneParameters(input);
+  return Math.max(
+    0,
+    parameters.railLength / 2 - parameters.carriageWidth / 2 - warehouseStackerTravelEndClearance,
+  );
 }
 
 export function warehouseStackerRackAssemblyZ(
@@ -496,9 +514,9 @@ export function normalizeWarehouseStackerCranePose(
   parameters: WarehouseStackerCraneParameters,
   input: Partial<WarehouseStackerCranePose> = {},
 ): WarehouseStackerCranePose {
-  const maximumTravel = Math.max(0, parameters.railLength / 2 - parameters.carriageWidth / 2 - 180);
+  const maximumTravel = warehouseStackerMaximumTravel(parameters);
   return {
-    travelX: clamp(input.travelX ?? defaultWarehouseStackerCranePose.travelX, -maximumTravel, maximumTravel),
+    travelX: clamp(input.travelX ?? -maximumTravel, -maximumTravel, maximumTravel),
     liftY: clamp(input.liftY ?? defaultWarehouseStackerCranePose.liftY, 260, parameters.mastHeight - 100),
     forkExtension: clamp(input.forkExtension ?? defaultWarehouseStackerCranePose.forkExtension, 0, parameters.forkReach),
   };
@@ -545,12 +563,13 @@ export function createWarehouseStackerCrane(
     box("warehouse-stacker-carriage-left-guard", "载货台左护栏", [54, 330, parameters.carriageDepth], [pose.travelX - parameters.carriageWidth / 2 + 27, pose.liftY + 75, 0], stackerFrameAppearance, 10),
     box("warehouse-stacker-carriage-right-guard", "载货台右护栏", [54, 330, parameters.carriageDepth], [pose.travelX + parameters.carriageWidth / 2 - 27, pose.liftY + 75, 0], stackerFrameAppearance, 10),
   ];
-  const forkLength = parameters.carriageDepth + pose.forkExtension;
-  const forkZ = pose.forkExtension / 2;
+  const forkLength = parameters.carriageDepth + pose.forkExtension - 80;
+  const forkZ = pose.forkExtension / 2 + 40;
+  const forkOffsetX = parameters.carriageWidth * 0.23;
   const forkFeatures: ModelFeature[] = [
-    box("warehouse-stacker-left-fork", "左伸缩货叉", [94, 58, forkLength], [pose.travelX - parameters.carriageWidth * 0.27, pose.liftY, forkZ], stackerForkAppearance, 10),
-    box("warehouse-stacker-right-fork", "右伸缩货叉", [94, 58, forkLength], [pose.travelX + parameters.carriageWidth * 0.27, pose.liftY, forkZ], stackerForkAppearance, 10),
-    box("warehouse-stacker-fork-crosshead", "货叉横梁", [parameters.carriageWidth * 0.72, 90, 120], [pose.travelX, pose.liftY + 12, parameters.carriageDepth / 2 - 60 + pose.forkExtension], stackerForkAppearance, 12),
+    box("warehouse-stacker-left-fork", "左伸缩货叉", [94, 58, forkLength], [pose.travelX - forkOffsetX, pose.liftY, forkZ], stackerForkAppearance, 10),
+    box("warehouse-stacker-right-fork", "右伸缩货叉", [94, 58, forkLength], [pose.travelX + forkOffsetX, pose.liftY, forkZ], stackerForkAppearance, 10),
+    box("warehouse-stacker-fork-crosshead", "载货台内固定货叉横梁", [parameters.carriageWidth * 0.72, 90, 120], [pose.travelX, pose.liftY + 12, -parameters.carriageDepth / 2 + 140], stackerForkAppearance, 12),
   ];
   return {
     name: "参数化巷道堆垛机",
@@ -598,23 +617,33 @@ export function planWarehouseRetrieval(
     return { valid: false, slotId, code: "slot-out-of-range", message: "目标格口不在当前货架参数范围内。" };
   }
   const rackAssemblyZ = warehouseStackerRackAssemblyZ(rack, crane);
-  const requiredForkExtension = Math.abs(rackAssemblyZ) - crane.carriageDepth / 2;
+  const forkInsertionFromCargoCenter = Math.min(
+    defaultWarehousePalletParameters.depth / 2 + warehouseStackerForkCargoOvertravel,
+    rack.depth / 2 - warehouseStackerForkBackClearance,
+  );
+  const requiredForkExtension = (
+    Math.abs(rackAssemblyZ)
+    + forkInsertionFromCargoCenter
+    - crane.carriageDepth / 2
+  );
   if (requiredForkExtension > crane.forkReach) {
     return { valid: false, slotId, code: "insufficient-fork-reach", message: "货叉行程不足，无法到达目标货位。" };
   }
   const targetTravelX = warehouseRackBayX(rack, slot.bayIndex);
-  const maximumTravel = Math.max(0, crane.railLength / 2 - crane.carriageWidth / 2 - 180);
+  const maximumTravel = warehouseStackerMaximumTravel(crane);
   if (Math.abs(targetTravelX) > maximumTravel) {
     return { valid: false, slotId, code: "insufficient-rail-travel", message: "轨道行程不足，无法横移到目标货位。" };
   }
-  const home = normalizeWarehouseStackerCranePose(crane, defaultWarehouseStackerCranePose);
+  const home = normalizeWarehouseStackerCranePose(crane);
+  const insertionLiftY = warehouseRackShelfY(rack, slot.levelIndex) + 52;
   const targetPose = normalizeWarehouseStackerCranePose(crane, {
     travelX: targetTravelX,
-    liftY: warehouseRackShelfY(rack, slot.levelIndex) + 74,
+    liftY: insertionLiftY + 20,
     forkExtension: requiredForkExtension,
   });
   const travelPose = { ...home, travelX: targetPose.travelX };
-  const liftedPose = { ...travelPose, liftY: targetPose.liftY };
+  const liftedPose = { ...travelPose, liftY: insertionLiftY };
+  const extendedPose = { ...liftedPose, forkExtension: targetPose.forkExtension };
   const capturedPose = { ...targetPose };
   const retractedPose = { ...targetPose, forkExtension: 0 };
   const loweredPose = { ...retractedPose, liftY: home.liftY };
@@ -629,7 +658,7 @@ export function planWarehouseRetrieval(
       { id: "reserve", label: "预占目标货位", durationMs: 450, pose: home, plannedActions: ["reserve-slot"] },
       { id: "travel", label: "横移到目标跨", durationMs: 1_200, pose: travelPose },
       { id: "lift", label: "升降到目标层", durationMs: 1_100, pose: liftedPose },
-      { id: "extend", label: "伸出货叉", durationMs: 850, pose: targetPose },
+      { id: "extend", label: "货叉伸至托盘远端", durationMs: 1_050, pose: extendedPose },
       { id: "capture", label: "挂接目标货物", durationMs: 450, pose: capturedPose, plannedActions: ["attach-cargo"] },
       { id: "retract", label: "收回货叉", durationMs: 850, pose: retractedPose },
       { id: "lower", label: "下降到出库高度", durationMs: 1_100, pose: loweredPose },

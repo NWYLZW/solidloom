@@ -7,6 +7,7 @@ import {
   createWarehouseStackerCrane,
   createWarehouseStackerCraneDefinition,
   createWarehouseToteDefinition,
+  defaultWarehousePalletParameters,
   defaultWarehouseRackParameters,
   defaultWarehouseStackerCraneParameters,
   planWarehouseRetrieval,
@@ -15,6 +16,7 @@ import {
   warehouseGroupIds,
   warehouseRackBayX,
   warehouseRackShelfY,
+  warehouseStackerMaximumTravel,
   warehouseStackerRackAssemblyZ,
 } from "./index.js";
 
@@ -132,12 +134,18 @@ describe("warehouse and internal logistics asset kit", () => {
 
   it("uses a compact single-mast default that still reaches every slot in the default rack", () => {
     expect(defaultWarehouseStackerCraneParameters).toEqual({
-      railLength: 3_500,
+      railLength: 3_800,
       mastHeight: 2_600,
-      carriageWidth: 900,
-      carriageDepth: 700,
-      forkReach: 700,
+      carriageWidth: 1_160,
+      carriageDepth: 900,
+      forkReach: 1_000,
     });
+    expect(defaultWarehouseStackerCraneParameters.carriageWidth - 108).toBeGreaterThan(
+      defaultWarehousePalletParameters.width,
+    );
+    expect(defaultWarehouseStackerCraneParameters.carriageDepth).toBeGreaterThan(
+      defaultWarehousePalletParameters.depth,
+    );
     const graph = createWarehouseStackerCraneDefinition().createModel().featureGraph!;
     expect(graph.features.some(({ id }) => id === "warehouse-stacker-single-mast")).toBe(true);
     expect(graph.features.some(({ id }) => id === "warehouse-stacker-right-mast")).toBe(false);
@@ -147,14 +155,24 @@ describe("warehouse and internal logistics asset kit", () => {
       defaultWarehouseStackerCraneParameters,
     );
     expect(outerTopPlan).toMatchObject({ valid: true });
-    if (outerTopPlan.valid) {
-      expect(outerTopPlan.targetPose.liftY).toBe(warehouseRackShelfY(defaultWarehouseRackParameters, 3) + 74);
-      expect(outerTopPlan.targetPose.forkExtension).toBeCloseTo(513);
-    }
     const rackZ = warehouseStackerRackAssemblyZ(
       defaultWarehouseRackParameters,
       defaultWarehouseStackerCraneParameters,
     );
+    if (outerTopPlan.valid) {
+      expect(outerTopPlan.targetPose.liftY).toBe(warehouseRackShelfY(defaultWarehouseRackParameters, 3) + 72);
+      expect(outerTopPlan.targetPose.forkExtension).toBeCloseTo(951);
+      expect(outerTopPlan.steps[0]?.pose.travelX).toBe(
+        -warehouseStackerMaximumTravel(defaultWarehouseStackerCraneParameters),
+      );
+      const extend = outerTopPlan.steps.find(({ id }) => id === "extend")!;
+      expect(extend.pose.liftY - 30).toBe(
+        warehouseRackShelfY(defaultWarehouseRackParameters, 3) + 22,
+      );
+      expect(rackZ + outerTopPlan.targetPose.forkExtension).toBeCloseTo(
+        -30,
+      );
+    }
     expect(rackZ + defaultWarehouseRackParameters.depth / 2).toBeCloseTo(
       -defaultWarehouseStackerCraneParameters.carriageDepth * 1.18 / 2,
     );
@@ -168,16 +186,18 @@ describe("warehouse and internal logistics asset kit", () => {
     expect(retractedFork?.type).toBe("box");
     expect(extendedFork?.type).toBe("box");
     if (retractedFork?.type !== "box" || extendedFork?.type !== "box") return;
-    expect(retractedFork.parameters.depth).toBe(defaultWarehouseStackerCraneParameters.carriageDepth);
+    expect(retractedFork.parameters.depth).toBe(defaultWarehouseStackerCraneParameters.carriageDepth - 80);
     expect(retractedFork.position[2] - retractedFork.parameters.depth / 2).toBe(
-      -defaultWarehouseStackerCraneParameters.carriageDepth / 2,
+      -defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 80,
     );
     expect(extendedFork.position[2] - extendedFork.parameters.depth / 2).toBe(
-      -defaultWarehouseStackerCraneParameters.carriageDepth / 2,
+      -defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 80,
     );
     expect(extendedFork.position[2] + extendedFork.parameters.depth / 2).toBe(
       defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 600,
     );
+    const crosshead = extended.featureGraph!.features.find(({ id }) => id === "warehouse-stacker-fork-crosshead");
+    expect(crosshead?.position[2]).toBe(-defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 140);
   });
 
   it("turns a stable rack slot id into a deterministic planned retrieval sequence", () => {
@@ -191,7 +211,7 @@ describe("warehouse and internal logistics asset kit", () => {
     if (!plan.valid) return;
 
     expect(plan.targetPose.travelX).toBe(warehouseRackBayX(rack, 2));
-    expect(plan.targetPose.liftY).toBe(warehouseRackShelfY(rack, 3) + 74);
+    expect(plan.targetPose.liftY).toBe(warehouseRackShelfY(rack, 3) + 72);
     expect(plan.steps.map(({ id }) => id)).toEqual([
       "reserve",
       "travel",
@@ -205,12 +225,19 @@ describe("warehouse and internal logistics asset kit", () => {
     ]);
     expect(plan.steps.find(({ id }) => id === "capture")?.plannedActions).toEqual(["attach-cargo"]);
     expect(plan.steps.find(({ id }) => id === "release")?.plannedActions).toEqual(["detach-cargo", "release-slot"]);
-    const maximumTravel = 14_000 / 2 - defaultWarehouseStackerCraneParameters.carriageWidth / 2 - 180;
+    const maximumTravel = warehouseStackerMaximumTravel({
+      ...defaultWarehouseStackerCraneParameters,
+      railLength: 14_000,
+    });
     expect(plan.steps.find(({ id }) => id === "deliver")?.pose.travelX).toBe(-maximumTravel);
     expect(plan.steps.find(({ id }) => id === "release")?.pose.travelX).toBe(-maximumTravel);
     expect(createWarehouseStackerCraneDefinition().manifest.anchors.find(
       ({ id }) => id === "warehouse-stacker-outbound-socket",
-    )?.position[2]).toBe(0);
+    )?.position).toEqual([
+      -warehouseStackerMaximumTravel(defaultWarehouseStackerCraneParameters),
+      290,
+      30,
+    ]);
   });
 
   it("rejects malformed, missing and unreachable stacker targets without inventing availability", () => {

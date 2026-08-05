@@ -14,12 +14,12 @@ import {
   defaultWarehousePalletParameters,
   defaultWarehouseRackParameters,
   defaultWarehouseStackerCraneParameters,
-  defaultWarehouseStackerCranePose,
   defaultWarehouseToteParameters,
   normalizeWarehouseCartParameters,
   normalizeWarehousePalletParameters,
   normalizeWarehouseRackParameters,
   normalizeWarehouseStackerCraneParameters,
+  normalizeWarehouseStackerCranePose,
   normalizeWarehouseToteParameters,
   warehouseGroupIds,
   warehouseRackBayX,
@@ -340,7 +340,12 @@ export function createWarehouseStackerCraneManifest(
   input: Partial<WarehouseStackerCraneParameters> = {},
 ): ModelAssetManifest {
   const parameters = normalizeWarehouseStackerCraneParameters(input);
-  const model = createWarehouseStackerCrane(parameters, defaultWarehouseStackerCranePose);
+  const homePose = normalizeWarehouseStackerCranePose(parameters);
+  const outboundCargoZ = parameters.carriageDepth / 2 - Math.min(
+    defaultWarehousePalletParameters.depth / 2 + 30,
+    defaultWarehouseRackParameters.depth / 2 - 30,
+  );
+  const model = createWarehouseStackerCrane(parameters, homePose);
   const features = model.featureGraph!.features;
   const allIds = featureIds(features);
   const railIds = allIds.filter((id) => id.includes("rail") || id.includes("end-stop"));
@@ -365,15 +370,15 @@ export function createWarehouseStackerCraneManifest(
     schemaVersion: 1,
     id: "cyber-factory-warehouse-stacker-crane",
     displayName: "参数化巷道堆垛机",
-    description: "默认轨道宽度和立柱高度与三跨货架对齐，并可按仓库跨度扩展的自动化仓储取放设备。",
+    description: "默认停靠左侧出库端，载货台为标准托盘保留净空，并可按仓库跨度扩展的自动化仓储取放设备。",
     version: "1.0.0",
     kind: "asset",
     modelUnit: "mm",
     parameters: [
-      { id: "rail-length", label: "轨道长度", type: "number", defaultValue: parameters.railLength, unit: "mm", minimum: 3_500, maximum: 30_000, step: 500 },
+      { id: "rail-length", label: "轨道长度", type: "number", defaultValue: parameters.railLength, unit: "mm", minimum: 3_500, maximum: 30_000, step: 100 },
       { id: "mast-height", label: "立柱高度", type: "number", defaultValue: parameters.mastHeight, unit: "mm", minimum: 2_400, maximum: 8_000, step: 100 },
-      { id: "carriage-width", label: "载货台宽度", type: "number", defaultValue: parameters.carriageWidth, unit: "mm", minimum: 700, maximum: 1_600, step: 50 },
-      { id: "carriage-depth", label: "载货台深度", type: "number", defaultValue: parameters.carriageDepth, unit: "mm", minimum: 600, maximum: 1_400, step: 50 },
+      { id: "carriage-width", label: "载货台宽度", type: "number", defaultValue: parameters.carriageWidth, unit: "mm", minimum: 1_120, maximum: 1_600, step: 20 },
+      { id: "carriage-depth", label: "载货台深度", type: "number", defaultValue: parameters.carriageDepth, unit: "mm", minimum: 850, maximum: 1_400, step: 50 },
       { id: "fork-reach", label: "货叉行程", type: "number", defaultValue: parameters.forkReach, unit: "mm", minimum: 400, maximum: 2_400, step: 50 },
     ],
     materials: [
@@ -386,10 +391,10 @@ export function createWarehouseStackerCraneManifest(
     placement: fixedPlacement(),
     colliders,
     anchors: [
-      { id: "warehouse-stacker-fork-load-socket", label: "货叉装载位", kind: "socket", position: [0, defaultWarehouseStackerCranePose.liftY + 34, parameters.carriageDepth / 2], rotation: [0, 0, 0], range: 620, groupId: warehouseGroupIds.stackerForks, tags: ["warehouse", "cargo", "planned-attachment"] },
-      { id: "warehouse-stacker-control-panel", label: "堆垛机控制面板", kind: "interaction", position: [-parameters.carriageWidth * 0.34, 640, -parameters.carriageDepth * 0.65], rotation: [0, 0, 0], range: 720, featureId: "warehouse-stacker-control-cabinet", tags: ["warehouse", "automation", "planned-control"] },
-      { id: "warehouse-stacker-outbound-socket", label: "载货台内出库放置位", kind: "placement", position: [0, defaultWarehouseStackerCranePose.liftY, 0], rotation: [0, 180, 0], range: 620, groupId: warehouseGroupIds.stackerCarriage, tags: ["warehouse", "outbound", "planned-attachment"] },
-      { id: "warehouse-stacker-maintenance-approach", label: "堆垛机维护接近位", kind: "approach", position: [0, 0, -parameters.carriageDepth * 1.1], rotation: [0, 0, 0], range: 900, groupId: warehouseGroupIds.stackerTravelFrame, tags: ["warehouse", "maintenance", "navigation"] },
+      { id: "warehouse-stacker-fork-load-socket", label: "货叉装载位", kind: "socket", position: [homePose.travelX, homePose.liftY - 30, outboundCargoZ], rotation: [0, 0, 0], range: 620, groupId: warehouseGroupIds.stackerForks, tags: ["warehouse", "cargo", "planned-attachment"] },
+      { id: "warehouse-stacker-control-panel", label: "堆垛机控制面板", kind: "interaction", position: [homePose.travelX - parameters.carriageWidth * 0.34, 640, -parameters.carriageDepth * 0.65], rotation: [0, 0, 0], range: 720, featureId: "warehouse-stacker-control-cabinet", tags: ["warehouse", "automation", "planned-control"] },
+      { id: "warehouse-stacker-outbound-socket", label: "载货台内出库放置位", kind: "placement", position: [homePose.travelX, homePose.liftY - 30, outboundCargoZ], rotation: [0, 180, 0], range: 620, groupId: warehouseGroupIds.stackerCarriage, tags: ["warehouse", "outbound", "planned-attachment"] },
+      { id: "warehouse-stacker-maintenance-approach", label: "堆垛机维护接近位", kind: "approach", position: [homePose.travelX, 0, -parameters.carriageDepth * 1.1], rotation: [0, 0, 0], range: 900, groupId: warehouseGroupIds.stackerTravelFrame, tags: ["warehouse", "maintenance", "navigation"] },
     ],
     joints: [],
     lod: [
