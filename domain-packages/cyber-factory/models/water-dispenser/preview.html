@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>参数化饮水机预览</title>
+    <style>
+      :root {
+        color: #17232c;
+        background: #eef2f5;
+        font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body, main, #preview {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      #preview canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .panel {
+        position: fixed;
+        z-index: 2;
+        top: 20px;
+        left: 20px;
+        max-width: min(360px, calc(100vw - 40px));
+        padding: 15px 17px;
+        border: 1px solid rgb(110 132 145 / 30%);
+        border-radius: 14px;
+        background: rgb(250 252 253 / 88%);
+        box-shadow: 0 14px 45px rgb(28 48 59 / 16%);
+        backdrop-filter: blur(12px);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.35;
+      }
+
+      p {
+        margin: 7px 0 0;
+        color: #536772;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .quality {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 12px;
+        padding: 6px 9px;
+        border-radius: 999px;
+        color: #126a51;
+        background: #d8f5eb;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .quality::before {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #23a978;
+        content: "";
+      }
+
+      .legend {
+        position: fixed;
+        z-index: 2;
+        right: 20px;
+        bottom: 20px;
+        padding: 9px 12px;
+        border: 1px solid rgb(110 132 145 / 24%);
+        border-radius: 10px;
+        color: #40545f;
+        background: rgb(250 252 253 / 82%);
+        font-size: 12px;
+        backdrop-filter: blur(10px);
+      }
+
+      @media (max-width: 520px) {
+        .panel { top: 12px; left: 12px; max-width: calc(100vw - 24px); }
+        .legend { right: 12px; bottom: 12px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="panel" aria-label="资产信息">
+        <h1>参数化饮水机</h1>
+        <p id="metrics-label"></p>
+        <span id="quality-label" class="quality"></span>
+      </section>
+      <div id="preview" aria-label="饮水机三维预览"></div>
+      <aside class="legend">绿色标记表示接水锚点与角色站位</aside>
+    </main>
+    <script type="module" src="./preview.ts"></script>
+  </body>
+</html>
