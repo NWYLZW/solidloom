@@ -2077,6 +2077,10 @@ export function EditorWorkspace() {
                       revolute: copy.jointTypeRevolute,
                     }}
                     onJointValueChange={(joint, value) => updateJointValue(joint.id, value, joint.min, joint.max)}
+                    onJointPresetSelect={(joint, value) => {
+                      setLocomotionSpeed(0);
+                      jointAnimation.start({ [joint.id]: value }, 420, draftModel?.featureGraph.joints ?? []);
+                    }}
                     onLocomotionProfileChange={updateLocomotionProfile}
                     onLocomotionSpeedChange={playLocomotionAtSpeed}
                     onAnimationSelect={(animation) => {

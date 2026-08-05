@@ -1,4 +1,4 @@
-import { validateModelAssetDefinition } from "@solidloom/shared";
+import { regenerateGeneratedFeatureGraph, validateModelAssetDefinition } from "@solidloom/shared";
 import { describe, expect, it } from "vitest";
 import {
   createSnackCabinet,
@@ -66,6 +66,66 @@ describe("parameterized snack cabinet asset", () => {
     expect(new Set([...compactProducts, ...largeProducts].map((feature) => (
       feature.type === "box" ? feature.parameters.width : undefined
     )))).toEqual(new Set([76]));
+  });
+
+  it("rebuilds geometry and fixed-width stock when workbench variables change", () => {
+    const graph = createSnackCabinet().featureGraph!;
+    const compactGraph = regenerateGeneratedFeatureGraph({
+      ...graph,
+      variables: graph.variables?.map((variable) => variable.id === "--snack-cabinet-width"
+        ? { ...variable, value: 720 }
+        : variable.id === "--snack-cabinet-height"
+          ? { ...variable, value: 1660 }
+          : variable.id === "--snack-cabinet-depth"
+            ? { ...variable, value: 460 }
+            : variable),
+    });
+    const expandedGraph = regenerateGeneratedFeatureGraph({
+      ...compactGraph,
+      variables: compactGraph.variables?.map((variable) => variable.id === "--snack-cabinet-width"
+        ? { ...variable, value: 1180 }
+        : variable),
+    });
+    const compactBase = compactGraph.features.find((feature) => feature.id === snackCabinetFeatureIds.base);
+    const expandedBase = expandedGraph.features.find((feature) => feature.id === snackCabinetFeatureIds.base);
+    const compactProducts = compactGraph.features.filter((feature) => feature.id.startsWith(snackCabinetProductFeaturePrefix));
+    const expandedProducts = expandedGraph.features.filter((feature) => feature.id.startsWith(snackCabinetProductFeaturePrefix));
+
+    expect(compactBase).toMatchObject({
+      type: "box",
+      parameters: { width: 720, depth: 460 },
+    });
+    expect(expandedBase).toMatchObject({
+      type: "box",
+      parameters: { width: 1180, depth: 460 },
+    });
+    expect(expandedProducts.length).toBeGreaterThan(compactProducts.length);
+    expect(new Set(expandedProducts.map((feature) => feature.type === "box" ? feature.parameters.width : 0)))
+      .toEqual(new Set([76]));
+    const compactTop = compactGraph.features.find((feature) => feature.id === snackCabinetFeatureIds.top);
+    expect(compactTop?.type === "box" ? compactTop.position[1] + compactTop.parameters.height / 2 : 0).toBe(1660);
+  });
+
+  it("keeps external inventory and the active flap angle while regenerating", () => {
+    const graph = createSnackCabinet({
+      inventory: [{
+        id: "custom",
+        fillMode: "exact",
+        products: [{ id: "sparkling", label: "自定义气泡水", color: "#73C7D3", width: 92 }],
+      }],
+    }).featureGraph!;
+    const regenerated = regenerateGeneratedFeatureGraph({
+      ...graph,
+      joints: graph.joints?.map((joint) => ({ ...joint, value: 31 })),
+      variables: graph.variables?.map((variable) => variable.id === "--snack-cabinet-width"
+        ? { ...variable, value: 1080 }
+        : variable),
+    });
+    const products = regenerated.features.filter((feature) => feature.id.startsWith(snackCabinetProductFeaturePrefix));
+
+    expect(products).toHaveLength(1);
+    expect(products[0]).toMatchObject({ name: "第 1 层 · 自定义气泡水", parameters: { width: 92 } });
+    expect(regenerated.joints?.[0]?.value).toBe(31);
   });
 
   it("accepts externally supplied shelf contents without repeating exact stock", () => {

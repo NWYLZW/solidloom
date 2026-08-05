@@ -4,7 +4,7 @@
 
 ## 已包含
 
-- 宽度、高度、深度和柜体配色参数。
+- 宽度、高度、深度和柜体配色参数；工作台修改模型变量后会通过共享生成器重新计算完整特征图。
 - 金属柜体、四层陈列架，以及尺寸固定、可单独选择的商品槽位。
 - 外部可通过 `inventory` 传入每层商品清单、颜色、材质和尺寸；`exact` 精确摆放，`repeat` 按柜体容量循环补满。
 - 柜体宽度只改变可容纳的商品数量，不缩放单件商品。
@@ -23,6 +23,6 @@
 
 ## 工作台验证
 
-执行 `npm run seed:cyber-factory` 后，项目树会显示“参数化零食售货机”。注册验证截图位于 `screenshots/workbench.png`，四层独立商品的实际工作台截图位于 `screenshots/workbench-inventory.png`。
+执行 `npm run seed:cyber-factory` 后，项目树会显示“参数化零食售货机”。注册验证截图位于 `screenshots/workbench.png`，四层独立商品的实际工作台截图位于 `screenshots/workbench-inventory.png`。工作台收窄与扩宽后的参数重建结果分别位于 `screenshots/workbench-parameters-compact.png` 和 `screenshots/workbench-parameters-expanded.png`，取物挡板展开到 55° 的动作结果位于 `screenshots/workbench-action-expanded.png`。
 
 库存服务和运营规则绑定仍由后续领域任务负责；当前 `available` 表示模型资产、外部库存布局、参数、锚点、碰撞体、关节与工作台编辑能力已经可用。
