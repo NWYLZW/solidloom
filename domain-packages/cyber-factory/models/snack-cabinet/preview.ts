@@ -1,4 +1,5 @@
 import type { ModelAssetDeviceClass } from "@solidloom/shared";
+import { SnackCabinetOperationsPanel } from "./operations-panel.js";
 import { SnackCabinetPreviewScene } from "./preview-scene.js";
 import {
   defaultSnackCabinetParameters,
@@ -16,6 +17,7 @@ function requiredElement<T extends HTMLElement>(id: string): T {
 const root = requiredElement<HTMLElement>("preview-root");
 const canvas = requiredElement<HTMLCanvasElement>("preview-canvas");
 const scene = new SnackCabinetPreviewScene(root, canvas);
+const operationsPanel = new SnackCabinetOperationsPanel(requiredElement<HTMLElement>("operations-panel"));
 const dimensionBadge = requiredElement<HTMLElement>("dimension-badge");
 const deviceBadge = requiredElement<HTMLElement>("device-badge");
 const pickupButton = requiredElement<HTMLButtonElement>("pickup-toggle");
@@ -69,5 +71,8 @@ pickupButton.addEventListener("click", () => {
 window.matchMedia("(max-width: 640px)").addEventListener("change", () => {
   if (deviceSelect.value === "auto") updatePreview();
 });
-window.addEventListener("beforeunload", () => scene.dispose(), { once: true });
+window.addEventListener("beforeunload", () => {
+  operationsPanel.dispose();
+  scene.dispose();
+}, { once: true });
 updatePreview();
