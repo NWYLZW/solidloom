@@ -379,7 +379,7 @@ interface StackerAnimationState {
   lastRenderedAt: number;
 }
 
-const stackerRackPosition: Vector3Tuple = [0, 0, 1_800];
+const stackerRackPosition: Vector3Tuple = [0, 0, 1_500];
 let stackerPose: WarehouseStackerCranePose = { ...defaultWarehouseStackerCranePose };
 let stackerPlan: ValidWarehouseRetrievalPlan | null = null;
 let stackerAnimation: StackerAnimationState | null = null;
