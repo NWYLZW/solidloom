@@ -7,4 +7,5 @@ export * from "./laptop.js";
 export * from "./monitor.js";
 export * from "./officeSpace.js";
 export * from "./room.js";
+export * from "./snackCabinet.js";
 export * from "./tower.js";
