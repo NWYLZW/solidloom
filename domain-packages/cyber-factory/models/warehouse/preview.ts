@@ -129,20 +129,20 @@ const assetConfigs: Record<AssetKey, AssetPreviewConfig> = {
   },
   stacker: {
     title: "参数化巷道堆垛机",
-    summary: "独立自动化取放设备；轨道横移、载货台升降和货叉伸缩由确定性格口动作计划驱动。",
+    summary: "紧凑单立柱与 4.5 米短轨为默认配置；跨度、高度、载货台和货叉仍可按仓库参数扩展。",
     defaults: valuesOf(defaultWarehouseStackerCraneParameters),
     parameters: [
-      { key: "railLength", label: "轨道长度", minimum: 6_000, maximum: 30_000, step: 500, unit: "毫米" },
+      { key: "railLength", label: "轨道长度", minimum: 3_500, maximum: 30_000, step: 500, unit: "毫米" },
       { key: "mastHeight", label: "立柱高度", minimum: 2_400, maximum: 8_000, step: 100, unit: "毫米" },
-      { key: "carriageWidth", label: "载货台宽度", minimum: 800, maximum: 1_600, step: 50, unit: "毫米" },
-      { key: "carriageDepth", label: "载货台深度", minimum: 700, maximum: 1_400, step: 50, unit: "毫米" },
-      { key: "forkReach", label: "货叉行程", minimum: 800, maximum: 2_400, step: 50, unit: "毫米" },
+      { key: "carriageWidth", label: "载货台宽度", minimum: 700, maximum: 1_600, step: 50, unit: "毫米" },
+      { key: "carriageDepth", label: "载货台深度", minimum: 600, maximum: 1_400, step: 50, unit: "毫米" },
+      { key: "forkReach", label: "货叉行程", minimum: 900, maximum: 2_400, step: 50, unit: "毫米" },
     ],
     createDefinition: (parameters) => createWarehouseStackerCraneDefinition(parameters as Partial<WarehouseStackerCraneParameters>),
-    cameraPosition: [9_500, 5_800, 9_500],
-    cameraTarget: [0, 1_850, 700],
-    minimumDistance: 5_000,
-    maximumDistance: 26_000,
+    cameraPosition: [4_600, 4_300, -5_800],
+    cameraTarget: [900, 1_470, 700],
+    minimumDistance: 3_200,
+    maximumDistance: 18_000,
   },
 };
 
@@ -337,13 +337,7 @@ function renderOverview() {
   const pallet = createWarehousePalletDefinition(defaultWarehousePalletParameters);
   const tote = createWarehouseToteDefinition(defaultWarehouseToteParameters);
   const cart = createWarehouseCartDefinition(defaultWarehouseCartParameters);
-  const stacker = createWarehouseStackerCraneDefinition({
-    railLength: 6_000,
-    mastHeight: 3_000,
-    carriageWidth: 900,
-    carriageDepth: 700,
-    forkReach: 1_200,
-  });
+  const stacker = createWarehouseStackerCraneDefinition(defaultWarehouseStackerCraneParameters);
   const rackPosition: Vector3Tuple = [-500, 0, -180];
   let drawUnits = buildAsset(rack, rackPosition);
   drawUnits += buildAsset(pallet, [
@@ -385,7 +379,7 @@ interface StackerAnimationState {
   lastRenderedAt: number;
 }
 
-const stackerRackPosition: Vector3Tuple = [0, 0, 2_200];
+const stackerRackPosition: Vector3Tuple = [0, 0, 1_800];
 let stackerPose: WarehouseStackerCranePose = { ...defaultWarehouseStackerCranePose };
 let stackerPlan: ValidWarehouseRetrievalPlan | null = null;
 let stackerAnimation: StackerAnimationState | null = null;
@@ -444,12 +438,12 @@ function renderStackerScene(
   }
   if (resetCamera) {
     const railLength = stackerParameters.railLength;
-    const distance = Math.max(9_500, railLength * 0.72, stackerParameters.mastHeight * 2.2);
+    const distance = Math.max(5_800, railLength * 0.9, stackerParameters.mastHeight * 1.8);
     setCamera(
-      [distance * 0.8, Math.max(5_200, stackerParameters.mastHeight * 1.45), distance],
-      [0, stackerParameters.mastHeight * 0.48, 700],
-      5_000,
-      Math.max(26_000, railLength * 2.5),
+      [distance * 0.8, Math.max(3_900, stackerParameters.mastHeight * 1.35), -distance],
+      [900, stackerParameters.mastHeight * 0.46, 700],
+      3_200,
+      Math.max(18_000, railLength * 2.5),
     );
   }
   metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · ${phaseLabel}`;
@@ -497,8 +491,8 @@ function renderCurrentMode() {
   if (currentMode === "overview") {
     const drawUnits = renderOverview();
     assetTitle.textContent = "仓储与内部物流套件";
-    assetSummary.textContent = "五项资产可独立引用，也可通过货位与搬运锚点组合。";
-    metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · 5 项独立资产`;
+    assetSummary.textContent = "六项资产可独立引用，也可通过货位与搬运锚点组合。";
+    metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · 6 项独立资产`;
     return;
   }
 

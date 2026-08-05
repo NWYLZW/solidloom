@@ -109,12 +109,30 @@ describe("warehouse and internal logistics asset kit", () => {
     expect(definition.manifest.tags).toContain("planned");
   });
 
+  it("uses a compact single-mast default that still reaches every slot in the default rack", () => {
+    expect(defaultWarehouseStackerCraneParameters).toEqual({
+      railLength: 4_500,
+      mastHeight: 3_200,
+      carriageWidth: 900,
+      carriageDepth: 700,
+      forkReach: 1_200,
+    });
+    const graph = createWarehouseStackerCraneDefinition().createModel().featureGraph!;
+    expect(graph.features.some(({ id }) => id === "warehouse-stacker-single-mast")).toBe(true);
+    expect(graph.features.some(({ id }) => id === "warehouse-stacker-right-mast")).toBe(false);
+    expect(planWarehouseRetrieval(
+      "warehouse-rack-slot-b03-l04",
+      defaultWarehouseRackParameters,
+      defaultWarehouseStackerCraneParameters,
+    )).toMatchObject({ valid: true });
+  });
+
   it("turns a stable rack slot id into a deterministic planned retrieval sequence", () => {
     const rack = { ...defaultWarehouseRackParameters, bayCount: 12, levelCount: 8 };
     const plan = planWarehouseRetrieval(
       "warehouse-rack-slot-b03-l04",
       rack,
-      defaultWarehouseStackerCraneParameters,
+      { ...defaultWarehouseStackerCraneParameters, railLength: 14_000 },
     );
     expect(plan.valid).toBe(true);
     if (!plan.valid) return;
