@@ -103,6 +103,7 @@
       .action-button { cursor: pointer; }
       .action-button:hover,
       .action-button:focus-visible { border-color: rgba(88, 215, 197, 0.75); outline: none; }
+      .controls :disabled { cursor: not-allowed; opacity: 0.5; }
       .action-button[aria-pressed="true"] {
         border-color: var(--accent);
         background: rgba(53, 132, 124, 0.3);
@@ -132,16 +133,35 @@
         position: absolute;
         top: -30px;
         right: 18px;
+        display: grid;
+        min-width: 156px;
+        gap: 4px;
         border: 1px solid var(--line);
-        border-radius: 999px;
+        border-radius: 9px;
         background: rgba(10, 18, 21, 0.88);
         color: var(--muted);
-        padding: 5px 9px;
+        padding: 6px 9px;
         font-size: 10px;
-        text-align: right;
       }
-      .brew-feedback:empty { display: none; }
+      .brew-feedback[data-visible="false"] { display: none; }
+      .brew-feedback[data-active="true"] { color: var(--accent); }
       .brew-feedback[data-error="true"] { color: var(--danger); }
+      .brew-feedback-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .brew-progress {
+        display: block;
+        width: 100%;
+        height: 2px;
+        overflow: hidden;
+        background: rgba(143, 167, 164, 0.2);
+      }
+      .brew-progress-fill {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: currentColor;
+        transform: scaleX(0);
+        transform-origin: left center;
+      }
 
       .recipe-grid {
         display: flex;
@@ -174,6 +194,7 @@
         outline: none;
       }
       .coffee-choice:disabled { cursor: not-allowed; opacity: 0.48; }
+      .recipe-grid[data-brewing="true"] .coffee-choice[data-selected="true"] { opacity: 1; }
       .coffee-image {
         display: block;
         width: 100%;
@@ -206,6 +227,19 @@
         background: var(--accent);
         content: "";
       }
+      .recipe-grid[data-brewing="true"] .coffee-choice[data-selected="true"] .coffee-image {
+        animation: brewing-cup 820ms ease-in-out infinite alternate;
+      }
+      @keyframes brewing-cup {
+        from { filter: brightness(1); transform: translateY(0); }
+        to { filter: brightness(1.18); transform: translateY(-3px); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .recipe-grid[data-brewing="true"] .coffee-choice[data-selected="true"] .coffee-image {
+          animation: none;
+          filter: brightness(1.12);
+        }
+      }
       .coffee-unavailable {
         position: absolute;
         top: 11px;
@@ -228,7 +262,7 @@
         .controls {
           top: auto;
           right: 12px;
-          bottom: 108px;
+          bottom: 132px;
           left: 12px;
           width: auto;
           border-radius: 14px;
@@ -244,7 +278,7 @@
         .virtual-menu {
           padding: 5px 0 3px;
         }
-        .brew-feedback { top: -27px; right: 10px; padding: 4px 7px; font-size: 8px; }
+        .brew-feedback { top: -34px; right: 10px; min-width: 140px; padding: 5px 7px; font-size: 8px; }
         .recipe-grid { padding: 0 8px; }
         .coffee-choice { flex: 0 0 104px; min-height: 82px; padding: 0 8px 3px; }
         .coffee-image { height: 58px; }
@@ -277,7 +311,19 @@
         aria-hidden="true"
         aria-label="咖啡菜单"
       >
-        <span class="brew-feedback" id="brew-feedback" role="status" aria-live="polite"></span>
+        <div
+          class="brew-feedback"
+          id="brew-feedback"
+          data-active="false"
+          data-visible="false"
+          role="status"
+          aria-live="polite"
+        >
+          <span class="brew-feedback-text" id="brew-feedback-text"></span>
+          <span class="brew-progress" aria-hidden="true">
+            <span class="brew-progress-fill" id="brew-progress-fill"></span>
+          </span>
+        </div>
         <div class="recipe-grid" id="recipe-grid" aria-label="可横向滚动的咖啡列表"></div>
       </section>
 

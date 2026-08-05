@@ -2,6 +2,7 @@ import type { ModelAssetDeviceClass, ModelFeature } from "@solidloom/shared";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { getCoffeeBrewAnimationFrame } from "./brew-animation.js";
 import { coffeeMachineManifest } from "./manifest.js";
 import {
   coffeeMachineFeatureIds,
@@ -83,6 +84,28 @@ let stock: CoffeeMachineStock = {
   beansGrams: { ...supplyConfiguration.initialStock.beansGrams },
 };
 let selectedRecipeId: string | null = null;
+let displayMaterial: THREE.MeshPhysicalMaterial | null = null;
+let statusLightMaterial: THREE.MeshPhysicalMaterial | null = null;
+
+interface ActiveBrew {
+  recipe: CoffeeRecipe;
+  startedAt: number;
+}
+
+interface BrewVisuals {
+  cup: THREE.Group;
+  liquid: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshPhysicalMaterial>;
+  liquidBaseY: number;
+  liquidHeight: number;
+  pulseLight: THREE.PointLight;
+  root: THREE.Group;
+  steamMaterial: THREE.MeshBasicMaterial;
+  steamParticles: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>[];
+  stream: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshPhysicalMaterial>;
+}
+
+let activeBrew: ActiveBrew | null = null;
+let brewVisuals: BrewVisuals | null = null;
 
 const coffeeImageByRecipeId: Record<string, string> = {
   espresso: "./images/espresso.svg",
@@ -150,6 +173,129 @@ function disposeObject(object: THREE.Object3D) {
   object.removeFromParent();
 }
 
+function createBrewVisuals(graph: NonNullable<ReturnType<typeof createCoffeeMachine>["featureGraph"]>): BrewVisuals {
+  const spout = graph.features.find((feature) => feature.id === coffeeMachineFeatureIds.spout);
+  const tray = graph.features.find((feature) => feature.id === coffeeMachineFeatureIds.tray);
+  if (!spout || spout.type !== "cylinder" || !tray || tray.type !== "box") {
+    throw new Error("咖啡机预览缺少出液口或托盘几何。");
+  }
+
+  const root = new THREE.Group();
+  root.name = "咖啡制作动画";
+  const cup = new THREE.Group();
+  cup.name = "制作杯";
+  const cupRadius = Math.min(parameters.width * 0.12, 48);
+  const cupHeight = Math.min(64, Math.max(50, parameters.height * 0.105));
+  const cupBaseY = tray.position[1] + tray.parameters.height / 2 + 4;
+  const cupZ = spout.position[2];
+  const ceramicMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xe7eeeb,
+    roughness: 0.34,
+    metalness: 0.02,
+    side: THREE.DoubleSide,
+  });
+  const cupBody = new THREE.Mesh(
+    new THREE.CylinderGeometry(cupRadius * 0.9, cupRadius, cupHeight, 32, 1, true),
+    ceramicMaterial,
+  );
+  cupBody.position.set(0, cupBaseY + cupHeight / 2, cupZ);
+  cup.add(cupBody);
+
+  const cupBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(cupRadius * 0.93, cupRadius * 0.93, 4, 32),
+    ceramicMaterial.clone(),
+  );
+  cupBase.position.set(0, cupBaseY + 2, cupZ);
+  cup.add(cupBase);
+
+  const lip = new THREE.Mesh(
+    new THREE.TorusGeometry(cupRadius * 0.92, 2.6, 10, 36),
+    ceramicMaterial.clone(),
+  );
+  lip.rotation.x = Math.PI / 2;
+  lip.position.set(0, cupBaseY + cupHeight, cupZ);
+  cup.add(lip);
+
+  const handle = new THREE.Mesh(
+    new THREE.TorusGeometry(cupRadius * 0.42, 5, 12, 28, Math.PI * 1.75),
+    ceramicMaterial.clone(),
+  );
+  handle.position.set(cupRadius * 0.98, cupBaseY + cupHeight * 0.54, cupZ);
+  handle.rotation.z = Math.PI * 0.12;
+  cup.add(handle);
+  root.add(cup);
+
+  const liquidHeight = cupHeight * 0.72;
+  const liquidBaseY = cupBaseY + 5;
+  const liquidMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x4b1f0e,
+    emissive: 0x1f0903,
+    emissiveIntensity: 0.25,
+    roughness: 0.24,
+    metalness: 0,
+  });
+  const liquid = new THREE.Mesh(
+    new THREE.CylinderGeometry(cupRadius * 0.82, cupRadius * 0.82, liquidHeight, 32),
+    liquidMaterial,
+  );
+  liquid.scale.y = 0.02;
+  liquid.position.set(0, liquidBaseY + liquidHeight * 0.01, cupZ);
+  root.add(liquid);
+
+  const spoutBottomY = spout.position[1] - spout.parameters.height / 2;
+  const streamBottomY = cupBaseY + cupHeight + 3;
+  const streamHeight = Math.max(8, spoutBottomY - streamBottomY);
+  const streamMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xb45123,
+    emissive: 0x6b2108,
+    emissiveIntensity: 0.8,
+    transparent: true,
+    opacity: 0,
+    roughness: 0.2,
+  });
+  const stream = new THREE.Mesh(
+    new THREE.CylinderGeometry(4.2, 3.2, streamHeight, 14),
+    streamMaterial,
+  );
+  stream.position.set(0, streamBottomY + streamHeight / 2, cupZ);
+  stream.visible = false;
+  root.add(stream);
+
+  const steamMaterial = new THREE.MeshBasicMaterial({
+    color: 0xe8fffb,
+    depthWrite: false,
+    opacity: 0,
+    transparent: true,
+  });
+  const steamParticles = Array.from({ length: 9 }, (_, index) => {
+    const particle = new THREE.Mesh(
+      new THREE.SphereGeometry(7 + index % 3 * 2, 12, 8),
+      steamMaterial,
+    );
+    particle.userData.steamIndex = index;
+    root.add(particle);
+    return particle;
+  });
+
+  const pulseLight = new THREE.PointLight(0x58d7c5, 0, 520, 2);
+  pulseLight.position.set(0, spout.position[1] + 80, spout.position[2] + 70);
+  root.add(pulseLight);
+  root.visible = false;
+  modelRoot.add(root);
+
+  return {
+    cup,
+    liquid,
+    liquidBaseY,
+    liquidHeight,
+    pulseLight,
+    root,
+    steamMaterial,
+    steamParticles,
+    stream,
+  };
+}
+
 function resolvedDevice(): ModelAssetDeviceClass {
   if (devicePreference !== "auto") return devicePreference;
   return window.innerWidth <= 640 ? "mobile" : "desktop";
@@ -190,6 +336,9 @@ function rebuildModel() {
   modelRoot = new THREE.Group();
   scene.add(modelRoot);
   lidPivot = null;
+  brewVisuals = null;
+  displayMaterial = null;
+  statusLightMaterial = null;
 
   const model = createCoffeeMachine(parameters);
   const graph = model.featureGraph!;
@@ -221,6 +370,12 @@ function rebuildModel() {
     mesh.receiveShadow = true;
     modelRoot.add(mesh);
     meshes.set(feature.id, mesh);
+    if (feature.id === coffeeMachineFeatureIds.display) {
+      displayMaterial = mesh.material as THREE.MeshPhysicalMaterial;
+    }
+    if (feature.id === coffeeMachineFeatureIds.statusLight) {
+      statusLightMaterial = mesh.material as THREE.MeshPhysicalMaterial;
+    }
   });
 
   const lidMesh = meshes.get(coffeeMachineFeatureIds.waterTankLid);
@@ -239,6 +394,12 @@ function rebuildModel() {
   modelRoot.add(createAnchorMarker("power-toggle", 0xf3d45c, 30));
   modelRoot.add(createAnchorMarker("take-cup", 0xf1ae62, 32));
   modelRoot.add(createAnchorMarker("cup-socket", 0x88aef0, 48));
+  brewVisuals = createBrewVisuals(graph);
+  if (selectedRecipeId !== null && activeBrew === null) {
+    brewVisuals.root.visible = true;
+    brewVisuals.liquid.scale.y = 1;
+    brewVisuals.liquid.position.y = brewVisuals.liquidBaseY + brewVisuals.liquidHeight / 2;
+  }
 
   requiredElement("device-badge").textContent = device === "mobile" ? "手机简化层级" : "桌面完整层级";
   requiredElement("dimension-badge").textContent = `${parameters.width} × ${parameters.height} × ${parameters.depth} mm`;
@@ -246,17 +407,48 @@ function rebuildModel() {
   renderMenu();
 }
 
+function setBrewFeedback(
+  message: string,
+  options: { active?: boolean; error?: boolean; progress?: number } = {},
+) {
+  const feedback = requiredElement("brew-feedback");
+  const progress = Math.min(1, Math.max(0, options.progress ?? 0));
+  feedback.dataset.active = String(options.active ?? false);
+  feedback.dataset.error = String(options.error ?? false);
+  feedback.dataset.visible = String(message.length > 0);
+  requiredElement("brew-feedback-text").textContent = message;
+  requiredElement("brew-progress-fill").style.transform = `scaleX(${progress})`;
+}
+
+function setControlsLocked(locked: boolean) {
+  root.setAttribute("aria-busy", String(locked));
+  document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>(
+    ".controls input, .controls select, .controls button",
+  ).forEach((control) => {
+    control.disabled = locked;
+  });
+}
+
 function renderRecipes() {
   const grid = requiredElement("recipe-grid");
+  const isBrewing = activeBrew !== null;
+  grid.dataset.brewing = String(isBrewing);
   const cards = defaultCoffeeRecipes.map((recipe) => {
     const shortages = getCoffeeStockShortages(stock, recipe);
     const button = document.createElement("button");
     button.className = "coffee-choice";
     button.type = "button";
-    button.disabled = shortages.length > 0;
+    button.disabled = isBrewing || shortages.length > 0;
     button.dataset.selected = String(selectedRecipeId === recipe.id);
     button.setAttribute("aria-pressed", String(selectedRecipeId === recipe.id));
-    button.setAttribute("aria-label", shortages.length > 0 ? `${recipe.name}，暂时缺货` : `选择${recipe.name}`);
+    button.setAttribute(
+      "aria-label",
+      isBrewing && selectedRecipeId === recipe.id
+        ? `${recipe.name}正在制作`
+        : shortages.length > 0
+          ? `${recipe.name}，暂时缺货`
+          : `选择${recipe.name}`,
+    );
 
     const image = document.createElement("img");
     image.className = "coffee-image";
@@ -295,23 +487,22 @@ function renderMenu() {
 }
 
 function runRecipe(recipe: CoffeeRecipe) {
-  const feedback = requiredElement("brew-feedback");
+  if (activeBrew !== null) return;
   if (!parameters.powered || !userNearby) {
-    feedback.dataset.error = "true";
-    feedback.textContent = "需要开启电源并进入接近范围。";
+    setBrewFeedback("需要开启电源并进入接近范围。", { error: true });
     return;
   }
   const result = brewCoffee(stock, recipe);
   if (!result.ok) {
-    feedback.dataset.error = "true";
-    feedback.textContent = `${recipe.name}暂时缺货。`;
+    setBrewFeedback(`${recipe.name}暂时缺货。`, { error: true });
     renderMenu();
     return;
   }
   stock = result.stock;
   selectedRecipeId = recipe.id;
-  feedback.dataset.error = "false";
-  feedback.textContent = `${recipe.name}正在制作。`;
+  activeBrew = { recipe, startedAt: performance.now() };
+  setControlsLocked(true);
+  setBrewFeedback(`${recipe.name} · 正在预热 0%`, { active: true });
   renderMenu();
 }
 
@@ -338,13 +529,10 @@ requiredElement<HTMLButtonElement>("power-toggle").addEventListener("click", (ev
   const button = event.currentTarget as HTMLButtonElement;
   button.setAttribute("aria-pressed", String(parameters.powered));
   button.textContent = parameters.powered ? "关闭电源" : "开启电源";
-  const feedback = requiredElement("brew-feedback");
   if (parameters.powered && userNearby) {
-    feedback.dataset.error = "false";
-    feedback.textContent = "";
+    setBrewFeedback("");
   } else if (!parameters.powered && userNearby) {
-    feedback.dataset.error = "true";
-    feedback.textContent = "已检测到用户，但机器尚未开启。";
+    setBrewFeedback("已检测到用户，但机器尚未开启。", { error: true });
   }
   rebuildModel();
 });
@@ -353,21 +541,16 @@ requiredElement<HTMLButtonElement>("proximity-toggle").addEventListener("click",
   const button = event.currentTarget as HTMLButtonElement;
   button.setAttribute("aria-pressed", String(userNearby));
   button.textContent = userNearby ? "模拟用户离开" : "模拟用户接近";
-  const feedback = requiredElement("brew-feedback");
   if (userNearby && !parameters.powered) {
-    feedback.dataset.error = "true";
-    feedback.textContent = "已检测到用户，但机器尚未开启。";
+    setBrewFeedback("已检测到用户，但机器尚未开启。", { error: true });
   } else if (userNearby) {
-    feedback.dataset.error = "false";
-    feedback.textContent = "";
+    setBrewFeedback("");
   }
   renderMenu();
 });
 requiredElement<HTMLButtonElement>("refill-stock").addEventListener("click", () => {
   stock = refillCoffeeMachineSupplies(supplyConfiguration);
-  const feedback = requiredElement("brew-feedback");
-  feedback.dataset.error = "false";
-  feedback.textContent = "耗材已补满。";
+  setBrewFeedback("耗材已补满。");
   renderMenu();
 });
 requiredElement<HTMLButtonElement>("lid-toggle").addEventListener("click", (event) => {
@@ -386,6 +569,63 @@ function resize() {
   if (devicePreference === "auto") rebuildModel();
 }
 
+function updateBrewAnimation(time: number) {
+  if (activeBrew === null) return;
+  const { recipe, startedAt } = activeBrew;
+  const frame = getCoffeeBrewAnimationFrame(time - startedAt, recipe);
+  const percent = Math.round(frame.progress * 100);
+  root.dataset.brewStage = frame.stage;
+  setBrewFeedback(`${recipe.name} · ${frame.label} ${percent}%`, {
+    active: !frame.completed,
+    progress: frame.progress,
+  });
+
+  if (brewVisuals) {
+    const visuals = brewVisuals;
+    visuals.root.visible = true;
+    visuals.cup.scale.setScalar(0.96 + Math.min(frame.progress / 0.12, 1) * 0.04);
+    visuals.stream.visible = frame.streamOpacity > 0.01;
+    visuals.stream.material.opacity = frame.streamOpacity * 0.9;
+    const streamPulse = 0.88 + Math.sin(time * 0.018) * 0.12;
+    visuals.stream.scale.set(streamPulse, 1, streamPulse);
+
+    const liquidLevel = Math.max(0.02, frame.liquidLevel);
+    visuals.liquid.scale.y = liquidLevel;
+    visuals.liquid.position.y = visuals.liquidBaseY + visuals.liquidHeight * liquidLevel / 2;
+
+    visuals.steamMaterial.opacity = frame.steamOpacity * 0.66;
+    const steamBaseY = visuals.liquidBaseY + visuals.liquidHeight + 5;
+    visuals.steamParticles.forEach((particle, index) => {
+      const phase = (time * 0.00032 + index / visuals.steamParticles.length) % 1;
+      particle.visible = frame.steamOpacity > 0.01;
+      particle.position.set(
+        Math.sin(phase * Math.PI * 2 + index) * (10 + index * 1.8),
+        steamBaseY + phase * 92,
+        visuals.stream.position.z + Math.cos(phase * Math.PI * 2 + index) * 12,
+      );
+      particle.scale.setScalar(0.45 + phase * 0.85);
+    });
+    visuals.pulseLight.intensity = frame.completed ? 7 : frame.indicatorIntensity * 8;
+  }
+
+  modelRoot.position.y = frame.machineVibration;
+  if (statusLightMaterial) statusLightMaterial.emissiveIntensity = frame.indicatorIntensity;
+  if (displayMaterial) displayMaterial.emissiveIntensity = 1.2 + frame.displayPulse * 1.8;
+
+  if (!frame.completed) return;
+  activeBrew = null;
+  modelRoot.position.y = 0;
+  if (brewVisuals) {
+    brewVisuals.stream.visible = false;
+    brewVisuals.steamParticles.forEach((particle) => { particle.visible = false; });
+  }
+  if (statusLightMaterial) statusLightMaterial.emissiveIntensity = 3.4;
+  if (displayMaterial) displayMaterial.emissiveIntensity = 1.25;
+  setControlsLocked(false);
+  setBrewFeedback(`${recipe.name}制作完成，可以取杯。`, { progress: 1 });
+  renderMenu();
+}
+
 let previousTime = 0;
 renderer.setAnimationLoop((time) => {
   controls.update();
@@ -393,6 +633,7 @@ renderer.setAnimationLoop((time) => {
     const target = THREE.MathUtils.degToRad(lidOpen ? -72 : 0);
     lidPivot.rotation.x = THREE.MathUtils.damp(lidPivot.rotation.x, target, 8, (time - previousTime) / 1000);
   }
+  updateBrewAnimation(time);
   previousTime = time;
   renderer.render(scene, camera);
 });
