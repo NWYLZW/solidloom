@@ -1,11 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="卡布奇诺">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#294b49"/><stop offset="1" stop-color="#0d1719"/></linearGradient>
     <linearGradient id="cup" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#78d2c5"/><stop offset="1" stop-color="#246b68"/></linearGradient>
     <radialGradient id="foam"><stop stop-color="#fff9e9"/><stop offset=".78" stop-color="#e7d4b7"/><stop offset="1" stop-color="#a66f43"/></radialGradient>
     <filter id="shadow"><feDropShadow dx="0" dy="9" stdDeviation="8" flood-opacity=".5"/></filter>
   </defs>
-  <rect width="320" height="220" rx="28" fill="url(#bg)"/>
   <ellipse cx="158" cy="184" rx="94" ry="16" fill="#050b0c" opacity=".45"/>
   <g filter="url(#shadow)">
     <ellipse cx="150" cy="171" rx="82" ry="14" fill="#aacbc6" opacity=".8"/>

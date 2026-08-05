@@ -1,10 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="拿铁">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#67452e"/><stop offset="1" stop-color="#151a1a"/></linearGradient>
     <linearGradient id="latte" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#efe0c4"/><stop offset=".28" stop-color="#d2a775"/><stop offset=".72" stop-color="#8c5230"/><stop offset="1" stop-color="#4b2717"/></linearGradient>
     <filter id="shadow"><feDropShadow dx="0" dy="9" stdDeviation="8" flood-opacity=".48"/></filter>
   </defs>
-  <rect width="320" height="220" rx="28" fill="url(#bg)"/>
   <ellipse cx="160" cy="190" rx="83" ry="14" fill="#090b0b" opacity=".46"/>
   <g filter="url(#shadow)">
     <path d="M102 54h116l-12 126c-1 11-20 17-46 17s-45-6-46-17z" fill="url(#latte)" stroke="#f5eee5" stroke-opacity=".62" stroke-width="3"/>
