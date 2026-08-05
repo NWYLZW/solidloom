@@ -276,13 +276,15 @@ describe("warehouse and internal logistics asset kit", () => {
     expect(plan.steps.at(-1)?.pose).toEqual(plan.steps[0]?.pose);
   });
 
-  it("grounds every cart wheel and visibly supports the main deck", () => {
+  it("uses one cart deck with grounded wheels connected by four supports", () => {
     const features = createWarehouseCartDefinition().createModel().featureGraph!.features;
     const wheels = features.filter(({ id }) => id.startsWith("warehouse-cart-wheel-"));
     const supports = features.filter(({ id }) => id.startsWith("warehouse-cart-support-"));
     const mainDeck = features.find(({ id }) => id === "warehouse-cart-main-deck");
-    const lowerDeck = features.find(({ id }) => id === "warehouse-cart-lower-deck");
 
+    expect(features.filter(({ id }) => id.includes("-deck")).map(({ id }) => id)).toEqual([
+      "warehouse-cart-main-deck",
+    ]);
     expect(wheels).toHaveLength(4);
     for (const wheel of wheels) {
       expect(wheel.type).toBe("cylinder");
@@ -290,17 +292,23 @@ describe("warehouse and internal logistics asset kit", () => {
     }
     expect(supports).toHaveLength(4);
     expect(mainDeck?.type).toBe("box");
-    expect(lowerDeck?.type).toBe("box");
-    if (mainDeck?.type !== "box" || lowerDeck?.type !== "box") return;
+    if (mainDeck?.type !== "box") return;
     for (const support of supports) {
       expect(support.type).toBe("box");
       if (support.type !== "box") continue;
+      const wheel = wheels.find(({ id }) => id === support.id.replace("-support-", "-wheel-"));
+      expect(wheel?.type).toBe("cylinder");
+      if (wheel?.type !== "cylinder") continue;
       expect(support.position[1] - support.parameters.height / 2).toBe(
-        lowerDeck.position[1] + lowerDeck.parameters.height / 2,
+        wheel.position[1] + wheel.parameters.radius,
       );
       expect(support.position[1] + support.parameters.height / 2).toBe(
         mainDeck.position[1] - mainDeck.parameters.height / 2,
       );
+      expect([support.position[0], support.position[2]]).toEqual([
+        wheel.position[0],
+        wheel.position[2],
+      ]);
     }
   });
 

@@ -280,12 +280,12 @@ export function createWarehouseCartManifest(
   const allIds = featureIds(features);
   const wheelIds = allIds.filter((id) => id.includes("wheel"));
   const frameIds = allIds.filter((id) => !wheelIds.includes(id));
-  const mobileIds = allIds.filter((id) => id !== "warehouse-cart-lower-deck");
+  const mobileIds = allIds;
   return {
     schemaVersion: 1,
     id: "cyber-factory-warehouse-cart",
     displayName: "参数化仓储推车",
-    description: "带双层承载面、推行把手和四轮的内部物流推车。",
+    description: "带单层承载面、推行把手和四个接地脚轮的内部物流推车。",
     version: "1.0.0",
     kind: "asset",
     modelUnit: "mm",
