@@ -83,10 +83,15 @@ const materialProperties = {
 
 function createMaterial(feature: ModelFeature): THREE.MeshStandardMaterial {
   const preset = feature.appearance?.material ?? "default";
-  return new THREE.MeshStandardMaterial({
+  const material = new THREE.MeshStandardMaterial({
     color: feature.appearance?.color ?? "#B7C3CA",
     ...materialProperties[preset],
   });
+  if (["power-indicator", "heating-indicator", "cooling-indicator"].includes(feature.id)) {
+    material.emissive.set(feature.appearance?.color ?? "#FFFFFF");
+    material.emissiveIntensity = 1.8;
+  }
+  return material;
 }
 
 function createFeatureMesh(feature: ModelFeature): THREE.Mesh | null {

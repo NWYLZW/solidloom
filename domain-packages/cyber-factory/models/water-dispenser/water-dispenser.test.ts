@@ -47,9 +47,9 @@ describe("parameterized water dispenser asset", () => {
     const bodyCollider = definition.manifest.colliders.find(({ id }) => id === "body-collider");
     const tankCollider = definition.manifest.colliders.find(({ id }) => id === "tank-collider");
 
-    expect(shell).toMatchObject({ type: "box", parameters: { width: 420, height: 537.6, depth: 440 }, position: [0, 851.2, 0] });
+    expect(shell).toMatchObject({ type: "box", parameters: { width: 420, height: 537.6, depth: 364 }, position: [0, 851.2, -38] });
     expect(tank).toMatchObject({ type: "cylinder", parameters: { radius: 160, height: 390 }, position: [0, 225, -12] });
-    expect(bodyCollider).toMatchObject({ shape: "box", size: [420, 537.6, 440], position: [0, 851.2, 0] });
+    expect(bodyCollider).toMatchObject({ shape: "box", size: [420, 537.6, 364], position: [0, 851.2, -38] });
     expect(tankCollider).toMatchObject({ shape: "cylinder", radius: 160, height: 480, position: [0, 270, -12] });
     expect(definition.manifest.anchors.find(({ id }) => id === "hot-water-button")?.position[0]).toBe(-70);
     expect(definition.manifest.placement.groundY).toBe(0);
@@ -73,13 +73,41 @@ describe("parameterized water dispenser asset", () => {
     expect(cap.position[1]).toBeLessThan(connector.position[1]);
     expect(cap).toMatchObject({ type: "cylinder", name: "水桶聪明盖" });
     expect(tank).toMatchObject({ type: "cylinder" });
-    expect(doorGroup.featureIds).toEqual(["cabinet-door", "cabinet-door-handle"]);
+    expect(doorGroup.featureIds).toEqual(["cabinet-door"]);
     expect(doorJoint).toMatchObject({ groupId: "dispenser-door", min: -105, max: 0 });
     expect(openPose.jointValues["cabinet-door-hinge"]).toBe(-72);
     if (connector.type === "cylinder" && ceiling.type === "box") {
       const connectorTop = connector.position[1] + connector.parameters.height / 2;
       const ceilingBottom = ceiling.position[1] - ceiling.parameters.height / 2;
       expect(connectorTop).toBeLessThan(ceilingBottom);
+    }
+  });
+
+  it("places three controls and lit status indicators above a recessed fill bay", () => {
+    const definition = createWaterDispenserAssetDefinition();
+    const graph = definition.createModel().featureGraph!;
+    const front = defaultWaterDispenserParameters.depth / 2;
+    const feature = (id: string) => graph.features.find((item) => item.id === id)!;
+    const alcove = feature("dispense-alcove");
+    const tray = feature("drip-tray");
+    const nozzle = feature("ambient-nozzle");
+    const buttons = [feature("hot-button"), feature("ambient-button"), feature("cold-button")];
+
+    expect(graph.features.some(({ id }) => id === "cabinet-door-handle")).toBe(false);
+    expect(graph.features.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      "power-indicator",
+      "heating-indicator",
+      "cooling-indicator",
+    ]));
+    expect(definition.manifest.anchors.find(({ id }) => id === "ambient-water-button")).toMatchObject({
+      featureId: "ambient-button",
+      tags: ["press", "ambient-water"],
+    });
+    expect(buttons.every((button) => button.position[1] > alcove.position[1])).toBe(true);
+    if (alcove.type === "box" && tray.type === "box" && nozzle.type === "cylinder") {
+      expect(alcove.position[2] + alcove.parameters.depth / 2).toBeLessThan(front);
+      expect(tray.position[2] + tray.parameters.depth / 2).toBeLessThan(front);
+      expect(nozzle.position[2] + nozzle.parameters.height / 2).toBeLessThan(front);
     }
   });
 
@@ -109,8 +137,10 @@ describe("parameterized water dispenser asset", () => {
       "body-shell",
       "cabinet-door",
       "hot-button",
+      "ambient-button",
       "cold-button",
       "hot-nozzle",
+      "ambient-nozzle",
       "cold-nozzle",
       "water-tank",
     ]));
@@ -129,7 +159,7 @@ describe("parameterized water dispenser asset", () => {
     expect(result.issues).toEqual([]);
     expect(shell).toMatchObject({
       type: "box",
-      position: [0, 851.2, 0],
+      position: [0, 851.2, -38],
       parameters: { width: 420, height: 537.6 },
     });
   });
@@ -138,6 +168,7 @@ describe("parameterized water dispenser asset", () => {
     expect(() => createWaterDispenserAssetDefinition({ width: 299 })).toThrow(/width/);
     expect(() => createWaterDispenserAssetDefinition({ tankRadius: 180, width: 340 })).toThrow(/lower cabinet/);
     expect(() => createWaterDispenserAssetDefinition({ bodyHeight: 900, tankHeight: 420 })).toThrow(/cabinet ceiling/);
+    expect(() => createWaterDispenserAssetDefinition({ width: 310, tankRadius: 110, nozzleSpacing: 150 })).toThrow(/three controls/);
     expect(() => createWaterDispenserAssetDefinition({ nozzleSpacing: 151 })).toThrow(/nozzleSpacing/);
     expect(() => createWaterDispenserAssetDefinition({ depth: Number.NaN })).toThrow(/depth/);
   });

@@ -31,7 +31,6 @@ export const waterDispenserParameterLimits = {
 
 export const waterDispenserDoorFeatureIds = [
   "cabinet-door",
-  "cabinet-door-handle",
 ] as const;
 
 export const waterDispenserTankFeatureIds = [
@@ -52,12 +51,21 @@ export const waterDispenserCoreFeatureIds = [
   "cabinet-ceiling",
   "cabinet-interior",
   ...waterDispenserDoorFeatureIds,
+  "upper-left-frame",
+  "upper-right-frame",
+  "upper-top-frame",
+  "upper-bottom-frame",
   "front-panel",
+  "power-indicator",
+  "heating-indicator",
+  "cooling-indicator",
   "dispense-alcove",
   "drip-tray",
   "hot-button",
+  "ambient-button",
   "cold-button",
   "hot-nozzle",
+  "ambient-nozzle",
   "cold-nozzle",
   ...waterDispenserTankFeatureIds,
 ] as const;
@@ -80,7 +88,11 @@ const interiorAppearance: FeatureAppearance = { material: "plastic", color: "#10
 const metalAppearance: FeatureAppearance = { material: "metal", color: "#AFC0CA" };
 const tankAppearance: FeatureAppearance = { material: "glass", color: "#71D1EF" };
 const hotAppearance: FeatureAppearance = { material: "plastic", color: "#DF5A52" };
+const ambientAppearance: FeatureAppearance = { material: "plastic", color: "#64BE94" };
 const coldAppearance: FeatureAppearance = { material: "plastic", color: "#3F8FE8" };
+const powerAppearance: FeatureAppearance = { material: "plastic", color: "#26C985" };
+const heatingAppearance: FeatureAppearance = { material: "plastic", color: "#FF9C4A" };
+const coolingAppearance: FeatureAppearance = { material: "plastic", color: "#45A9F8" };
 const rubberAppearance: FeatureAppearance = { material: "rubber", color: "#263139" };
 
 function box(
@@ -154,6 +166,9 @@ export function resolveWaterDispenserParameters(
   if (parameters.tankHeight + 86 > parameters.bodyHeight * 0.52) {
     throw new RangeError("tankHeight does not fit below the cabinet ceiling");
   }
+  if (parameters.nozzleSpacing + 52 > parameters.width - 116) {
+    throw new RangeError("nozzleSpacing does not fit three controls across the upper panel");
+  }
   return parameters;
 }
 
@@ -180,6 +195,8 @@ export function createWaterDispenserModel(
   const cabinetCenterY = cabinetFloorTop + cabinetHeight / 2;
   const upperBodyHeight = bodyHeight - cabinetTop;
   const upperBodyCenterY = cabinetTop + upperBodyHeight / 2;
+  const upperFrontDepth = 76;
+  const upperFrameWidth = 46;
   const doorWidth = width - 44;
   const doorHeight = cabinetHeight - 36;
   const tankBodyHeight = tankHeight - 90;
@@ -189,16 +206,17 @@ export function createWaterDispenserModel(
   const features = [
     box(
       "body-shell",
-      "上部机身",
-      [width, upperBodyHeight, depth],
-      [0, upperBodyCenterY, 0],
+      "上部机身后壳",
+      [width, upperBodyHeight, depth - upperFrontDepth],
+      [0, upperBodyCenterY, -upperFrontDepth / 2],
       bodyAppearance,
       26,
       {
         "parameters.width": "var(--width)",
         "parameters.height": "var(--body-height) * 0.48",
-        "parameters.depth": "var(--depth)",
+        "parameters.depth": "var(--depth) - 76",
         "position.1": "var(--body-height) * 0.76",
+        "position.2": "-38",
       },
     ),
     box(
@@ -309,112 +327,204 @@ export function createWaterDispenserModel(
       },
     ),
     box(
-      "cabinet-door-handle",
-      "储水柜门把手",
-      [64, 22, 22],
-      [doorWidth * 0.32, cabinetCenterY, front + 28],
-      metalAppearance,
-      7,
+      "upper-left-frame",
+      "内嵌接水区左框",
+      [upperFrameWidth, upperBodyHeight, upperFrontDepth],
+      [-width / 2 + upperFrameWidth / 2, upperBodyCenterY, front - upperFrontDepth / 2],
+      bodyAppearance,
+      10,
       {
-        "position.0": "(var(--width) - 44) * 0.32",
-        "position.1": "var(--body-height) * 0.26 + 15",
-        "position.2": "var(--depth) / 2 + 28",
+        "parameters.height": "var(--body-height) * 0.48",
+        "position.0": "var(--width) / -2 + 23",
+        "position.1": "var(--body-height) * 0.76",
+        "position.2": "var(--depth) / 2 - 38",
+      },
+    ),
+    box(
+      "upper-right-frame",
+      "内嵌接水区右框",
+      [upperFrameWidth, upperBodyHeight, upperFrontDepth],
+      [width / 2 - upperFrameWidth / 2, upperBodyCenterY, front - upperFrontDepth / 2],
+      bodyAppearance,
+      10,
+      {
+        "parameters.height": "var(--body-height) * 0.48",
+        "position.0": "var(--width) / 2 - 23",
+        "position.1": "var(--body-height) * 0.76",
+        "position.2": "var(--depth) / 2 - 38",
+      },
+    ),
+    box(
+      "upper-top-frame",
+      "顶部控制区机身",
+      [width - upperFrameWidth * 2, 188, upperFrontDepth],
+      [0, bodyHeight - 94, front - upperFrontDepth / 2],
+      bodyAppearance,
+      14,
+      {
+        "parameters.width": "var(--width) - 92",
+        "position.1": "var(--body-height) - 94",
+        "position.2": "var(--depth) / 2 - 38",
+      },
+    ),
+    box(
+      "upper-bottom-frame",
+      "内嵌接水区下框",
+      [width - upperFrameWidth * 2, 68, upperFrontDepth],
+      [0, cabinetTop + 34, front - upperFrontDepth / 2],
+      bodyAppearance,
+      10,
+      {
+        "parameters.width": "var(--width) - 92",
+        "position.1": "var(--body-height) * 0.52 + 34",
+        "position.2": "var(--depth) / 2 - 38",
       },
     ),
     box(
       "front-panel",
-      "前面板",
-      [width * 0.72, bodyHeight * 0.3, 18],
-      [0, bodyHeight * 0.76, front + 9],
+      "顶部状态控制面板",
+      [width - 116, 142, 14],
+      [0, bodyHeight - 85, front + 7],
       darkAppearance,
-      18,
+      13,
       {
-        "parameters.width": "var(--width) * 0.72",
-        "parameters.height": "var(--body-height) * 0.3",
-        "position.1": "var(--body-height) * 0.76",
-        "position.2": "var(--depth) / 2 + 9",
+        "parameters.width": "var(--width) - 116",
+        "position.1": "var(--body-height) - 85",
+        "position.2": "var(--depth) / 2 + 7",
       },
     ),
     box(
+      "power-indicator",
+      "电源状态灯",
+      [18, 18, 10],
+      [-56, bodyHeight * 0.89, front + 19],
+      powerAppearance,
+      9,
+      { "position.1": "var(--body-height) * 0.89", "position.2": "var(--depth) / 2 + 19" },
+    ),
+    box(
+      "heating-indicator",
+      "制热状态灯",
+      [18, 18, 10],
+      [0, bodyHeight * 0.89, front + 19],
+      heatingAppearance,
+      9,
+      { "position.1": "var(--body-height) * 0.89", "position.2": "var(--depth) / 2 + 19" },
+    ),
+    box(
+      "cooling-indicator",
+      "制冷状态灯",
+      [18, 18, 10],
+      [56, bodyHeight * 0.89, front + 19],
+      coolingAppearance,
+      9,
+      { "position.1": "var(--body-height) * 0.89", "position.2": "var(--depth) / 2 + 19" },
+    ),
+    box(
       "dispense-alcove",
-      "接水区",
-      [width * 0.58, bodyHeight * 0.18, 24],
-      [0, bodyHeight * 0.7, front + 24],
+      "内嵌接水区背板",
+      [width - 110, bodyHeight * 0.21, 12],
+      [0, bodyHeight * 0.7, front - 70],
       darkAppearance,
-      14,
+      8,
       {
-        "parameters.width": "var(--width) * 0.58",
-        "parameters.height": "var(--body-height) * 0.18",
+        "parameters.width": "var(--width) - 110",
+        "parameters.height": "var(--body-height) * 0.21",
         "position.1": "var(--body-height) * 0.7",
-        "position.2": "var(--depth) / 2 + 24",
+        "position.2": "var(--depth) / 2 - 70",
       },
     ),
     box(
       "drip-tray",
       "接水盘",
-      [width * 0.62, 18, depth * 0.42],
-      [0, bodyHeight * 0.59, front + depth * 0.12],
+      [width - 116, 18, depth * 0.24],
+      [0, bodyHeight * 0.6, front - 60],
       metalAppearance,
       8,
       {
-        "parameters.width": "var(--width) * 0.62",
-        "parameters.depth": "var(--depth) * 0.42",
-        "position.1": "var(--body-height) * 0.59",
-        "position.2": "var(--depth) * 0.62",
+        "parameters.width": "var(--width) - 116",
+        "parameters.depth": "var(--depth) * 0.24",
+        "position.1": "var(--body-height) * 0.6",
+        "position.2": "var(--depth) / 2 - 60",
       },
     ),
     box(
       "hot-button",
       "热水按钮",
       [52, 28, 18],
-      [-nozzleSpacing / 2, bodyHeight * 0.88, front + 25],
+      [-nozzleSpacing / 2, bodyHeight * 0.952, front + 19],
       hotAppearance,
       9,
       {
         "position.0": "var(--nozzle-spacing) / -2",
-        "position.1": "var(--body-height) * 0.88",
-        "position.2": "var(--depth) / 2 + 25",
+        "position.1": "var(--body-height) * 0.952",
+        "position.2": "var(--depth) / 2 + 19",
+      },
+    ),
+    box(
+      "ambient-button",
+      "常温水按钮",
+      [52, 28, 18],
+      [0, bodyHeight * 0.952, front + 19],
+      ambientAppearance,
+      9,
+      {
+        "position.1": "var(--body-height) * 0.952",
+        "position.2": "var(--depth) / 2 + 19",
       },
     ),
     box(
       "cold-button",
       "冷水按钮",
       [52, 28, 18],
-      [nozzleSpacing / 2, bodyHeight * 0.88, front + 25],
+      [nozzleSpacing / 2, bodyHeight * 0.952, front + 19],
       coldAppearance,
       9,
       {
         "position.0": "var(--nozzle-spacing) / 2",
-        "position.1": "var(--body-height) * 0.88",
-        "position.2": "var(--depth) / 2 + 25",
+        "position.1": "var(--body-height) * 0.952",
+        "position.2": "var(--depth) / 2 + 19",
       },
     ),
     cylinder(
       "hot-nozzle",
       "热水出水口",
       13,
-      56,
-      [-nozzleSpacing / 2, bodyHeight * 0.77, front + 48],
+      36,
+      [-nozzleSpacing / 2, bodyHeight * 0.755, front - 48],
       metalAppearance,
       [90, 0, 0],
       {
         "position.0": "var(--nozzle-spacing) / -2",
-        "position.1": "var(--body-height) * 0.77",
-        "position.2": "var(--depth) / 2 + 48",
+        "position.1": "var(--body-height) * 0.755",
+        "position.2": "var(--depth) / 2 - 48",
+      },
+    ),
+    cylinder(
+      "ambient-nozzle",
+      "常温水出水口",
+      13,
+      36,
+      [0, bodyHeight * 0.755, front - 48],
+      metalAppearance,
+      [90, 0, 0],
+      {
+        "position.1": "var(--body-height) * 0.755",
+        "position.2": "var(--depth) / 2 - 48",
       },
     ),
     cylinder(
       "cold-nozzle",
       "冷水出水口",
       13,
-      56,
-      [nozzleSpacing / 2, bodyHeight * 0.77, front + 48],
+      36,
+      [nozzleSpacing / 2, bodyHeight * 0.755, front - 48],
       metalAppearance,
       [90, 0, 0],
       {
         "position.0": "var(--nozzle-spacing) / 2",
-        "position.1": "var(--body-height) * 0.77",
-        "position.2": "var(--depth) / 2 + 48",
+        "position.1": "var(--body-height) * 0.755",
+        "position.2": "var(--depth) / 2 - 48",
       },
     ),
     cylinder(
@@ -486,44 +596,44 @@ export function createWaterDispenserModel(
     box(
       "tray-grate-left",
       "接水盘左格栅",
-      [width * 0.22, 7, depth * 0.3],
-      [-width * 0.16, bodyHeight * 0.59 + 12, front + depth * 0.12],
+      [width * 0.22, 7, depth * 0.18],
+      [-width * 0.13, bodyHeight * 0.6 + 12, front - 60],
       darkAppearance,
       3,
       {
         "parameters.width": "var(--width) * 0.22",
-        "parameters.depth": "var(--depth) * 0.3",
-        "position.0": "var(--width) * -0.16",
-        "position.1": "var(--body-height) * 0.59 + 12",
-        "position.2": "var(--depth) * 0.62",
+        "parameters.depth": "var(--depth) * 0.18",
+        "position.0": "var(--width) * -0.13",
+        "position.1": "var(--body-height) * 0.6 + 12",
+        "position.2": "var(--depth) / 2 - 60",
       },
     ),
     box(
       "tray-grate-right",
       "接水盘右格栅",
-      [width * 0.22, 7, depth * 0.3],
-      [width * 0.16, bodyHeight * 0.59 + 12, front + depth * 0.12],
+      [width * 0.22, 7, depth * 0.18],
+      [width * 0.13, bodyHeight * 0.6 + 12, front - 60],
       darkAppearance,
       3,
       {
         "parameters.width": "var(--width) * 0.22",
-        "parameters.depth": "var(--depth) * 0.3",
-        "position.0": "var(--width) * 0.16",
-        "position.1": "var(--body-height) * 0.59 + 12",
-        "position.2": "var(--depth) * 0.62",
+        "parameters.depth": "var(--depth) * 0.18",
+        "position.0": "var(--width) * 0.13",
+        "position.1": "var(--body-height) * 0.6 + 12",
+        "position.2": "var(--depth) / 2 - 60",
       },
     ),
     box(
       "brand-strip",
       "品牌饰条",
       [width * 0.42, 14, 8],
-      [0, bodyHeight * 0.955, front + 14],
+      [0, bodyHeight * 0.985, front + 12],
       metalAppearance,
       4,
       {
         "parameters.width": "var(--width) * 0.42",
-        "position.1": "var(--body-height) * 0.955",
-        "position.2": "var(--depth) / 2 + 14",
+        "position.1": "var(--body-height) * 0.985",
+        "position.2": "var(--depth) / 2 + 12",
       },
     ),
   ];
@@ -532,7 +642,7 @@ export function createWaterDispenserModel(
   const tankIds = new Set<string>(waterDispenserTankFeatureIds);
   return {
     name: WATER_DISPENSER_DISPLAY_NAME,
-    description: "下半部提供可开合储水柜与内置水桶，上半部提供冷热出水和接水站位的参数化饮水机。",
+    description: "下半部提供可开合储水柜与内置水桶，上部控制区显示运行状态并提供热水、常温水和冷水，接水区内嵌于机身。",
     unit: "mm",
     featureGraph: {
       version: 1,

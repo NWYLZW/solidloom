@@ -18,10 +18,12 @@ export function createWaterDispenserManifest(
   const cabinetTop = parameters.bodyHeight * 0.52;
   const cabinetHeight = cabinetTop - 30;
   const cabinetCenterY = 30 + cabinetHeight / 2;
+  const upperBodyHeight = parameters.bodyHeight * 0.48;
+  const upperBodyCenterY = parameters.bodyHeight * 0.76;
   const doorWidth = parameters.width - 44;
   const actorPosition: [number, number, number] = [0, 0, front + 680];
-  const buttonY = parameters.bodyHeight * 0.88;
-  const targetZ = front + 58;
+  const buttonY = parameters.bodyHeight * 0.952;
+  const targetZ = front + 34;
 
   return {
     schemaVersion: 1,
@@ -40,12 +42,16 @@ export function createWaterDispenserManifest(
       { id: "nozzle-spacing", label: "出水口间距", type: "number", defaultValue: parameters.nozzleSpacing, unit: "mm", ...waterDispenserParameterLimits.nozzleSpacing },
     ],
     materials: [
-      { id: "body-plastic", label: "机身塑料", material: "plastic", color: "#E8EDF2", featureIds: ["body-shell", "cabinet-back", "cabinet-left-wall", "cabinet-right-wall", "cabinet-floor", "cabinet-ceiling", "cabinet-door"] },
-      { id: "dark-plastic", label: "出水区与柜内塑料", material: "plastic", color: "#18232D", featureIds: ["front-panel", "dispense-alcove", "cabinet-interior", "tank-connector"] },
-      { id: "metal", label: "不锈钢", material: "metal", color: "#AFC0CA", featureIds: ["drip-tray", "hot-nozzle", "cold-nozzle", "brand-strip", "cabinet-door-handle"] },
+      { id: "body-plastic", label: "机身塑料", material: "plastic", color: "#E8EDF2", featureIds: ["body-shell", "upper-left-frame", "upper-right-frame", "upper-top-frame", "upper-bottom-frame", "cabinet-back", "cabinet-left-wall", "cabinet-right-wall", "cabinet-floor", "cabinet-ceiling", "cabinet-door"] },
+      { id: "dark-plastic", label: "控制区、接水区与柜内塑料", material: "plastic", color: "#18232D", featureIds: ["front-panel", "dispense-alcove", "cabinet-interior", "tank-connector", "tray-grate-left", "tray-grate-right"] },
+      { id: "metal", label: "不锈钢", material: "metal", color: "#AFC0CA", featureIds: ["drip-tray", "hot-nozzle", "ambient-nozzle", "cold-nozzle", "brand-strip"] },
       { id: "tank-glass", label: "透明水桶", material: "glass", color: "#71D1EF", featureIds: ["tank-neck", "tank-shoulder", "water-tank"] },
       { id: "hot-control", label: "热水按钮", material: "plastic", color: "#DF5A52", featureIds: ["hot-button"] },
+      { id: "ambient-control", label: "常温水按钮", material: "plastic", color: "#64BE94", featureIds: ["ambient-button"] },
       { id: "cold-control", label: "冷水按钮与聪明盖", material: "plastic", color: "#3F8FE8", featureIds: ["cold-button", "tank-cap"] },
+      { id: "power-status", label: "已通电指示灯", material: "plastic", color: "#26C985", featureIds: ["power-indicator"] },
+      { id: "heating-status", label: "制热中指示灯", material: "plastic", color: "#FF9C4A", featureIds: ["heating-indicator"] },
+      { id: "cooling-status", label: "制冷中指示灯", material: "plastic", color: "#45A9F8", featureIds: ["cooling-indicator"] },
       { id: "rubber-base", label: "防滑橡胶", material: "rubber", color: "#263139", featureIds: ["base"] },
     ],
     placement: {
@@ -57,12 +63,48 @@ export function createWaterDispenserManifest(
     colliders: [
       {
         id: "body-collider",
-        label: "上部机身碰撞体",
+        label: "上部机身后壳碰撞体",
         shape: "box",
-        position: [0, parameters.bodyHeight * 0.76, 0],
+        position: [0, upperBodyCenterY, -38],
         rotation: [0, 0, 0],
-        size: [parameters.width, parameters.bodyHeight * 0.48, parameters.depth],
+        size: [parameters.width, upperBodyHeight, parameters.depth - 76],
         featureId: "body-shell",
+      },
+      {
+        id: "upper-left-frame-collider",
+        label: "接水区左框碰撞体",
+        shape: "box",
+        position: [-parameters.width / 2 + 23, upperBodyCenterY, front - 38],
+        rotation: [0, 0, 0],
+        size: [46, upperBodyHeight, 76],
+        featureId: "upper-left-frame",
+      },
+      {
+        id: "upper-right-frame-collider",
+        label: "接水区右框碰撞体",
+        shape: "box",
+        position: [parameters.width / 2 - 23, upperBodyCenterY, front - 38],
+        rotation: [0, 0, 0],
+        size: [46, upperBodyHeight, 76],
+        featureId: "upper-right-frame",
+      },
+      {
+        id: "upper-top-frame-collider",
+        label: "顶部控制区碰撞体",
+        shape: "box",
+        position: [0, parameters.bodyHeight - 94, front - 38],
+        rotation: [0, 0, 0],
+        size: [parameters.width - 92, 188, 76],
+        featureId: "upper-top-frame",
+      },
+      {
+        id: "upper-bottom-frame-collider",
+        label: "接水区下框碰撞体",
+        shape: "box",
+        position: [0, cabinetTop + 34, front - 38],
+        rotation: [0, 0, 0],
+        size: [parameters.width - 92, 68, 76],
+        featureId: "upper-bottom-frame",
       },
       {
         id: "cabinet-left-collider",
@@ -126,7 +168,7 @@ export function createWaterDispenserManifest(
         id: "water-fill-target",
         label: "杯具接水位置",
         kind: "interaction",
-        position: [0, parameters.bodyHeight * 0.77 - 118, front + 96],
+        position: [0, parameters.bodyHeight * 0.755 - 118, front + 56],
         rotation: [0, 0, 0],
         range: 900,
         tags: ["fill-water", "cup"],
@@ -142,6 +184,16 @@ export function createWaterDispenserManifest(
         tags: ["press", "hot-water"],
       },
       {
+        id: "ambient-water-button",
+        label: "常温水按钮",
+        kind: "interaction",
+        position: [0, buttonY, targetZ],
+        rotation: [0, 0, 0],
+        range: 950,
+        featureId: "ambient-button",
+        tags: ["press", "ambient-water"],
+      },
+      {
         id: "cold-water-button",
         label: "冷水按钮",
         kind: "interaction",
@@ -152,14 +204,14 @@ export function createWaterDispenserManifest(
         tags: ["press", "cold-water"],
       },
       {
-        id: "cabinet-door-handle",
-        label: "储水柜门把手",
+        id: "cabinet-door-open-control",
+        label: "储水柜门开启区域",
         kind: "interaction",
-        position: [doorWidth * 0.32, cabinetCenterY, front + 42],
+        position: [doorWidth * 0.36, cabinetCenterY, front + 24],
         rotation: [0, 0, 0],
         range: 900,
-        featureId: "cabinet-door-handle",
-        tags: ["open", "replace-water-tank"],
+        featureId: "cabinet-door",
+        tags: ["push-open", "replace-water-tank"],
       },
       {
         id: "tank-storage-socket",

@@ -74,6 +74,38 @@
         content: "";
       }
 
+      .status-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 11px;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 8px;
+        border-radius: 8px;
+        color: #324650;
+        background: #edf3f6;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .status::before {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--status-color);
+        box-shadow: 0 0 8px var(--status-color);
+        content: "";
+      }
+
+      .status.power { --status-color: #26c985; }
+      .status.heating { --status-color: #ff9c4a; }
+      .status.cooling { --status-color: #45a9f8; }
+
       .legend {
         position: fixed;
         z-index: 2;
@@ -99,6 +131,11 @@
       <section class="panel" aria-label="资产信息">
         <h1>参数化下置桶饮水机</h1>
         <p id="metrics-label"></p>
+        <div class="status-list" aria-label="饮水机当前状态">
+          <span class="status power">电源 · 已通电</span>
+          <span class="status heating">制热 · 进行中</span>
+          <span class="status cooling">制冷 · 进行中</span>
+        </div>
         <span id="quality-label" class="quality"></span>
       </section>
       <div id="preview" aria-label="饮水机三维预览"></div>
