@@ -95,7 +95,7 @@ function box(
       width: size[0],
       height: size[1],
       depth: size[2],
-      ...(cornerRadius > 0 ? { cornerRadius, cornerAlgorithm: "smooth" as const } : {}),
+      ...(cornerRadius > 0 ? { cornerRadius, cornerAlgorithm: "circular" as const } : {}),
     },
   };
 }
@@ -175,7 +175,7 @@ export function createCoffeeMachine(
       [width, bodyHeight, depth],
       [0, footHeight + bodyHeight / 2, 0],
       bodyAppearance,
-      Math.min(34, width * 0.08),
+      Math.min(8, width * 0.02),
     ),
     box(
       coffeeMachineFeatureIds.topCap,
@@ -183,7 +183,7 @@ export function createCoffeeMachine(
       [width * 0.92, 22, depth * 0.88],
       [0, height - 15, 0],
       panelAppearance,
-      10,
+      3,
     ),
     box(
       coffeeMachineFeatureIds.frontPanel,
@@ -191,7 +191,7 @@ export function createCoffeeMachine(
       [panelWidth, height * 0.25, 18],
       [0, controlY, frontZ + 7],
       panelAppearance,
-      12,
+      3,
     ),
   ];
 
@@ -202,7 +202,7 @@ export function createCoffeeMachine(
       [panelWidth * 0.48, height * 0.075, 8],
       [0, controlY + height * 0.035, frontZ + 20],
       { material: "glass", color: "#123947" },
-      5,
+      1.5,
     ),
     cylinder(
       coffeeMachineFeatureIds.statusLight,
@@ -240,7 +240,7 @@ export function createCoffeeMachine(
       [width * 0.5, height * 0.115, depth * 0.22],
       [0, brewHeadY, frontZ + depth * 0.06],
       panelAppearance,
-      16,
+      4,
     ),
     cylinder(
       coffeeMachineFeatureIds.brewCollar,
@@ -267,7 +267,7 @@ export function createCoffeeMachine(
       [trayWidth, 32, trayDepth],
       [0, trayY, trayCenterZ],
       darkMetalAppearance,
-      12,
+      3,
     ),
     cylinder(
       coffeeMachineFeatureIds.cupRing,
@@ -283,7 +283,7 @@ export function createCoffeeMachine(
       [18, 5, trayDepth * 0.72],
       [0, trayY + 18, trayCenterZ],
       rubberAppearance,
-      2,
+      1,
     ),
     box(
       coffeeMachineFeatureIds.leftGrate,
@@ -291,7 +291,7 @@ export function createCoffeeMachine(
       [18, 5, trayDepth * 0.72],
       [-trayWidth * 0.22, trayY + 18, trayCenterZ],
       rubberAppearance,
-      2,
+      1,
     ),
     box(
       coffeeMachineFeatureIds.rightGrate,
@@ -299,7 +299,7 @@ export function createCoffeeMachine(
       [18, 5, trayDepth * 0.72],
       [trayWidth * 0.22, trayY + 18, trayCenterZ],
       rubberAppearance,
-      2,
+      1,
     ),
   ];
 
@@ -313,7 +313,7 @@ export function createCoffeeMachine(
       [tankWidth, height * 0.54, tankDepth],
       [0, footHeight + height * 0.36, tankCenterZ],
       glassAppearance,
-      14,
+      4,
     ),
     box(
       coffeeMachineFeatureIds.waterWindow,
@@ -321,7 +321,7 @@ export function createCoffeeMachine(
       [tankWidth * 0.52, height * 0.32, 6],
       [0, footHeight + height * 0.38, -depth / 2 - 3],
       { material: "glass", color: "#9BE1ED" },
-      6,
+      2,
     ),
   ];
   const waterTankLid = [
@@ -331,7 +331,7 @@ export function createCoffeeMachine(
       [tankWidth + 16, 18, tankDepth + 16],
       [0, height - 28, tankCenterZ],
       bodyAppearance,
-      8,
+      3,
     ),
   ];
 
@@ -342,7 +342,7 @@ export function createCoffeeMachine(
       [width * 0.28, footHeight, depth * 0.58],
       [-width * 0.27, footHeight / 2, -depth * 0.06],
       rubberAppearance,
-      7,
+      2,
     ),
     box(
       coffeeMachineFeatureIds.rightFoot,
@@ -350,7 +350,7 @@ export function createCoffeeMachine(
       [width * 0.28, footHeight, depth * 0.58],
       [width * 0.27, footHeight / 2, -depth * 0.06],
       rubberAppearance,
-      7,
+      2,
     ),
   ];
 
