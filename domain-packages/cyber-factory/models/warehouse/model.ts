@@ -55,7 +55,23 @@ export interface WarehouseRetrievalStep {
   label: string;
   durationMs: number;
   pose: WarehouseStackerCranePose;
-  plannedActions?: Array<"reserve-slot" | "attach-cargo" | "detach-cargo" | "release-slot">;
+  plannedActions?: WarehousePlannedAction[];
+}
+
+export type WarehousePlannedAction = (
+  "reserve-slot"
+  | "attach-cargo"
+  | "detach-cargo"
+  | "release-slot"
+  | "occupy-slot"
+);
+
+export interface WarehouseRestockStep {
+  id: "reserve" | "attach" | "travel" | "lift" | "extend" | "place" | "release" | "retract" | "lower" | "return";
+  label: string;
+  durationMs: number;
+  pose: WarehouseStackerCranePose;
+  plannedActions?: WarehousePlannedAction[];
 }
 
 export type WarehouseRetrievalPlan = {
@@ -65,6 +81,20 @@ export type WarehouseRetrievalPlan = {
   levelIndex: number;
   targetPose: WarehouseStackerCranePose;
   steps: WarehouseRetrievalStep[];
+} | {
+  valid: false;
+  slotId: string;
+  code: "invalid-slot-id" | "slot-out-of-range" | "insufficient-rail-travel" | "insufficient-fork-reach";
+  message: string;
+};
+
+export type WarehouseRestockPlan = {
+  valid: true;
+  slotId: string;
+  bayIndex: number;
+  levelIndex: number;
+  targetPose: WarehouseStackerCranePose;
+  steps: WarehouseRestockStep[];
 } | {
   valid: false;
   slotId: string;
@@ -664,6 +694,46 @@ export function planWarehouseRetrieval(
       { id: "lower", label: "下降到出库高度", durationMs: 1_100, pose: loweredPose },
       { id: "deliver", label: "横移到左侧出库位", durationMs: 1_200, pose: outboundPose },
       { id: "release", label: "在载货台内释放货物与货位", durationMs: 450, pose: outboundPose, plannedActions: ["detach-cargo", "release-slot"] },
+    ],
+  };
+}
+
+export function planWarehouseRestock(
+  slotId: string,
+  rackInput: Partial<WarehouseRackParameters> = {},
+  craneInput: Partial<WarehouseStackerCraneParameters> = {},
+): WarehouseRestockPlan {
+  const retrieval = planWarehouseRetrieval(slotId, rackInput, craneInput);
+  if (!retrieval.valid) return retrieval;
+
+  const home = { ...retrieval.steps[0]!.pose };
+  const targetPose = { ...retrieval.targetPose };
+  const travelPose = { ...home, travelX: targetPose.travelX };
+  const liftedPose = { ...travelPose, liftY: targetPose.liftY };
+  const extendedPose = { ...targetPose };
+  const placedPose = {
+    ...retrieval.steps.find(({ id }) => id === "extend")!.pose,
+  };
+  const retractedPose = { ...placedPose, forkExtension: 0 };
+  const loweredPose = { ...retractedPose, liftY: home.liftY };
+
+  return {
+    valid: true,
+    slotId,
+    bayIndex: retrieval.bayIndex,
+    levelIndex: retrieval.levelIndex,
+    targetPose,
+    steps: [
+      { id: "reserve", label: "预占上货目标货位", durationMs: 450, pose: home, plannedActions: ["reserve-slot"] },
+      { id: "attach", label: "挂接左侧上货托盘", durationMs: 450, pose: home, plannedActions: ["attach-cargo"] },
+      { id: "travel", label: "携货横移到目标跨", durationMs: 1_200, pose: travelPose },
+      { id: "lift", label: "携货升至目标层上方", durationMs: 1_100, pose: liftedPose },
+      { id: "extend", label: "货叉携货伸入货位", durationMs: 1_050, pose: extendedPose },
+      { id: "place", label: "下降托盘到货板", durationMs: 550, pose: placedPose },
+      { id: "release", label: "释放托盘并占用货位", durationMs: 450, pose: placedPose, plannedActions: ["detach-cargo", "occupy-slot"] },
+      { id: "retract", label: "空载收回货叉", durationMs: 850, pose: retractedPose },
+      { id: "lower", label: "下降到待机高度", durationMs: 1_100, pose: loweredPose },
+      { id: "return", label: "返回左侧出库端", durationMs: 1_200, pose: home },
     ],
   };
 }

@@ -10,6 +10,7 @@ import {
   defaultWarehouseToteParameters,
   createWarehouseStackerCrane,
   normalizeWarehouseStackerCranePose,
+  planWarehouseRestock,
   planWarehouseRetrieval,
   warehouseRackBayX,
   warehouseRackShelfY,
@@ -17,6 +18,7 @@ import {
   type WarehouseCartParameters,
   type WarehousePalletParameters,
   type WarehouseRackParameters,
+  type WarehouseRestockPlan,
   type WarehouseRetrievalPlan,
   type WarehouseStackerCraneParameters,
   type WarehouseStackerCranePose,
@@ -130,7 +132,7 @@ const assetConfigs: Record<AssetKey, AssetPreviewConfig> = {
   },
   stacker: {
     title: "参数化巷道堆垛机",
-    summary: "默认停靠左侧，载货台留出托盘净空；货叉完整伸至托盘远端后再挂接。",
+    summary: "默认停靠左侧；支持按稳定格口 ID 演示完整取货与上货计划。",
     defaults: valuesOf(defaultWarehouseStackerCraneParameters),
     parameters: [
       { key: "railLength", label: "轨道长度", minimum: 3_500, maximum: 30_000, step: 100, unit: "毫米" },
@@ -160,6 +162,7 @@ const resetParameters = requiredElement<HTMLButtonElement>("#reset-parameters");
 const stackerTaskPanel = requiredElement<HTMLElement>("#stacker-task-panel");
 const stackerSlotId = requiredElement<HTMLInputElement>("#stacker-slot-id");
 const runStackerDemo = requiredElement<HTMLButtonElement>("#run-stacker-demo");
+const runStackerRestockDemo = requiredElement<HTMLButtonElement>("#run-stacker-restock-demo");
 const stackerTaskStatus = requiredElement<HTMLElement>("#stacker-task-status");
 const metrics = requiredElement<HTMLElement>("#metrics");
 const assetTabs = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-asset]"));
@@ -378,11 +381,16 @@ function formatValue(value: number, unit?: string) {
   return `${new Intl.NumberFormat("zh-CN").format(value)}${unit ? ` ${unit}` : ""}`;
 }
 
-type ValidWarehouseRetrievalPlan = Extract<WarehouseRetrievalPlan, { valid: true }>;
+type ValidWarehouseStackerPlan = (
+  Extract<WarehouseRetrievalPlan, { valid: true }>
+  | Extract<WarehouseRestockPlan, { valid: true }>
+);
+type StackerOperation = "retrieval" | "restock";
 type StackerCargoMode = "rack" | "fork" | "outbound";
 
 interface StackerAnimationState {
-  plan: ValidWarehouseRetrievalPlan;
+  plan: ValidWarehouseStackerPlan;
+  operation: StackerOperation;
   stepIndex: number;
   stepStartedAt: number;
   fromPose: WarehouseStackerCranePose;
@@ -396,7 +404,7 @@ function stackerHomePose() {
 }
 
 let stackerPose: WarehouseStackerCranePose = stackerHomePose();
-let stackerPlan: ValidWarehouseRetrievalPlan | null = null;
+let stackerPlan: ValidWarehouseStackerPlan | null = null;
 let stackerAnimation: StackerAnimationState | null = null;
 
 function stackerDefinitionAtPose(pose: WarehouseStackerCranePose): ModelAssetDefinition {
@@ -486,14 +494,24 @@ function interpolatePose(from: WarehouseStackerCranePose, to: WarehouseStackerCr
   };
 }
 
+function stackerCargoMode(operation: StackerOperation, stepIndex: number): StackerCargoMode {
+  if (operation === "retrieval") {
+    return stepIndex < 4 ? "rack" : stepIndex < 8 ? "fork" : "outbound";
+  }
+  return stepIndex < 1 ? "outbound" : stepIndex < 6 ? "fork" : "rack";
+}
+
+function setStackerDemoRunning(running: boolean) {
+  runStackerDemo.disabled = running;
+  runStackerRestockDemo.disabled = running;
+}
+
 function updateStackerAnimation(timestamp: number) {
   if (!stackerAnimation || currentMode !== "stacker") return;
   const step = stackerAnimation.plan.steps[stackerAnimation.stepIndex]!;
   const progress = Math.min(1, (timestamp - stackerAnimation.stepStartedAt) / step.durationMs);
   stackerPose = interpolatePose(stackerAnimation.fromPose, step.pose, progress);
-  const cargoMode: StackerCargoMode = stackerAnimation.stepIndex < 4
-    ? "rack"
-    : stackerAnimation.stepIndex < 8 ? "fork" : "outbound";
+  const cargoMode = stackerCargoMode(stackerAnimation.operation, stackerAnimation.stepIndex);
   if (timestamp - stackerAnimation.lastRenderedAt >= 34 || progress === 1) {
     renderStackerScene(stackerPose, cargoMode, `当前步骤：${step.label}`);
     stackerTaskStatus.textContent = `${stackerAnimation.stepIndex + 1}/${stackerAnimation.plan.steps.length} · ${step.label}`;
@@ -501,8 +519,12 @@ function updateStackerAnimation(timestamp: number) {
   }
   if (progress < 1) return;
   if (stackerAnimation.stepIndex === stackerAnimation.plan.steps.length - 1) {
-    stackerTaskStatus.textContent = `演示完成：${stackerAnimation.plan.slotId} 已运送到左侧载货台出库位。`;
-    renderStackerScene(step.pose, "outbound", "取货演示完成");
+    const isRetrieval = stackerAnimation.operation === "retrieval";
+    stackerTaskStatus.textContent = isRetrieval
+      ? `取货完成：${stackerAnimation.plan.slotId} 已运送到左侧载货台出库位。`
+      : `上货完成：托盘已放入 ${stackerAnimation.plan.slotId}，设备已返回左侧。`;
+    renderStackerScene(step.pose, isRetrieval ? "outbound" : "rack", isRetrieval ? "取货演示完成" : "上货演示完成");
+    setStackerDemoRunning(false);
     stackerAnimation = null;
     return;
   }
@@ -528,7 +550,7 @@ function renderCurrentMode() {
   if (currentMode === "stacker") {
     assetTitle.textContent = config.title;
     assetSummary.textContent = config.summary;
-    renderStackerScene(stackerPose, "rack", "等待格口取货指令", true);
+    renderStackerScene(stackerPose, "rack", "等待格口取放指令", true);
     return;
   }
   const definition = config.createDefinition(parameterValues[currentMode]);
@@ -585,7 +607,8 @@ function renderParameterControls(asset: AssetKey) {
         stackerAnimation = null;
         stackerPlan = null;
         stackerPose = stackerHomePose();
-        stackerTaskStatus.textContent = "参数已更新，请重新执行取货演示。";
+        setStackerDemoRunning(false);
+        stackerTaskStatus.textContent = "参数已更新，请重新执行取放演示。";
       }
       renderCurrentMode();
     });
@@ -604,6 +627,7 @@ function selectMode(mode: PreviewMode) {
   parameterPanel.hidden = mode === "overview";
   stackerTaskPanel.hidden = mode !== "stacker";
   stackerAnimation = null;
+  setStackerDemoRunning(false);
   if (mode === "stacker") {
     stackerPose = stackerHomePose();
     stackerPlan = null;
@@ -627,7 +651,8 @@ resetParameters.addEventListener("click", () => {
     stackerAnimation = null;
     stackerPlan = null;
     stackerPose = stackerHomePose();
-    stackerTaskStatus.textContent = "参数已恢复，请重新执行取货演示。";
+    setStackerDemoRunning(false);
+    stackerTaskStatus.textContent = "参数已恢复，请重新执行取放演示。";
   }
   renderParameterControls(currentMode);
   renderCurrentMode();
@@ -640,36 +665,43 @@ function normalizedSlotId(value: string) {
     : trimmed;
 }
 
-runStackerDemo.addEventListener("click", () => {
+function startStackerDemo(operation: StackerOperation) {
   const slotId = normalizedSlotId(stackerSlotId.value);
   stackerSlotId.value = slotId;
-  const plan = planWarehouseRetrieval(
-    slotId,
-    parameterValues.rack as unknown as WarehouseRackParameters,
-    parameterValues.stacker as unknown as WarehouseStackerCraneParameters,
-  );
+  const rackParameters = parameterValues.rack as unknown as WarehouseRackParameters;
+  const stackerParameters = parameterValues.stacker as unknown as WarehouseStackerCraneParameters;
+  const plan = operation === "retrieval"
+    ? planWarehouseRetrieval(slotId, rackParameters, stackerParameters)
+    : planWarehouseRestock(slotId, rackParameters, stackerParameters);
   if (!plan.valid) {
     stackerAnimation = null;
     stackerPlan = null;
     stackerPose = stackerHomePose();
+    setStackerDemoRunning(false);
     stackerTaskStatus.dataset.error = "true";
     stackerTaskStatus.textContent = plan.message;
-    renderStackerScene(stackerPose, "rack", "格口校验失败");
+    renderStackerScene(stackerPose, operation === "retrieval" ? "rack" : "outbound", "格口校验失败");
     return;
   }
   stackerTaskStatus.removeAttribute("data-error");
   stackerPlan = plan;
   stackerPose = stackerHomePose();
+  setStackerDemoRunning(true);
   stackerAnimation = {
     plan,
+    operation,
     stepIndex: 0,
     stepStartedAt: performance.now(),
     fromPose: { ...stackerPose },
     lastRenderedAt: 0,
   };
-  stackerTaskStatus.textContent = `已生成 ${plan.steps.length} 步动作计划，准备取出 ${plan.slotId}。`;
-  renderStackerScene(stackerPose, "rack", "取货计划已生成");
-});
+  const isRetrieval = operation === "retrieval";
+  stackerTaskStatus.textContent = `已生成 ${plan.steps.length} 步${isRetrieval ? "取货" : "上货"}计划，目标 ${plan.slotId}。`;
+  renderStackerScene(stackerPose, isRetrieval ? "rack" : "outbound", isRetrieval ? "取货计划已生成" : "上货计划已生成");
+}
+
+runStackerDemo.addEventListener("click", () => startStackerDemo("retrieval"));
+runStackerRestockDemo.addEventListener("click", () => startStackerDemo("restock"));
 
 function resize() {
   const width = canvas.clientWidth;

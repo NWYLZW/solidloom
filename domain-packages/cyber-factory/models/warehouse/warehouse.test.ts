@@ -10,6 +10,7 @@ import {
   defaultWarehousePalletParameters,
   defaultWarehouseRackParameters,
   defaultWarehouseStackerCraneParameters,
+  planWarehouseRestock,
   planWarehouseRetrieval,
   warehouseAssetDefinitions,
   warehouseAssetModules,
@@ -240,8 +241,44 @@ describe("warehouse and internal logistics asset kit", () => {
     ]);
   });
 
+  it("plans a deterministic restock sequence from the left carriage into a rack slot", () => {
+    const plan = planWarehouseRestock(
+      "warehouse-rack-slot-b02-l03",
+      defaultWarehouseRackParameters,
+      defaultWarehouseStackerCraneParameters,
+    );
+    expect(plan.valid).toBe(true);
+    if (!plan.valid) return;
+
+    expect(plan.steps.map(({ id }) => id)).toEqual([
+      "reserve",
+      "attach",
+      "travel",
+      "lift",
+      "extend",
+      "place",
+      "release",
+      "retract",
+      "lower",
+      "return",
+    ]);
+    expect(plan.steps[0]?.pose.travelX).toBe(
+      -warehouseStackerMaximumTravel(defaultWarehouseStackerCraneParameters),
+    );
+    expect(plan.steps.find(({ id }) => id === "attach")?.plannedActions).toEqual(["attach-cargo"]);
+    expect(plan.steps.find(({ id }) => id === "release")?.plannedActions).toEqual([
+      "detach-cargo",
+      "occupy-slot",
+    ]);
+    expect(plan.steps.find(({ id }) => id === "place")?.pose.liftY).toBe(
+      warehouseRackShelfY(defaultWarehouseRackParameters, 2) + 52,
+    );
+    expect(plan.steps.at(-1)?.pose).toEqual(plan.steps[0]?.pose);
+  });
+
   it("rejects malformed, missing and unreachable stacker targets without inventing availability", () => {
     expect(planWarehouseRetrieval("b03-l04")).toMatchObject({ valid: false, code: "invalid-slot-id" });
+    expect(planWarehouseRestock("b03-l04")).toMatchObject({ valid: false, code: "invalid-slot-id" });
     expect(planWarehouseRetrieval("warehouse-rack-slot-b99-l04")).toMatchObject({ valid: false, code: "slot-out-of-range" });
     expect(planWarehouseRetrieval(
       "warehouse-rack-slot-b08-l02",

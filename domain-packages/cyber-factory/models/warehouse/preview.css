@@ -145,12 +145,28 @@ h2 {
   outline-offset: 1px;
 }
 
+.stacker-demo-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .run-demo-button {
   width: 100%;
-  margin-top: 10px;
   border-color: rgb(102 216 200 / 58%);
   color: #071616;
   background: #66d8c8;
+}
+
+.restock-demo-button {
+  color: #7ce2d4;
+  background: rgb(15 33 36 / 88%);
+}
+
+.run-demo-button:disabled {
+  cursor: progress;
+  opacity: 0.48;
 }
 
 .stacker-task-status {

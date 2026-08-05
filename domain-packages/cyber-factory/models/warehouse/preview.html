@@ -21,16 +21,19 @@
           <button type="button" data-asset="cart" aria-pressed="false">推车</button>
           <button type="button" data-asset="stacker" aria-pressed="false">堆垛机</button>
         </nav>
-        <section id="stacker-task-panel" class="stacker-task-panel" aria-label="自动取货演示" hidden>
+        <section id="stacker-task-panel" class="stacker-task-panel" aria-label="自动取放演示" hidden>
           <div class="parameter-heading">
-            <h2>自动取货演示</h2>
+            <h2>自动取放演示</h2>
             <span class="planned-badge">规划能力</span>
           </div>
           <label class="stacker-slot-control" for="stacker-slot-id">
             <span>目标格口 ID</span>
             <input id="stacker-slot-id" type="text" value="warehouse-rack-slot-b03-l04" spellcheck="false" />
           </label>
-          <button id="run-stacker-demo" class="run-demo-button" type="button">执行取货演示</button>
+          <div class="stacker-demo-actions">
+            <button id="run-stacker-demo" class="run-demo-button" type="button">执行取货演示</button>
+            <button id="run-stacker-restock-demo" class="run-demo-button restock-demo-button" type="button">执行上货演示</button>
+          </div>
           <p id="stacker-task-status" class="stacker-task-status" aria-live="polite">输入稳定格口 ID 后生成动作计划。</p>
         </section>
         <section id="parameter-panel" class="parameter-panel" aria-label="模型参数" hidden>
