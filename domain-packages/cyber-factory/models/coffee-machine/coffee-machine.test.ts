@@ -75,10 +75,31 @@ describe("parameterized coffee machine asset", () => {
     ))).toBe(true);
   });
 
+  it("provides a dedicated power switch, stateful indicator and semantic anchor", () => {
+    const poweredOff = createCoffeeMachine({ powered: false }).featureGraph!;
+    const poweredOn = createCoffeeMachine({ powered: true }).featureGraph!;
+    const offSwitch = poweredOff.features.find((feature) => feature.id === coffeeMachineFeatureIds.powerSwitch);
+    const onSwitch = poweredOn.features.find((feature) => feature.id === coffeeMachineFeatureIds.powerSwitch);
+    const offIndicator = poweredOff.features.find((feature) => feature.id === coffeeMachineFeatureIds.statusLight);
+    const onIndicator = poweredOn.features.find((feature) => feature.id === coffeeMachineFeatureIds.statusLight);
+    const powerAnchor = coffeeMachineManifest.anchors.find((anchor) => anchor.id === "power-toggle");
+    const powerParameter = coffeeMachineManifest.parameters.find((parameter) => parameter.id === "powered");
+
+    expect(offSwitch).toBeDefined();
+    expect(onSwitch?.appearance?.color).not.toBe(offSwitch?.appearance?.color);
+    expect(onIndicator?.appearance?.color).not.toBe(offIndicator?.appearance?.color);
+    expect(powerAnchor).toMatchObject({
+      kind: "interaction",
+      groupId: "coffee-machine-control-group",
+      tags: ["power", "toggle"],
+    });
+    expect(powerParameter).toMatchObject({ type: "boolean", defaultValue: false });
+  });
+
   it("places action anchors outside the body and the cup socket beneath the spout", () => {
     const bodyFront = defaultCoffeeMachineParameters.depth / 2;
     const actionAnchors = coffeeMachineManifest.anchors.filter((anchor) => (
-      anchor.id === "brew-coffee" || anchor.id === "take-cup"
+      anchor.id === "brew-coffee" || anchor.id === "power-toggle" || anchor.id === "take-cup"
     ));
     expect(actionAnchors.every((anchor) => anchor.position[2] > bodyFront)).toBe(true);
 
@@ -101,6 +122,10 @@ describe("parameterized coffee machine asset", () => {
       coffeeMachineFeatureIds.body,
       coffeeMachineFeatureIds.brewHead,
       coffeeMachineFeatureIds.tray,
+    ]));
+    expect(mobileNear.featureIds).toEqual(expect.arrayContaining([
+      coffeeMachineFeatureIds.powerSwitch,
+      coffeeMachineFeatureIds.statusLight,
     ]));
   });
 });

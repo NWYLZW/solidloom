@@ -14,6 +14,7 @@ export interface CoffeeMachineParameters {
   depth: number;
   finish: CoffeeMachineFinish;
   height: number;
+  powered: boolean;
   width: number;
 }
 
@@ -21,6 +22,7 @@ export const defaultCoffeeMachineParameters: CoffeeMachineParameters = {
   depth: 440,
   finish: "graphite",
   height: 520,
+  powered: false,
   width: 380,
 };
 
@@ -30,6 +32,7 @@ export const coffeeMachineFeatureIds = {
   frontPanel: "coffee-machine-front-panel",
   display: "coffee-machine-display",
   statusLight: "coffee-machine-status-light",
+  powerSwitch: "coffee-machine-power-switch",
   brewButton: "coffee-machine-brew-button",
   steamButton: "coffee-machine-steam-button",
   brewHead: "coffee-machine-brew-head",
@@ -137,6 +140,7 @@ export function normalizeCoffeeMachineParameters(
     width: clamp(parameters.width ?? defaultCoffeeMachineParameters.width, 320, 520),
     height: clamp(parameters.height ?? defaultCoffeeMachineParameters.height, 460, 680),
     depth: clamp(parameters.depth ?? defaultCoffeeMachineParameters.depth, 360, 560),
+    powered: parameters.powered ?? defaultCoffeeMachineParameters.powered,
     finish: parameters.finish && parameters.finish in finishPalette
       ? parameters.finish
       : defaultCoffeeMachineParameters.finish,
@@ -147,11 +151,19 @@ export function createCoffeeMachine(
   input: Partial<CoffeeMachineParameters> = {},
 ): CreateModelInput {
   const parameters = normalizeCoffeeMachineParameters(input);
-  const { width, height, depth } = parameters;
+  const { width, height, depth, powered } = parameters;
   const colors = finishPalette[parameters.finish];
   const bodyAppearance = { material: "plastic" as const, color: colors.body };
   const panelAppearance = { material: "plastic" as const, color: colors.panel };
   const accentAppearance = { material: "plastic" as const, color: colors.accent };
+  const powerIndicatorAppearance = {
+    material: "plastic" as const,
+    color: powered ? colors.accent : "#314047",
+  };
+  const powerSwitchAppearance = {
+    material: "plastic" as const,
+    color: powered ? colors.accent : "#252C31",
+  };
   const metalAppearance = { material: "metal" as const, color: "#AAB4B9" };
   const darkMetalAppearance = { material: "metal" as const, color: "#4B565C" };
   const glassAppearance = { material: "glass" as const, color: "#79BFD2" };
@@ -206,12 +218,20 @@ export function createCoffeeMachine(
     ),
     cylinder(
       coffeeMachineFeatureIds.statusLight,
-      "工作状态灯",
+      "电源状态指示灯",
       8,
       7,
       [0, controlY + height * 0.086, frontZ + 24],
-      accentAppearance,
+      powerIndicatorAppearance,
       [90, 0, 0],
+    ),
+    box(
+      coffeeMachineFeatureIds.powerSwitch,
+      "电源拨键",
+      [30, 44, 9],
+      [0, controlY - height * 0.045, frontZ + 24],
+      powerSwitchAppearance,
+      2,
     ),
     cylinder(
       coffeeMachineFeatureIds.brewButton,
