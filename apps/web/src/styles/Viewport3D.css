@@ -1,0 +1,57 @@
+.viewport-3d { position: absolute; inset: 0; }
+.viewport-3d > canvas:not(.axis-widget) { display: block; width: 100%; height: 100%; cursor: grab; }
+.viewport-3d > canvas:not(.axis-widget):active { cursor: grabbing; }
+.viewport-3d > canvas:not(.axis-widget).object-hovered:not(:active) { cursor: pointer; }
+.viewport-3d > canvas:not(.axis-widget):focus-visible { outline: 2px solid #9cad74; outline-offset: -3px; }
+.mouse-look-shield { position: fixed; z-index: 1000; inset: 0; display: none; cursor: none; }
+.viewport-3d.pointer-lock-fallback .mouse-look-shield { display: block; }
+.viewport-3d.pointer-locked > canvas:not(.axis-widget) { cursor: none; }
+.viewport-3d > canvas.axis-widget {
+  --axis-face-color: #656960;
+  --axis-face-text: #f5f6f2;
+  position: absolute;
+  z-index: 5;
+  left: var(--panel-padding);
+  bottom: var(--panel-padding);
+  width: 160px;
+  height: 160px;
+  cursor: grab;
+  touch-action: none;
+}
+.viewport-3d > canvas.axis-widget.face-hovered { cursor: pointer; }
+.viewport-3d > canvas.axis-widget.dragging { cursor: grabbing; }
+.viewport-3d.navigation-active > canvas.axis-widget { display: none; }
+:root[data-theme="dark"] .viewport-3d > canvas.axis-widget { --axis-face-color: #41453f; --axis-face-text: #f0f2ed; }
+.viewport-renderer-fallback { position: absolute; z-index: 7; inset: 0; display: grid; place-content: center; justify-items: center; gap: var(--control-padding-y); padding: var(--panel-padding); color: var(--color-muted); background: var(--color-viewport); font-size: 11px; text-align: center; }
+.viewport-renderer-fallback button { min-height: 31px; padding: 0 var(--control-padding-x); border: 1px solid var(--color-border); border-radius: 5px; color: var(--color-text); background: var(--color-control); cursor: pointer; }
+.viewport-renderer-fallback button:hover { background: var(--color-control-selected); }
+.navigation-mode-banner { position: absolute; z-index: 6; top: 58px; left: 50%; display: flex; max-width: calc(100% - 28px); align-items: center; gap: 10px; padding: 6px var(--control-padding-x); border: 1px solid color-mix(in srgb, #9cad74 68%, var(--color-border)); border-radius: 7px; color: var(--color-text); background: color-mix(in srgb, var(--color-panel) 94%, transparent); box-shadow: 0 8px 22px rgba(18, 21, 17, 0.16); font-size: 10px; transform: translateX(-50%); backdrop-filter: blur(10px); }
+.navigation-camera-modes { display: grid; flex: 0 0 auto; grid-template-columns: repeat(3, auto); gap: 2px; padding: 2px; border: 1px solid var(--color-border-soft); border-radius: 5px; background: var(--color-control); }
+.navigation-camera-modes button { min-height: 26px; padding: 0 8px; border: 0; border-radius: 3px; color: var(--color-muted); background: transparent; font-size: 9px; cursor: pointer; }
+.navigation-camera-modes button:hover { color: var(--color-text); background: var(--color-control-hover); }
+.navigation-camera-modes button.active { color: var(--color-text); background: var(--color-control-selected); box-shadow: inset 0 0 0 1px var(--color-border-soft); }
+.navigation-interaction-prompts { position: absolute; z-index: 7; top: 50%; right: var(--panel-padding); display: flex; max-width: min(220px, calc(100% - 28px)); flex-direction: column; align-items: stretch; gap: 6px; transform: translateY(-50%); }
+.navigation-interaction-prompt { display: flex; min-height: 34px; align-items: center; justify-content: flex-start; gap: 8px; padding: 0 var(--control-padding-x); overflow: hidden; border: 1px solid color-mix(in srgb, #9cad74 72%, var(--color-border)); border-radius: 6px; color: var(--color-text); background: color-mix(in srgb, var(--color-panel) 96%, transparent); box-shadow: 0 8px 22px rgba(18, 21, 17, 0.18); font-size: 10px; cursor: pointer; backdrop-filter: blur(10px); white-space: nowrap; }
+.navigation-interaction-prompt:hover { background: color-mix(in srgb, #9cad74 18%, var(--color-control)); }
+.navigation-interaction-prompt:focus-visible { outline: 2px solid #9cad74; outline-offset: 2px; }
+.navigation-interaction-prompt kbd { display: grid; min-width: 21px; height: 21px; place-items: center; padding: 0 5px; border: 1px solid var(--color-border); border-radius: 4px; color: var(--color-text); background: var(--color-control-selected); box-shadow: 0 1px 0 var(--color-border); font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.navigation-interaction-prompt span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.navigation-aim-target { position: absolute; z-index: 7; top: 50%; left: 50%; width: 8px; height: 8px; border: 1px solid rgba(20, 24, 18, 0.9); border-radius: 50%; background: #d8ff45; box-shadow: 0 0 0 2px rgba(216, 255, 69, 0.18), 0 0 8px rgba(216, 255, 69, 0.6); pointer-events: none; transform: translate(-50%, -50%); }
+
+.annotation-overlay { position: absolute; z-index: 4; inset: 0; overflow: hidden; pointer-events: none; }
+.annotation-assist-banner { position: absolute; z-index: 3000; top: 58px; left: 50%; max-width: calc(100% - 28px); padding: var(--control-padding-y) var(--control-padding-x); overflow: hidden; border: 1px solid color-mix(in srgb, #d8ff45 64%, var(--color-border)); border-radius: 7px; color: var(--color-text); background: color-mix(in srgb, var(--color-panel) 94%, transparent); box-shadow: 0 8px 22px rgba(18, 21, 17, 0.16); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; transform: translateX(-50%); backdrop-filter: blur(10px); }
+.annotation-target { position: absolute; display: block; min-width: 20px; min-height: 20px; padding: 0; overflow: hidden; border: 0; color: var(--color-text); background: transparent; cursor: crosshair; pointer-events: auto; touch-action: none; }
+.annotation-target:focus-visible { outline: 0; }
+.annotation-target-shape { display: block; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.annotation-target-shape polygon { fill: color-mix(in srgb, #d8ff45 6%, transparent); stroke: color-mix(in srgb, #d8ff45 76%, var(--color-text)); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
+.annotation-target:hover .annotation-target-shape polygon, .annotation-target:focus-visible .annotation-target-shape polygon { fill: color-mix(in srgb, #d8ff45 14%, transparent); stroke: #d8ff45; stroke-width: 2.25; }
+.annotation-target.selected .annotation-target-shape polygon { fill: color-mix(in srgb, #d8ff45 10%, transparent); stroke: #d8ff45; stroke-width: 2; }
+.annotation-group-target .annotation-target-shape polygon { fill: color-mix(in srgb, #8fb9df 4%, transparent); stroke: color-mix(in srgb, #8fb9df 78%, var(--color-text)); stroke-dasharray: 5 4; }
+.annotation-group-target:hover .annotation-target-shape polygon, .annotation-group-target:focus-visible .annotation-target-shape polygon { fill: color-mix(in srgb, #8fb9df 11%, transparent); stroke: #8fb9df; }
+.annotation-group-target.selected .annotation-target-shape polygon { fill: color-mix(in srgb, #8fb9df 8%, transparent); stroke: #8fb9df; }
+.annotation-target-label { position: absolute; max-width: min(180px, calc(100% - 28px)); padding: var(--annotation-label-padding-y) var(--annotation-label-padding-x); overflow: hidden; border-radius: 0 0 4px 0; color: #171a15; background: #d8ff45; font-size: 9px; font-weight: 700; line-height: 1.2; pointer-events: none; text-overflow: ellipsis; white-space: nowrap; }
+.annotation-target-label.annotation-group-label { color: #17212a; background: #8fb9df; }
+
+.viewport-note { position: absolute; z-index: 5; left: 50%; top: 50%; display: grid; justify-items: center; width: min(460px, calc(100% - 40px)); pointer-events: none; transform: translate(-50%, -50%); text-align: center; }
+.viewport-note strong { max-width: 100%; margin-top: 7px; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.viewport-note p { margin: 5px 0; color: var(--color-muted); font-size: 11px; }
