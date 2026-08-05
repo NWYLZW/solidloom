@@ -2,6 +2,7 @@ export * from "./capabilities.js";
 export * from "./cornerRadii.js";
 export * from "./docs.js";
 export * from "./domain-packages/index.js";
+export * from "./interaction-playground/index.js";
 export * from "./examples.js";
 export * from "./models/index.js";
 export * from "./modelGenerators.js";

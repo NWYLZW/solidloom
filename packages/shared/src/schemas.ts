@@ -392,7 +392,8 @@ export const modelReferenceInstanceSchema = {
         required: ["id", "kind"],
         properties: {
           id: { type: "string", minLength: 1, maxLength: 120 },
-          kind: { type: "string", enum: ["power", "seat", "door", "articulation"] },
+          kind: { type: "string", enum: ["power", "seat", "door", "articulation", "container"] },
+          anchorPosition: vector3Schema,
           range: { type: "number", exclusiveMinimum: 0 },
           targetFeatureIds: {
             type: "array",
@@ -404,6 +405,20 @@ export const modelReferenceInstanceSchema = {
           jointId: { type: "string", minLength: 1, maxLength: 120 },
           closedValue: { type: "number", minimum: -360, maximum: 360 },
           openValue: { type: "number", minimum: -360, maximum: 360 },
+          containerCapacity: { type: "integer", minimum: 1, maximum: 128 },
+          containerItems: {
+            type: "array",
+            maxItems: 128,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["id", "name"],
+              properties: {
+                id: { type: "string", minLength: 1, maxLength: 120 },
+                name: { type: "string", minLength: 1, maxLength: 120 },
+              },
+            },
+          },
         },
       },
     },
@@ -500,6 +515,7 @@ export const modelSchema = {
   additionalProperties: false,
   required: [
     "id",
+    "kind",
     "name",
     "description",
     "unit",
@@ -510,6 +526,7 @@ export const modelSchema = {
   ],
   properties: {
     id: { type: "string" },
+    kind: { type: "string", enum: ["asset", "scene"] },
     name: { type: "string" },
     description: { type: "string" },
     unit: { type: "string", enum: ["mm", "cm", "in"] },
@@ -534,6 +551,7 @@ export const createModelSchema = {
   additionalProperties: false,
   required: ["name"],
   properties: {
+    kind: { type: "string", enum: ["asset", "scene"] },
     name: { type: "string", minLength: 1, maxLength: 120 },
     description: { type: "string", maxLength: 2000 },
     unit: { type: "string", enum: ["mm", "cm", "in"] },
@@ -548,6 +566,7 @@ export const updateModelSchema = {
   minProperties: 2,
   properties: {
     expectedRevision: { type: "integer", minimum: 1 },
+    kind: { type: "string", enum: ["asset", "scene"] },
     name: { type: "string", minLength: 1, maxLength: 120 },
     description: { type: "string", maxLength: 2000 },
     unit: { type: "string", enum: ["mm", "cm", "in"] },

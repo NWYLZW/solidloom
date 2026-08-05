@@ -79,6 +79,7 @@ import { clamp, readNumberPreference, readPreference, readTextPreference } from 
 import { usePanelResize } from "../../hooks/usePanelResize";
 import "../../styles/Viewport3D.css";
 import "../../styles/responsive.css";
+import "../../viewport/ContainerInteractionPanel.css";
 
 type ServiceState = "checking" | "online" | "offline";
 type Locale = EditorLocale;
@@ -135,6 +136,7 @@ export function EditorWorkspace() {
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [projectExpanded, setProjectExpanded] = useState(() => initialTreeUrlStateRef.current?.projectExpanded ?? true);
   const [modelsExpanded, setModelsExpanded] = useState(() => initialTreeUrlStateRef.current?.modelsExpanded ?? true);
+  const [scenesExpanded, setScenesExpanded] = useState(() => initialTreeUrlStateRef.current?.scenesExpanded ?? true);
   const [expandedModelIds, setExpandedModelIds] = useState<string[]>(() => initialTreeUrlStateRef.current?.expandedModelIds ?? []);
   const [expandedGroupIds, setExpandedGroupIds] = useState<string[]>(() => initialTreeUrlStateRef.current?.expandedGroupIds ?? []);
   const [treeUrlReady, setTreeUrlReady] = useState(false);
@@ -274,6 +276,7 @@ export function EditorWorkspace() {
         : {};
       return [{
         ...interaction,
+        entityLabel: reference.name,
         groupId,
         id: `${reference.id}:${interaction.id}`,
         ...jointDescriptor,
@@ -284,6 +287,12 @@ export function EditorWorkspace() {
   const navigationInteractionLabels = useMemo(() => ({
     articulationClose: copy.interactionArticulationClose,
     articulationOpen: copy.interactionArticulationOpen,
+    containerClose: copy.interactionContainerClose,
+    containerEmpty: copy.interactionContainerEmpty,
+    containerOpen: copy.interactionContainerOpen,
+    containerSessionOnly: copy.interactionContainerSessionOnly,
+    containerStore: copy.interactionContainerStore,
+    containerTake: copy.interactionContainerTake,
     doorClose: copy.interactionDoorClose,
     doorOpen: copy.interactionDoorOpen,
     keyHint: copy.interactionKeyHint,
@@ -669,9 +678,16 @@ export function EditorWorkspace() {
       .then(([, modelList]) => {
         setModels(modelList.items);
         const treeUrlState = initialTreeUrlStateRef.current;
-        const firstModel = treeUrlState?.modelId
-          ? modelList.items.find((model) => model.id === treeUrlState.modelId) ?? modelList.items[0]
-          : modelList.items[0];
+        const requestedModel = treeUrlState?.modelId
+          ? modelList.items.find((model) => model.id === treeUrlState.modelId)
+          : undefined;
+        if (requestedModel?.kind === "scene") {
+          window.location.replace(`/play/${encodeURIComponent(requestedModel.id)}`);
+          return;
+        }
+        const firstModel = requestedModel?.kind === "asset"
+          ? requestedModel
+          : modelList.items.find((model) => model.kind === "asset");
         if (firstModel) {
           const normalized = cloneModel(firstModel);
           setSavedModel(normalized);
@@ -738,6 +754,7 @@ export function EditorWorkspace() {
       selectedReferenceId,
       projectExpanded,
       modelsExpanded,
+      scenesExpanded,
       expandedModelIds: draftModel && expandedModelIds.includes(draftModel.id) ? [draftModel.id] : [],
       expandedGroupIds: expandedGroupIds.filter((groupId) => featureGroups.some((group) => group.id === groupId)),
     });
@@ -748,6 +765,7 @@ export function EditorWorkspace() {
     expandedModelIds,
     featureGroups,
     modelsExpanded,
+    scenesExpanded,
     projectExpanded,
     selectedFeatureIds,
     selectedGroupId,
@@ -1766,6 +1784,8 @@ export function EditorWorkspace() {
             }}
             onModelsExpandedChange={setModelsExpanded}
             onProjectExpandedChange={setProjectExpanded}
+            onScenePlay={(sceneId) => window.location.assign(`/play/${encodeURIComponent(sceneId)}`)}
+            onScenesExpandedChange={setScenesExpanded}
             onReferenceContextMenu={(referenceId, x, y) => openContextMenu(x, y, { kind: "reference", referenceId })}
             onReferenceSelect={(referenceId) => {
               setSelectedFeatureIds([]);
@@ -1783,6 +1803,7 @@ export function EditorWorkspace() {
             }}
             projectExpanded={projectExpanded}
             projectName={projectName}
+            scenesExpanded={scenesExpanded}
             selectedFeatureIds={selectedFeatureIds}
             selectedGroupId={selectedGroup?.id ?? null}
             selectedReferenceId={selectedReference?.id ?? null}
@@ -1836,6 +1857,7 @@ export function EditorWorkspace() {
         onToggleTree={(expanded) => {
           setProjectExpanded(expanded);
           setModelsExpanded(expanded);
+          setScenesExpanded(expanded);
           setExpandedModelIds(expanded ? models.map((model) => model.id) : []);
           setExpandedGroupIds(expanded ? featureGroups.map((group) => group.id) : []);
         }}

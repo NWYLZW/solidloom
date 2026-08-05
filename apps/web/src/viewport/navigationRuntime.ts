@@ -17,6 +17,8 @@ import {
 import { createNavigationSeatPoseResolver } from "./navigationSeat";
 import type {
   NavigationCameraMode,
+  NavigationContainerOperation,
+  NavigationContainerPanelState,
   NavigationInteractionDescriptor,
   NavigationPrompt,
   Viewport3DProps,
@@ -37,6 +39,7 @@ export interface SavedNavigationRuntimeState {
     states: Map<string, { position: THREE.Vector3; velocity: THREE.Vector3 }>;
   } | null;
   interactions: {
+    containerItems: Map<string, Array<{ id: string; name: string }>>;
     modelId: string;
     seatedInteractionId: string | null;
     states: Map<string, boolean>;
@@ -77,6 +80,7 @@ interface CreateNavigationRuntimeOptions extends NavigationSystemContext {
   navigationInteractions: NavigationInteractionDescriptor[];
   navigationMode: boolean;
   onAimTargetVisibleChange: (visible: boolean) => void;
+  onContainerPanelChange: (state: NavigationContainerPanelState | null) => void;
   onPromptsChange: (prompts: NavigationPrompt[]) => void;
   savedState: SavedNavigationRuntimeState | null;
 }
@@ -86,6 +90,7 @@ export interface NavigationRuntime extends RuntimeDisposable {
   captureState: () => SavedNavigationRuntimeState;
   getActiveInteractionId: () => string | null;
   needsContinuousRendering: (keyboardNavigationKeys: ReadonlySet<string>) => boolean;
+  performContainerOperation: (interactionId: string, operation: NavigationContainerOperation) => void;
   performInteraction: (interactionId: string) => void;
   setDestination: (event: { clientX: number; clientY: number }) => boolean;
   update: (input: NavigationFrameInput) => NavigationFrameResult;
@@ -109,6 +114,7 @@ export function createNavigationRuntime({
   navigationInteractions,
   navigationMode,
   onAimTargetVisibleChange,
+  onContainerPanelChange,
   onPromptsChange,
   requestRender,
   savedState,
@@ -123,6 +129,7 @@ export function createNavigationRuntime({
     featureGroupById,
     featureMeshById,
     interactions: navigationInteractions,
+    savedContainerItems: savedInteractionState?.containerItems,
     savedStates: savedInteractionState?.states,
   });
   const navigationSeatPoseResolver = createNavigationSeatPoseResolver();
@@ -315,6 +322,7 @@ export function createNavigationRuntime({
   const navigationInteractionAimSphere = new THREE.Sphere();
   const navigationInteractionAimDirection = new THREE.Vector3();
   const navigationInteractionCameraDirection = new THREE.Vector3();
+  const navigationInteractionAnchorPoint = new THREE.Vector3();
   let lastNavigationInteractionPromptKey = "";
   let lastNavigationAimTargetVisible = false;
 
@@ -372,6 +380,9 @@ export function createNavigationRuntime({
     if (interaction.kind === "door") {
       return interaction.active ? navigationInteractionLabels.doorClose : navigationInteractionLabels.doorOpen;
     }
+    if (interaction.kind === "container") {
+      return interaction.active ? navigationInteractionLabels.containerClose : navigationInteractionLabels.containerOpen;
+    }
     return seatedInteractionId === interaction.id
       ? navigationInteractionLabels.stand
       : navigationInteractionLabels.sit;
@@ -424,10 +435,25 @@ export function createNavigationRuntime({
     }
   };
   const captureInteractionState = () => ({
+    containerItems: new Map(navigationInteractionRuntimes
+      .filter((interaction) => interaction.kind === "container")
+      .map((interaction) => [interaction.id, interaction.containerItems.map((item) => ({ ...item }))])),
     modelId,
     seatedInteractionId,
     states: new Map(navigationInteractionRuntimes.map((interaction) => [interaction.id, interaction.active])),
   });
+  const publishContainerPanel = (interaction: NavigationInteractionRuntime | null) => {
+    if (!interaction || interaction.kind !== "container" || !interaction.active) {
+      onContainerPanelChange(null);
+      return;
+    }
+    onContainerPanelChange({
+      capacity: interaction.containerCapacity ?? 8,
+      interactionId: interaction.id,
+      items: interaction.containerItems.map((item) => ({ ...item })),
+      title: interaction.entityLabel,
+    });
+  };
   const syncSeatedNavigationAgent = () => {
     if (!navigation || !navigationAgent || !seatedInteractionId) return;
     const seat = navigationInteractionRuntimes.find((interaction) => interaction.id === seatedInteractionId);
@@ -495,9 +521,43 @@ export function createNavigationRuntime({
         replaceNavigationPathLine();
         syncSeatedNavigationAgent();
       }
+    } else if (interaction.kind === "container") {
+      for (const candidate of navigationInteractionRuntimes) {
+        if (candidate.kind === "container" && candidate.id !== interaction.id) candidate.active = false;
+      }
+      interaction.active = !interaction.active;
+      publishContainerPanel(interaction.active ? interaction : null);
     } else {
       interaction.active = !interaction.active;
       applyNavigationInteractionVisualState(interaction);
+    }
+    lastNavigationInteractionPromptKey = "";
+    requestRender();
+  };
+  const performContainerOperation = (
+    interactionId: string,
+    operation: NavigationContainerOperation,
+  ) => {
+    const interaction = navigationInteractionRuntimes.find((candidate) => (
+      candidate.id === interactionId && candidate.kind === "container"
+    ));
+    if (!interaction) return;
+    if (operation === "close") {
+      interaction.active = false;
+      publishContainerPanel(null);
+    } else if (operation === "take") {
+      interaction.containerItems.pop();
+      publishContainerPanel(interaction);
+    } else {
+      const capacity = interaction.containerCapacity ?? 8;
+      if (interaction.containerItems.length < capacity) {
+        const sequence = interaction.containerItems.length + 1;
+        interaction.containerItems.push({
+          id: `local-session-item-${sequence}`,
+          name: `外部测试实体 ${sequence}`,
+        });
+      }
+      publishContainerPanel(interaction);
     }
     lastNavigationInteractionPromptKey = "";
     requestRender();
@@ -833,7 +893,13 @@ export function createNavigationRuntime({
         continue;
       }
       navigationInteractionBounds.makeEmpty();
-      if (interaction.targetMeshes.length > 0) {
+      if (interaction.proximityAnchor) {
+        interaction.proximityAnchor.getWorldPosition(navigationInteractionAnchorPoint);
+        navigationInteractionBounds.set(
+          navigationInteractionAnchorPoint,
+          navigationInteractionAnchorPoint,
+        );
+      } else if (interaction.targetMeshes.length > 0) {
         interaction.targetMeshes.forEach((mesh) => navigationInteractionBounds.expandByObject(mesh));
       } else {
         navigationInteractionBounds.setFromObject(interaction.anchor);
@@ -875,7 +941,15 @@ export function createNavigationRuntime({
       let angularTargetWorldDistance = Infinity;
       for (const candidate of nearbyInteractions) {
         if (candidate.interaction.id === seatedInteractionId) continue;
-        navigationInteractionBounds.setFromObject(candidate.interaction.anchor);
+        if (candidate.interaction.proximityAnchor) {
+          candidate.interaction.proximityAnchor.getWorldPosition(navigationInteractionAnchorPoint);
+          navigationInteractionBounds.set(
+            navigationInteractionAnchorPoint,
+            navigationInteractionAnchorPoint,
+          );
+        } else {
+          navigationInteractionBounds.setFromObject(candidate.interaction.anchor);
+        }
         if (navigationInteractionBounds.isEmpty()) continue;
         navigationInteractionBounds.getBoundingSphere(navigationInteractionAimSphere);
         navigationInteractionAimDirection.subVectors(navigationInteractionAimSphere.center, camera.position);
@@ -1017,12 +1091,14 @@ export function createNavigationRuntime({
     captureState,
     getActiveInteractionId: () => activeNavigationInteractionId,
     needsContinuousRendering,
+    performContainerOperation,
     performInteraction,
     setDestination,
     update,
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      onContainerPanelChange(null);
       navigationPathLine?.geometry.dispose();
       (navigationPathLine?.material as THREE.Material | undefined)?.dispose();
       navigationPathLine?.removeFromParent();

@@ -20,9 +20,13 @@ export interface TransformCommit {
 }
 
 export interface NavigationInteractionDescriptor {
+  anchorPosition?: Vector3Tuple;
+  containerCapacity?: number;
+  containerItems?: NavigationContainerItem[];
+  entityLabel: string;
   groupId: string;
   id: string;
-  kind: "power" | "seat" | "door" | "articulation";
+  kind: "power" | "seat" | "door" | "articulation" | "container";
   jointAxis?: Vector3Tuple;
   jointClosedValue?: number;
   jointInitialValue?: number;
@@ -32,6 +36,20 @@ export interface NavigationInteractionDescriptor {
   range?: number;
   targetFeatureIds: string[];
 }
+
+export interface NavigationContainerItem {
+  id: string;
+  name: string;
+}
+
+export interface NavigationContainerPanelState {
+  capacity: number;
+  interactionId: string;
+  items: NavigationContainerItem[];
+  title: string;
+}
+
+export type NavigationContainerOperation = "store" | "take" | "close";
 
 export interface Viewport3DProps {
   annotationMode: boolean;
@@ -80,6 +98,12 @@ export interface Viewport3DProps {
   navigationInteractionLabels: {
     articulationClose: string;
     articulationOpen: string;
+    containerClose: string;
+    containerEmpty: string;
+    containerOpen: string;
+    containerSessionOnly: string;
+    containerStore: string;
+    containerTake: string;
     doorClose: string;
     doorOpen: string;
     keyHint: string;

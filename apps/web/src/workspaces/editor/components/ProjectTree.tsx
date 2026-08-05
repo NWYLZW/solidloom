@@ -9,6 +9,7 @@ import {
   FolderTree,
   Layers3,
   Link2,
+  Play,
 } from "lucide-react";
 import type {
   FeatureGroup,
@@ -25,9 +26,12 @@ interface ProjectTreeProps {
   featureGroups: FeatureGroup[];
   labels: {
     emptyModels: string;
+    emptyScenes: string;
     models: string;
     projectTree: string;
     revision: string;
+    runScene: string;
+    scenes: string;
   };
   modelReferences: ModelReferenceInstance[];
   models: ModelRecord[];
@@ -42,11 +46,14 @@ interface ProjectTreeProps {
   onModelContextMenu: (modelId: string, x: number, y: number) => void;
   onModelsExpandedChange: (expanded: boolean) => void;
   onProjectExpandedChange: (expanded: boolean) => void;
+  onScenePlay: (sceneId: string) => void;
+  onScenesExpandedChange: (expanded: boolean) => void;
   onReferenceContextMenu: (referenceId: string, x: number, y: number) => void;
   onReferenceSelect: (referenceId: string) => void;
   onTreeContextMenu: (x: number, y: number) => void;
   projectExpanded: boolean;
   projectName: string;
+  scenesExpanded: boolean;
   selectedFeatureIds: string[];
   selectedGroupId: string | null;
   selectedReferenceId: string | null;
@@ -72,16 +79,22 @@ export function ProjectTree({
   onModelContextMenu,
   onModelsExpandedChange,
   onProjectExpandedChange,
+  onScenePlay,
+  onScenesExpandedChange,
   onReferenceContextMenu,
   onReferenceSelect,
   onTreeContextMenu,
   projectExpanded,
   projectName,
+  scenesExpanded,
   selectedFeatureIds,
   selectedGroupId,
   selectedReferenceId,
   ungroupedFeatures,
 }: ProjectTreeProps) {
+  const assetModels = models.filter((model) => model.kind === "asset");
+  const scenes = models.filter((model) => model.kind === "scene");
+
   return (
     <div
       className="project-tree"
@@ -109,7 +122,7 @@ export function ProjectTree({
 
           {modelsExpanded && (
             <div className="tree-group tree-models" role="group">
-              {models.length > 0 ? models.map((model) => {
+              {assetModels.length > 0 ? assetModels.map((model) => {
                 const isCurrentModel = draftModel?.id === model.id;
                 const isSelectedModel = isCurrentModel && selectedFeatureIds.length === 0 && !selectedGroupId && !selectedReferenceId;
                 const isModelExpanded = isCurrentModel && expandedModelIds.includes(model.id);
@@ -239,6 +252,39 @@ export function ProjectTree({
                   <span className="tree-spacer" />
                   <span className="tree-empty-dot" />
                   <span>{labels.emptyModels}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <button className="tree-row" data-depth="1" type="button" role="treeitem" aria-expanded={scenesExpanded} onClick={() => onScenesExpandedChange(!scenesExpanded)}>
+            {scenesExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {scenesExpanded ? <FolderOpen size={16} /> : <Folder size={16} />}
+            <span>{labels.scenes}</span>
+          </button>
+
+          {scenesExpanded && (
+            <div className="tree-group tree-scenes" role="group">
+              {scenes.length > 0 ? scenes.map((scene) => (
+                <button
+                  aria-label={`${labels.runScene}：${scene.name}`}
+                  className="tree-row tree-scene"
+                  data-depth="2"
+                  key={scene.id}
+                  role="treeitem"
+                  type="button"
+                  onClick={() => onScenePlay(scene.id)}
+                >
+                  <span className="tree-spacer" />
+                  <Play size={15} />
+                  <span>{scene.name}</span>
+                  <small>{labels.runScene}</small>
+                </button>
+              )) : (
+                <div className="tree-empty" data-depth="2" role="treeitem">
+                  <span className="tree-spacer" />
+                  <span className="tree-empty-dot" />
+                  <span>{labels.emptyScenes}</span>
                 </div>
               )}
             </div>

@@ -45,7 +45,7 @@ describe("SolidLoom model service", () => {
     });
     expect(createdResponse.statusCode).toBe(201);
     const created = createdResponse.json();
-    expect(created).toMatchObject({ name: "桌面挂钩", unit: "mm", revision: 1 });
+    expect(created).toMatchObject({ kind: "asset", name: "桌面挂钩", unit: "mm", revision: 1 });
     expect(created.featureGraph.features).toHaveLength(1);
     expect(created.featureGraph.groups).toEqual([]);
     expect(created.featureGraph.features[0]).toMatchObject({ type: "box", operation: "add" });
@@ -168,6 +168,34 @@ describe("SolidLoom model service", () => {
     expect(deleted.statusCode).toBe(204);
     const missing = await app.inject({ method: "GET", url: `/api/models/${created.id}` });
     expect(missing.statusCode).toBe(404);
+  });
+
+  it("persists scenes separately from reusable assets", async () => {
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/models",
+      payload: {
+        kind: "scene",
+        name: "入口验证场景",
+        featureGraph: { version: 1, features: [], groups: [], references: [] },
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ kind: "scene", name: "入口验证场景", revision: 1 });
+
+    const switched = await app.inject({
+      method: "PATCH",
+      url: `/api/models/${created.json().id}`,
+      payload: { expectedRevision: 1, kind: "asset" },
+    });
+    expect(switched.statusCode).toBe(200);
+    expect(switched.json()).toMatchObject({ kind: "asset", revision: 2 });
+
+    const removed = await app.inject({
+      method: "DELETE",
+      url: `/api/models/${created.json().id}?expectedRevision=2`,
+    });
+    expect(removed.statusCode).toBe(204);
   });
 
   it("persists a derived triangle-mesh result", async () => {

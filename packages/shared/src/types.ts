@@ -1,4 +1,5 @@
 export type Unit = "mm" | "cm" | "in";
+export type DocumentKind = "asset" | "scene";
 export type FeatureOperation = "add" | "cut";
 export type Vector3Tuple = [number, number, number];
 export type CornerAlgorithm = "circular" | "smooth";
@@ -219,13 +220,19 @@ export interface ModelReferencePhysics {
 
 export interface ModelReferenceInteraction {
   id: string;
-  kind: "power" | "seat" | "door" | "articulation";
+  kind: "power" | "seat" | "door" | "articulation" | "container";
+  anchorPosition?: Vector3Tuple;
   range?: number;
   targetFeatureIds?: string[];
   openAngle?: number;
   jointId?: string;
   closedValue?: number;
   openValue?: number;
+  containerCapacity?: number;
+  containerItems?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export interface ModelReferenceInstance {
@@ -257,6 +264,7 @@ export interface FeatureGraph {
 
 export interface ModelRecord {
   id: string;
+  kind: DocumentKind;
   name: string;
   description: string;
   unit: Unit;
@@ -267,6 +275,7 @@ export interface ModelRecord {
 }
 
 export interface CreateModelInput {
+  kind?: DocumentKind;
   name: string;
   description?: string;
   unit?: Unit;
@@ -275,6 +284,7 @@ export interface CreateModelInput {
 
 export interface UpdateModelInput {
   expectedRevision: number;
+  kind?: DocumentKind;
   name?: string;
   description?: string;
   unit?: Unit;

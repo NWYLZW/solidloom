@@ -13,6 +13,7 @@ import type {
 
 interface ModelRow {
   id: string;
+  kind: ModelRecord["kind"];
   name: string;
   description: string;
   unit: ModelRecord["unit"];
@@ -53,6 +54,7 @@ function defaultFeatureGraph(): FeatureGraph {
 function toModel(row: ModelRow): ModelRecord {
   return {
     id: row.id,
+    kind: row.kind,
     name: row.name,
     description: row.description,
     unit: row.unit,
@@ -74,6 +76,7 @@ export class ModelRepository {
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS models (
         id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL DEFAULT 'asset' CHECK (kind IN ('asset', 'scene')),
         name TEXT NOT NULL,
         description TEXT NOT NULL,
         unit TEXT NOT NULL CHECK (unit IN ('mm', 'cm', 'in')),
@@ -84,6 +87,10 @@ export class ModelRepository {
       );
       CREATE INDEX IF NOT EXISTS models_updated_at_index ON models(updated_at DESC);
     `);
+    const columns = this.database.prepare("PRAGMA table_info(models)").all() as unknown as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "kind")) {
+      this.database.exec("ALTER TABLE models ADD COLUMN kind TEXT NOT NULL DEFAULT 'asset' CHECK (kind IN ('asset', 'scene'))");
+    }
   }
 
   close(): void {
@@ -106,6 +113,7 @@ export class ModelRepository {
     const now = new Date().toISOString();
     const model: ModelRecord = {
       id: randomUUID(),
+      kind: input.kind ?? "asset",
       name: input.name.trim(),
       description: input.description?.trim() ?? "",
       unit: input.unit ?? "mm",
@@ -115,10 +123,11 @@ export class ModelRepository {
       updatedAt: now,
     };
     this.database.prepare(`
-      INSERT INTO models (id, name, description, unit, revision, feature_graph, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO models (id, kind, name, description, unit, revision, feature_graph, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       model.id,
+      model.kind,
       model.name,
       model.description,
       model.unit,
@@ -139,6 +148,7 @@ export class ModelRepository {
 
     const updated: ModelRecord = {
       ...current,
+      kind: input.kind ?? current.kind,
       name: input.name?.trim() ?? current.name,
       description: input.description?.trim() ?? current.description,
       unit: input.unit ?? current.unit,
@@ -147,9 +157,10 @@ export class ModelRepository {
     };
     const result = this.database.prepare(`
       UPDATE models
-      SET name = ?, description = ?, unit = ?, revision = ?, updated_at = ?
+      SET kind = ?, name = ?, description = ?, unit = ?, revision = ?, updated_at = ?
       WHERE id = ? AND revision = ?
     `).run(
+      updated.kind,
       updated.name,
       updated.description,
       updated.unit,

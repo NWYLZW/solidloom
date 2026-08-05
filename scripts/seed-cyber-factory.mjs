@@ -1,4 +1,8 @@
-import { createCyberOfficeSpaceModel, cyberFactoryModels } from "@solidloom/shared";
+import {
+  createCyberOfficeSpaceModel,
+  createInteractionPlaygroundModel,
+  cyberFactoryModels,
+} from "@solidloom/shared";
 
 const server = (process.env.SOLIDLOOM_URL ?? "http://127.0.0.1:4310").replace(/\/+$/, "");
 
@@ -46,11 +50,12 @@ for (const specification of [...cyberFactoryModels].reverse()) {
   if (existing) {
     let current = existing;
     let changed = false;
-    if (current.description !== specification.description || current.unit !== specification.unit) {
+    if (current.kind !== (specification.kind ?? "asset") || current.description !== specification.description || current.unit !== specification.unit) {
       current = await request(`/api/models/${encodeURIComponent(current.id)}`, {
         method: "PATCH",
         body: {
           expectedRevision: current.revision,
+          kind: specification.kind ?? "asset",
           description: specification.description,
           unit: specification.unit,
         },
@@ -82,7 +87,8 @@ const desk = sourceByName.get("办公桌");
 const monitor = sourceByName.get("电脑显示器");
 const laptop = sourceByName.get("笔记本");
 const chair = sourceByName.get("简易人体工学椅");
-if (!room || !desk || !monitor || !laptop || !chair) throw new Error("创建办公空间前必须先存在房间、办公桌、电脑显示器、笔记本和简易人体工学椅模型。");
+const snackCabinet = sourceByName.get("参数化零食售货机");
+if (!room || !desk || !monitor || !laptop || !chair || !snackCabinet) throw new Error("创建场景前必须先存在房间、办公桌、电脑显示器、笔记本、简易人体工学椅和参数化零食售货机模型。");
 
 const spaceSpecification = createCyberOfficeSpaceModel({
   roomId: room.id,
@@ -98,11 +104,12 @@ if (!existingSpace) {
 } else {
   let current = existingSpace;
   let changed = false;
-  if (current.description !== spaceSpecification.description || current.unit !== spaceSpecification.unit) {
+  if (current.kind !== (spaceSpecification.kind ?? "asset") || current.description !== spaceSpecification.description || current.unit !== spaceSpecification.unit) {
     current = await request(`/api/models/${encodeURIComponent(current.id)}`, {
       method: "PATCH",
       body: {
         expectedRevision: current.revision,
+        kind: spaceSpecification.kind ?? "asset",
         description: spaceSpecification.description,
         unit: spaceSpecification.unit,
       },
@@ -118,6 +125,43 @@ if (!existingSpace) {
   }
   if (changed) replaced.push({ id: current.id, name: current.name, revision: current.revision, features: current.featureGraph.features.length, references: current.featureGraph.references?.length ?? 0 });
   else skipped.push(spaceSpecification.name);
+}
+
+const playgroundSpecification = createInteractionPlaygroundModel({
+  roomId: room.id,
+  deskId: desk.id,
+  monitorId: monitor.id,
+  chairId: chair.id,
+  snackCabinetId: snackCabinet.id,
+});
+const existingPlayground = sourceByName.get(playgroundSpecification.name);
+if (!existingPlayground) {
+  const playground = await request("/api/models", { method: "POST", body: playgroundSpecification });
+  created.push({ id: playground.id, name: playground.name, features: 0, references: playground.featureGraph.references?.length ?? 0 });
+} else {
+  let current = existingPlayground;
+  let changed = false;
+  if (current.kind !== (playgroundSpecification.kind ?? "asset") || current.description !== playgroundSpecification.description || current.unit !== playgroundSpecification.unit) {
+    current = await request(`/api/models/${encodeURIComponent(current.id)}`, {
+      method: "PATCH",
+      body: {
+        expectedRevision: current.revision,
+        kind: playgroundSpecification.kind ?? "asset",
+        description: playgroundSpecification.description,
+        unit: playgroundSpecification.unit,
+      },
+    });
+    changed = true;
+  }
+  if (canonicalJson(current.featureGraph) !== canonicalJson(playgroundSpecification.featureGraph)) {
+    current = await request(`/api/models/${encodeURIComponent(current.id)}/features`, {
+      method: "PUT",
+      body: { expectedRevision: current.revision, featureGraph: playgroundSpecification.featureGraph },
+    });
+    changed = true;
+  }
+  if (changed) replaced.push({ id: current.id, name: current.name, revision: current.revision, features: 0, references: current.featureGraph.references?.length ?? 0 });
+  else skipped.push(playgroundSpecification.name);
 }
 
 process.stdout.write(`${JSON.stringify({ project: "赛博工厂", created, replaced, skipped }, null, 2)}\n`);

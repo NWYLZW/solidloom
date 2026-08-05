@@ -158,6 +158,7 @@ export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): Crea
     }],
   }, ...stationReferences];
   return {
+    kind: "scene",
     name: "赛博办公空间",
     description: "通过实时模型引用组成的两排八工位办公空间；连续桌面上的笔记本、显示器和椅子采用可复现的自然错落布局，并始终使用源模型的最新修订。",
     unit: "mm",

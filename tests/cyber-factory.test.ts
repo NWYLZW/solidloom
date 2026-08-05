@@ -2,12 +2,49 @@ import { describe, expect, it } from "vitest";
 import {
   applyFeatureGraphExpressions,
   createCyberOfficeSpaceModel,
+  createInteractionPlaygroundModel,
   cyberFactoryModels,
   regenerateProceduralMeshFeature,
   synchronizeRoomAssemblyFeatures,
 } from "@solidloom/shared";
 
 describe("cyber factory examples", () => {
+  it("builds a system-native interaction playground from live references", () => {
+    const playground = createInteractionPlaygroundModel({
+      roomId: "room-model",
+      deskId: "desk-model",
+      monitorId: "monitor-model",
+      chairId: "chair-model",
+      snackCabinetId: "container-model",
+    });
+    expect(playground.kind).toBe("scene");
+    expect(playground.name).toBe("交互试验场");
+    expect(playground.featureGraph.features).toEqual([]);
+    expect(playground.featureGraph.references).toHaveLength(5);
+    expect(playground.featureGraph.references?.flatMap((reference) => reference.interactions ?? []))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          kind: "door",
+          anchorPosition: [-4740, 1210, -650],
+        }),
+        expect.objectContaining({ kind: "power" }),
+        expect.objectContaining({ kind: "seat" }),
+        expect.objectContaining({
+          kind: "container",
+          containerCapacity: 6,
+          containerItems: expect.arrayContaining([
+            expect.objectContaining({ name: "气泡水" }),
+            expect.objectContaining({ name: "能量棒" }),
+          ]),
+        }),
+      ]));
+    expect(playground.featureGraph.navigation).toMatchObject({
+      enabled: true,
+      floorY: 0,
+      agentHeight: 1720,
+    });
+  });
+
   it("builds the office space from live model references instead of copied geometry", () => {
     const space = createCyberOfficeSpaceModel({
       roomId: "room-model",
@@ -16,6 +53,7 @@ describe("cyber factory examples", () => {
       laptopId: "laptop-model",
       chairId: "chair-model",
     });
+    expect(space.kind).toBe("scene");
     expect(space.name).toBe("赛博办公空间");
     expect(space.featureGraph?.features).toEqual([]);
     expect(space.featureGraph?.references).toEqual(expect.arrayContaining([

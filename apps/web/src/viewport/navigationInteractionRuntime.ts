@@ -20,6 +20,7 @@ export interface NavigationInteractionRuntime extends NavigationInteractionDescr
   articulationCurrentValue: number;
   articulationPivot: THREE.Group | null;
   articulationTargetValue: number;
+  containerItems: Array<{ id: string; name: string }>;
   doorPivot: THREE.Group | null;
   dynamicBody: NavigationDynamicBodyRuntime | null;
   powerMaterials: Array<{
@@ -27,6 +28,7 @@ export interface NavigationInteractionRuntime extends NavigationInteractionDescr
     emissiveIntensity: number;
     material: THREE.MeshStandardMaterial;
   }>;
+  proximityAnchor: THREE.Object3D | null;
   raycastMeshes: THREE.Mesh[];
   targetMeshes: THREE.Mesh[];
 }
@@ -35,6 +37,7 @@ interface CreateNavigationInteractionRuntimesOptions {
   featureGroupById: Map<string, THREE.Group>;
   featureMeshById: Map<string, THREE.Mesh>;
   interactions: NavigationInteractionDescriptor[];
+  savedContainerItems: Map<string, Array<{ id: string; name: string }>> | undefined;
   savedStates: Map<string, boolean> | undefined;
 }
 
@@ -42,11 +45,19 @@ export function createNavigationInteractionRuntimes({
   featureGroupById,
   featureMeshById,
   interactions,
+  savedContainerItems,
   savedStates,
 }: CreateNavigationInteractionRuntimesOptions): NavigationInteractionRuntime[] {
   return interactions.flatMap((interaction) => {
     const groupObject = featureGroupById.get(interaction.groupId);
     if (!groupObject) return [];
+    let proximityAnchor: THREE.Object3D | null = null;
+    if (interaction.anchorPosition) {
+      proximityAnchor = new THREE.Object3D();
+      proximityAnchor.name = `navigation-interaction-anchor:${interaction.id}`;
+      proximityAnchor.position.set(...interaction.anchorPosition);
+      groupObject.add(proximityAnchor);
+    }
     const targetMeshes = interaction.targetFeatureIds
       .map((featureId) => featureMeshById.get(featureId))
       .filter((mesh): mesh is THREE.Mesh => Boolean(mesh));
@@ -126,9 +137,13 @@ export function createNavigationInteractionRuntimes({
       articulationCurrentValue: interaction.kind === "articulation" ? articulationTargetValue : 0,
       articulationPivot,
       articulationTargetValue,
+      containerItems: savedContainerItems?.get(interaction.id)?.map((item) => ({ ...item }))
+        ?? interaction.containerItems?.map((item) => ({ ...item }))
+        ?? [],
       doorPivot,
       dynamicBody: null,
       powerMaterials,
+      proximityAnchor,
       raycastMeshes,
       targetMeshes,
     };

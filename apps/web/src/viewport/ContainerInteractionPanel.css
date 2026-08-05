@@ -1,0 +1,100 @@
+.interaction-container-panel {
+  position: absolute;
+  z-index: 8;
+  right: var(--panel-edge-inset);
+  bottom: var(--panel-edge-inset);
+  display: grid;
+  width: min(300px, calc(100% - 28px));
+  gap: 10px;
+  padding: var(--panel-edge-inset);
+  border: 1px solid color-mix(in srgb, #9cad74 72%, var(--color-border));
+  border-radius: 8px;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-panel) 95%, transparent);
+  box-shadow: 0 14px 34px rgba(18, 21, 17, 0.24);
+  backdrop-filter: blur(12px);
+}
+
+.interaction-container-header,
+.interaction-container-header > div,
+.interaction-container-actions {
+  display: flex;
+  align-items: center;
+}
+
+.interaction-container-header {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.interaction-container-header > div {
+  min-width: 0;
+  gap: 8px;
+}
+
+.interaction-container-header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interaction-container-header span,
+.interaction-container-panel small {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.interaction-container-close {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  background: var(--color-control);
+}
+
+.interaction-container-items {
+  display: flex;
+  min-height: 54px;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+}
+
+.interaction-container-items p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.interaction-container-item {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-control);
+  font-size: 10px;
+}
+
+.interaction-container-actions {
+  gap: 8px;
+}
+
+.interaction-container-actions button {
+  min-height: 32px;
+  flex: 1;
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  background: var(--color-control);
+}
+
+.interaction-container-actions button:hover:not(:disabled) {
+  background: color-mix(in srgb, #9cad74 18%, var(--color-control));
+}
+
+.interaction-container-actions button:disabled {
+  opacity: 0.45;
+}

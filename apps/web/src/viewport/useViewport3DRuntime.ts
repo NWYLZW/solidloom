@@ -15,7 +15,12 @@ import { createRoomSurfaceVisibilityRuntime } from "./roomSurfaceVisibilityRunti
 import { createRuntimeLifecycle } from "./runtimeLifecycle";
 import { GRID_DISPLAY_OFFSET } from "./scenePrimitives";
 import { createSelectionTransformRuntime } from "./selectionTransformRuntime";
-import type { TransformMode, Viewport3DProps } from "./types";
+import type {
+  NavigationContainerOperation,
+  NavigationContainerPanelState,
+  TransformMode,
+  Viewport3DProps,
+} from "./types";
 import { createViewportPointerRuntime } from "./viewportPointerRuntime";
 import {
   createViewportRenderLoopRuntime,
@@ -62,6 +67,10 @@ export function useViewport3DRuntime({
   const updateCutPlaneRef = useRef<((plane: Viewport3DProps["cutPlane"], featureIds: string[], groupId: string | null) => void) | null>(null);
   const playJointAnimationRef = useRef<((request: JointAnimationRequest | null) => void) | null>(null);
   const performNavigationInteractionRef = useRef<((interactionId: string) => void) | null>(null);
+  const performNavigationContainerOperationRef = useRef<((
+    interactionId: string,
+    operation: NavigationContainerOperation,
+  ) => void) | null>(null);
   const savedViewRef = useRef<{
     modelId: string;
     position: THREE.Vector3;
@@ -70,6 +79,7 @@ export function useViewport3DRuntime({
   } | null>(null);
   const savedNavigationStateRef = useRef<SavedNavigationRuntimeState | null>(null);
   const [navigationInteractionPrompts, setNavigationInteractionPrompts] = useState<Array<{ id: string; label: string }>>([]);
+  const [navigationContainerPanel, setNavigationContainerPanel] = useState<NavigationContainerPanelState | null>(null);
   const [navigationAimTargetVisible, setNavigationAimTargetVisible] = useState(false);
   const [rendererFailed, setRendererFailed] = useState(false);
 
@@ -173,12 +183,14 @@ export function useViewport3DRuntime({
       navigationInteractions,
       navigationMode,
       onAimTargetVisibleChange: setNavigationAimTargetVisible,
+      onContainerPanelChange: setNavigationContainerPanel,
       onPromptsChange: setNavigationInteractionPrompts,
       requestRender,
       savedState: savedNavigationStateRef.current,
       scene,
     }));
     performNavigationInteractionRef.current = navigationRuntime.performInteraction;
+    performNavigationContainerOperationRef.current = navigationRuntime.performContainerOperation;
 
     const roomSurfaceVisibilityRuntime = createRoomSurfaceVisibilityRuntime({
       camera,
@@ -328,6 +340,9 @@ export function useViewport3DRuntime({
       if (performNavigationInteractionRef.current === navigationRuntime.performInteraction) {
         performNavigationInteractionRef.current = null;
       }
+      if (performNavigationContainerOperationRef.current === navigationRuntime.performContainerOperation) {
+        performNavigationContainerOperationRef.current = null;
+      }
       savedNavigationStateRef.current = navigationRuntime.captureState();
       if (!navigationMode || navigationCameraMode === "god") {
         savedViewRef.current = {
@@ -378,13 +393,21 @@ export function useViewport3DRuntime({
       ?.querySelector<HTMLCanvasElement>("canvas[data-testid='model-canvas']")
       ?.focus({ preventScroll: true });
   };
+  const performNavigationContainerOperation = (
+    interactionId: string,
+    operation: NavigationContainerOperation,
+  ) => {
+    performNavigationContainerOperationRef.current?.(interactionId, operation);
+  };
 
   return {
     annotationOverlayRef,
     axisWidgetRef,
     containerRef,
     navigationAimTargetVisible,
+    navigationContainerPanel,
     navigationInteractionPrompts,
+    performNavigationContainerOperation,
     performNavigationInteraction,
     rendererFailed,
   };

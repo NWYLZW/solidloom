@@ -1,3 +1,4 @@
+import { ContainerInteractionPanel } from "./viewport/ContainerInteractionPanel";
 import { AnnotationOverlay } from "./viewport/AnnotationOverlay";
 import { NavigationOverlays } from "./viewport/NavigationOverlays";
 import { RendererFallback } from "./viewport/RendererFallback";
@@ -54,6 +55,13 @@ export function Viewport3D(props: Viewport3DProps) {
         onInteraction={runtime.performNavigationInteraction}
         prompts={runtime.navigationInteractionPrompts}
       />
+      {runtime.navigationContainerPanel && (
+        <ContainerInteractionPanel
+          labels={navigationInteractionLabels}
+          onOperation={runtime.performNavigationContainerOperation}
+          state={runtime.navigationContainerPanel}
+        />
+      )}
       {runtime.rendererFailed && (
         <RendererFallback
           failureLabel={rendererFailureLabel}
