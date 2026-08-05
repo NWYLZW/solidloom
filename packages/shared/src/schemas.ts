@@ -465,15 +465,31 @@ export const featureGraphSchema = {
       type: "array",
       maxItems: 128,
       items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "label", "value"],
-        properties: {
-          id: { type: "string", pattern: "^--[A-Za-z][A-Za-z0-9-]*$" },
-          label: { type: "string", minLength: 1, maxLength: 120 },
-          value: { type: "number" },
-          unit: { type: "string", enum: ["mm", "cm", "in"] },
-        },
+        oneOf: [
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "label", "value"],
+            properties: {
+              id: { type: "string", pattern: "^--[A-Za-z][A-Za-z0-9-]*$" },
+              label: { type: "string", minLength: 1, maxLength: 120 },
+              type: { const: "number" },
+              value: { type: "number" },
+              unit: { type: "string", enum: ["mm", "cm", "in"] },
+            },
+          },
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "label", "type", "value"],
+            properties: {
+              id: { type: "string", pattern: "^--[A-Za-z][A-Za-z0-9-]*$" },
+              label: { type: "string", minLength: 1, maxLength: 120 },
+              type: { const: "color" },
+              value: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+            },
+          },
+        ],
       },
     },
   },

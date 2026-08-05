@@ -39,12 +39,23 @@ export interface FeatureBase {
   parameterExpressions?: Record<string, string>;
 }
 
-export interface ModelVariable {
+interface ModelVariableBase {
   id: string;
   label: string;
+}
+
+export interface NumericModelVariable extends ModelVariableBase {
+  type?: "number";
   value: number;
   unit?: Unit;
 }
+
+export interface ColorModelVariable extends ModelVariableBase {
+  type: "color";
+  value: string;
+}
+
+export type ModelVariable = NumericModelVariable | ColorModelVariable;
 
 export interface FeatureGraphGenerator {
   id: string;

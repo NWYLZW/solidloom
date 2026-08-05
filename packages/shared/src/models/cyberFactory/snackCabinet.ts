@@ -10,6 +10,15 @@ import type {
 
 export type SnackCabinetFinish = "graphite" | "porcelain" | "sage";
 
+export interface SnackCabinetColors {
+  accent: string;
+  body: string;
+  darkGlass: string;
+  glass: string;
+  shelf: string;
+  trim: string;
+}
+
 export interface SnackCabinetParameters {
   depth: number;
   finish: SnackCabinetFinish;
@@ -34,6 +43,7 @@ export interface SnackCabinetShelfInventory {
 }
 
 export interface SnackCabinetCreateInput extends Partial<SnackCabinetParameters> {
+  colors?: Partial<SnackCabinetColors>;
   inventory?: readonly SnackCabinetShelfInventory[];
 }
 
@@ -69,6 +79,12 @@ export const snackCabinetVariableIds = {
   width: "--snack-cabinet-width",
   height: "--snack-cabinet-height",
   depth: "--snack-cabinet-depth",
+  bodyColor: "--snack-cabinet-body-color",
+  trimColor: "--snack-cabinet-trim-color",
+  accentColor: "--snack-cabinet-accent-color",
+  shelfColor: "--snack-cabinet-shelf-color",
+  glassColor: "--snack-cabinet-glass-color",
+  darkGlassColor: "--snack-cabinet-dark-glass-color",
 } as const;
 
 const defaultProductWidth = 76;
@@ -142,6 +158,29 @@ const finishPalette: Record<SnackCabinetFinish, {
   porcelain: { body: "#D7D9D4", trim: "#4D5659", accent: "#E58F3A" },
   sage: { body: "#64786F", trim: "#263630", accent: "#D7E85B" },
 };
+
+const defaultShelfColor = "#A8B6B8";
+const defaultGlassColor = "#92D5DE";
+const defaultDarkGlassColor = "#163039";
+
+function normalizedColor(value: string | undefined, fallback: string) {
+  return value && /^#[0-9A-Fa-f]{6}$/.test(value) ? value.toUpperCase() : fallback;
+}
+
+export function normalizeSnackCabinetColors(
+  colors: Partial<SnackCabinetColors> = {},
+  finish: SnackCabinetFinish = defaultSnackCabinetParameters.finish,
+): SnackCabinetColors {
+  const palette = finishPalette[finish];
+  return {
+    body: normalizedColor(colors.body, palette.body),
+    trim: normalizedColor(colors.trim, palette.trim),
+    accent: normalizedColor(colors.accent, palette.accent),
+    shelf: normalizedColor(colors.shelf, defaultShelfColor),
+    glass: normalizedColor(colors.glass, defaultGlassColor),
+    darkGlass: normalizedColor(colors.darkGlass, defaultDarkGlassColor),
+  };
+}
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
@@ -251,16 +290,16 @@ export function normalizeSnackCabinetParameters(
 export function createSnackCabinet(
   input: SnackCabinetCreateInput = {},
 ): CreateModelInput {
-  const { inventory = defaultSnackCabinetInventory, ...parameterInput } = input;
+  const { colors: colorInput, inventory = defaultSnackCabinetInventory, ...parameterInput } = input;
   const parameters = normalizeSnackCabinetParameters(parameterInput);
   const { width, height, depth } = parameters;
-  const colors = finishPalette[parameters.finish];
+  const colors = normalizeSnackCabinetColors(colorInput, parameters.finish);
   const bodyAppearance = { material: "metal" as const, color: colors.body };
   const trimAppearance = { material: "plastic" as const, color: colors.trim };
   const accentAppearance = { material: "plastic" as const, color: colors.accent };
-  const shelfAppearance = { material: "metal" as const, color: "#A8B6B8" };
-  const glassAppearance = { material: "glass" as const, color: "#92D5DE" };
-  const darkGlassAppearance = { material: "glass" as const, color: "#163039" };
+  const shelfAppearance = { material: "metal" as const, color: colors.shelf };
+  const glassAppearance = { material: "glass" as const, color: colors.glass };
+  const darkGlassAppearance = { material: "glass" as const, color: colors.darkGlass };
 
   const baseHeight = Math.max(96, height * 0.055);
   const frameThickness = Math.max(44, width * 0.052);
@@ -422,6 +461,7 @@ export function createSnackCabinet(
         version: 1,
         options: {
           finish: parameters.finish,
+          colors: structuredClone(colors),
           inventory: structuredClone(inventory),
         },
       },
@@ -442,6 +482,12 @@ export function createSnackCabinet(
         { id: snackCabinetVariableIds.width, label: "柜体宽度", value: width, unit: "mm" },
         { id: snackCabinetVariableIds.height, label: "柜体高度", value: height, unit: "mm" },
         { id: snackCabinetVariableIds.depth, label: "柜体深度", value: depth, unit: "mm" },
+        { id: snackCabinetVariableIds.bodyColor, label: "柜体颜色", type: "color", value: colors.body },
+        { id: snackCabinetVariableIds.trimColor, label: "边框颜色", type: "color", value: colors.trim },
+        { id: snackCabinetVariableIds.accentColor, label: "强调颜色", type: "color", value: colors.accent },
+        { id: snackCabinetVariableIds.shelfColor, label: "层架颜色", type: "color", value: colors.shelf },
+        { id: snackCabinetVariableIds.glassColor, label: "展示玻璃颜色", type: "color", value: colors.glass },
+        { id: snackCabinetVariableIds.darkGlassColor, label: "屏幕与挡板颜色", type: "color", value: colors.darkGlass },
       ],
     },
   };
