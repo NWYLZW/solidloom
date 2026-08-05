@@ -105,6 +105,17 @@ const featureBaseProperties = {
     properties: {
       material: { type: "string", enum: ["default", "wood", "metal", "plastic", "glass", "fabric", "rubber"] },
       color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+      voxelSkin: {
+        type: "object",
+        additionalProperties: false,
+        required: ["model", "part", "url"],
+        properties: {
+          model: { type: "string", enum: ["classic", "slim"] },
+          part: { type: "string", enum: ["head", "torso", "leftArm", "rightArm", "leftLeg", "rightLeg"] },
+            segment: { type: "string", enum: ["full", "upper", "lower", "foot"] },
+          url: { type: "string", minLength: 1, maxLength: 400000 },
+        },
+      },
     },
   },
   parameterExpressions: {

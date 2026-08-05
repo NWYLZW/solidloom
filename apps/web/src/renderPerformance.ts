@@ -7,6 +7,22 @@ export interface FeatureShadowPolicy {
   receive: boolean;
 }
 
+export interface ViewportFrameActivity {
+  controlsChanged: boolean;
+  jointAnimationActive: boolean;
+  navigationActive: boolean;
+  renderRequested: boolean;
+  transformActive: boolean;
+  viewTransitionActive: boolean;
+}
+
+export interface ShadowRefreshActivity {
+  jointAnimationActive: boolean;
+  navigationObjectChanged: boolean;
+  roomVisibilityChanged: boolean;
+  transformActive: boolean;
+}
+
 export function featureShadowPolicy(
   feature: ModelFeature,
   geometryBoundingRadius: number,
@@ -21,4 +37,20 @@ export function featureShadowPolicy(
     cast: geometryBoundingRadius * largestScale >= MINIMUM_SHADOW_CASTER_RADIUS,
     receive: true,
   };
+}
+
+export function shouldScheduleViewportFrame(activity: ViewportFrameActivity) {
+  return activity.renderRequested
+    || activity.controlsChanged
+    || activity.viewTransitionActive
+    || activity.jointAnimationActive
+    || activity.transformActive
+    || activity.navigationActive;
+}
+
+export function shouldRefreshShadowMap(activity: ShadowRefreshActivity) {
+  return activity.jointAnimationActive
+    || activity.navigationObjectChanged
+    || activity.roomVisibilityChanged
+    || activity.transformActive;
 }

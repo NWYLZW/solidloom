@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import * as THREE from "three";
 import type { BoxFeature } from "@solidloom/shared";
-import { createFeatureMaterial, resolveFeatureColor } from "../apps/web/src/featureMaterials.js";
+import { createFeatureMaterial, disposeFeatureMaterial, resolveFeatureColor } from "../apps/web/src/featureMaterials.js";
 
 const materials: THREE.Material[] = [];
 const feature = (appearance?: BoxFeature["appearance"]): BoxFeature => ({
@@ -16,10 +16,7 @@ const feature = (appearance?: BoxFeature["appearance"]): BoxFeature => ({
 });
 
 afterEach(() => {
-  for (const material of materials.splice(0)) {
-    if (material instanceof THREE.MeshStandardMaterial) material.map?.dispose();
-    material.dispose();
-  }
+  for (const material of materials.splice(0)) disposeFeatureMaterial(material);
 });
 
 describe("feature materials", () => {
@@ -54,5 +51,16 @@ describe("feature materials", () => {
     expect(rubber.map).toBeNull();
     expect(rubber.roughness).toBeGreaterThan(0.8);
     expect(rubber.metalness).toBeLessThan(0.1);
+  });
+
+  it("reuses bounded procedural textures across repeated materials", () => {
+    const firstWood = createFeatureMaterial(feature({ material: "wood" }));
+    const secondWood = createFeatureMaterial(feature({ material: "wood", color: "#654321" }));
+    const firstFabric = createFeatureMaterial(feature({ material: "fabric" }));
+    const secondFabric = createFeatureMaterial(feature({ material: "fabric", color: "#445566" }));
+    materials.push(firstWood, secondWood, firstFabric, secondFabric);
+
+    expect(firstWood.map).toBe(secondWood.map);
+    expect(firstFabric.map).toBe(secondFabric.map);
   });
 });

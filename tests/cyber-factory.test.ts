@@ -82,7 +82,7 @@ describe("cyber factory examples", () => {
     });
   });
 
-  it("defines the six requested models with stable grouped features", () => {
+  it("defines the factory models with stable grouped features", () => {
     expect(cyberFactoryModels.map((model) => model.name)).toEqual([
       "办公桌",
       "电脑显示器",
@@ -91,8 +91,9 @@ describe("cyber factory examples", () => {
       "房间",
       "简易人体工学椅",
       "极简风小人",
+      "原创方块角色",
     ]);
-    expect(cyberFactoryModels.reduce((total, model) => total + (model.featureGraph?.features.length ?? 0), 0)).toBe(82);
+    expect(cyberFactoryModels.reduce((total, model) => total + (model.featureGraph?.features.length ?? 0), 0)).toBe(90);
 
     for (const model of cyberFactoryModels) {
       const graph = model.featureGraph;
@@ -158,6 +159,46 @@ describe("cyber factory examples", () => {
           appearance: { material: "glass" },
           parameters: { width: 8, height: 496, depth: 438 },
         });
+      } else if (model.name === "原创方块角色") {
+        expect(graph.features).toHaveLength(8);
+        expect(graph.groups).toHaveLength(8);
+        expect(graph.joints).toHaveLength(8);
+        expect(graph.poses?.map((pose) => pose.name)).toEqual(["站立", "招手", "潜行", "坐下"]);
+        expect(graph.animations?.map((animation) => animation.name)).toEqual(["走路", "奔跑", "潜行移动"]);
+        expect(graph.joints.find((joint) => joint.id === "block-avatar-head-joint")?.parentJointId).toBe("block-avatar-torso-joint");
+        expect(graph.joints.find((joint) => joint.id === "block-avatar-left-arm-joint")?.parentJointId).toBe("block-avatar-torso-joint");
+        expect(graph.joints.find((joint) => joint.id === "block-avatar-left-knee-joint")?.parentJointId).toBe("block-avatar-left-leg-joint");
+        expect(graph.poses?.find((pose) => pose.id === "block-avatar-pose-sit")?.jointValues).toMatchObject({
+          "block-avatar-left-leg-joint": -90,
+          "block-avatar-left-knee-joint": 90,
+          "block-avatar-right-leg-joint": -90,
+          "block-avatar-right-knee-joint": 90,
+        });
+        expect(graph.features.every((feature) => (
+          feature.type === "box"
+          && feature.appearance?.voxelSkin?.url === "builtin:solidloom-block-avatar"
+          && feature.appearance.voxelSkin.model === "classic"
+        ))).toBe(true);
+        expect(graph.features.map((feature) => feature.appearance?.voxelSkin?.part)).toEqual([
+          "head",
+          "torso",
+          "leftArm",
+          "rightArm",
+          "leftLeg",
+          "leftLeg",
+          "rightLeg",
+          "rightLeg",
+        ]);
+        expect(graph.features.map((feature) => feature.appearance?.voxelSkin?.segment)).toEqual([
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          "upper",
+          "lower",
+          "upper",
+          "lower",
+        ]);
       } else {
         expect(graph.features.length).toBeGreaterThanOrEqual(6);
         expect(graph.groups?.length).toBeGreaterThanOrEqual(2);

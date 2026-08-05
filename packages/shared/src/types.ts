@@ -3,9 +3,19 @@ export type FeatureOperation = "add" | "cut";
 export type Vector3Tuple = [number, number, number];
 export type CornerAlgorithm = "circular" | "smooth";
 export type FeatureMaterialPreset = "default" | "wood" | "metal" | "plastic" | "glass" | "fabric" | "rubber";
+export type VoxelSkinModel = "classic" | "slim";
+export type VoxelSkinPart = "head" | "torso" | "leftArm" | "rightArm" | "leftLeg" | "rightLeg";
+export type VoxelSkinSegment = "full" | "upper" | "lower" | "foot";
+export interface VoxelSkinAppearance {
+  model: VoxelSkinModel;
+  part: VoxelSkinPart;
+  segment?: VoxelSkinSegment;
+  url: string;
+}
 export interface FeatureAppearance {
   material?: FeatureMaterialPreset;
   color?: string;
+  voxelSkin?: VoxelSkinAppearance;
 }
 export type BoxCornerKey =
   | "xMinYMinZMin"

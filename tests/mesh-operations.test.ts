@@ -41,6 +41,10 @@ describe("mesh operations", () => {
       parameters: { ...cylinder.parameters, radius: 24 },
     })).not.toBe(featureGeometryCacheKey(cylinder));
     expect(featureTriangleCount(cylinder)).toBe(128);
+    const reducedGeometry = createFeatureGeometry(cylinder, "reduced");
+    expect(reducedGeometry.index!.count / 3).toBe(48);
+    expect(featureGeometryCacheKey(cylinder, "reduced")).not.toBe(featureGeometryCacheKey(cylinder));
+    reducedGeometry.dispose();
   });
 
   it("serializes boolean results as persistent mesh features", () => {

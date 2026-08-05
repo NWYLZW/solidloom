@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { BoxFeature } from "@solidloom/shared";
-import { featureShadowPolicy } from "../apps/web/src/renderPerformance";
+import {
+  featureShadowPolicy,
+  shouldRefreshShadowMap,
+  shouldScheduleViewportFrame,
+} from "../apps/web/src/renderPerformance";
 
 const feature = (overrides: Partial<BoxFeature> = {}): BoxFeature => ({
   id: "surface",
@@ -29,5 +33,39 @@ describe("viewport render performance policies", () => {
     expect(featureShadowPolicy(feature(), 8)).toEqual({ cast: false, receive: true });
     expect(featureShadowPolicy(feature({ scale: [3, 1, 1] }), 8)).toEqual({ cast: true, receive: true });
     expect(featureShadowPolicy(feature(), 32)).toEqual({ cast: true, receive: true });
+  });
+
+  it("stops scheduling frames when the viewport is completely idle", () => {
+    expect(shouldScheduleViewportFrame({
+      controlsChanged: false,
+      jointAnimationActive: false,
+      navigationActive: false,
+      renderRequested: false,
+      transformActive: false,
+      viewTransitionActive: false,
+    })).toBe(false);
+    expect(shouldScheduleViewportFrame({
+      controlsChanged: false,
+      jointAnimationActive: false,
+      navigationActive: true,
+      renderRequested: false,
+      transformActive: false,
+      viewTransitionActive: false,
+    })).toBe(true);
+  });
+
+  it("refreshes shadows only for scene changes", () => {
+    expect(shouldRefreshShadowMap({
+      jointAnimationActive: false,
+      navigationObjectChanged: false,
+      roomVisibilityChanged: false,
+      transformActive: false,
+    })).toBe(false);
+    expect(shouldRefreshShadowMap({
+      jointAnimationActive: false,
+      navigationObjectChanged: true,
+      roomVisibilityChanged: false,
+      transformActive: false,
+    })).toBe(true);
   });
 });

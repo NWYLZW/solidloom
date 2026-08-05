@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { FeatureMaterialPreset, ModelFeature } from "@solidloom/shared";
+import { createVoxelSkinMaterialLayers } from "./voxelSkin";
 
 export const FEATURE_MATERIAL_COLORS: Record<FeatureMaterialPreset, string> = {
   default: "#b9c9ad",
@@ -11,12 +12,17 @@ export const FEATURE_MATERIAL_COLORS: Record<FeatureMaterialPreset, string> = {
   rubber: "#303638",
 };
 
+const sharedFeatureTextures = new Set<THREE.Texture>();
+let woodGrainTexture: THREE.DataTexture | null = null;
+let fabricWeaveTexture: THREE.DataTexture | null = null;
+
 export function resolveFeatureColor(feature: ModelFeature) {
   return feature.appearance?.color
     ?? FEATURE_MATERIAL_COLORS[feature.appearance?.material ?? "default"];
 }
 
 function createWoodGrainTexture() {
+  if (woodGrainTexture) return woodGrainTexture;
   const size = 64;
   const data = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y += 1) {
@@ -37,10 +43,13 @@ function createWoodGrainTexture() {
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(1.5, 1.5);
   texture.needsUpdate = true;
-  return texture;
+  woodGrainTexture = texture;
+  sharedFeatureTextures.add(texture);
+  return woodGrainTexture;
 }
 
 function createFabricWeaveTexture() {
+  if (fabricWeaveTexture) return fabricWeaveTexture;
   const size = 32;
   const data = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y += 1) {
@@ -61,7 +70,16 @@ function createFabricWeaveTexture() {
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(4, 4);
   texture.needsUpdate = true;
-  return texture;
+  fabricWeaveTexture = texture;
+  sharedFeatureTextures.add(texture);
+  return fabricWeaveTexture;
+}
+
+export function disposeFeatureMaterial(material: THREE.Material) {
+  if (material instanceof THREE.MeshStandardMaterial
+    && material.map
+    && !sharedFeatureTextures.has(material.map)) material.map.dispose();
+  material.dispose();
 }
 
 export function createFeatureMaterial(feature: ModelFeature): THREE.MeshStandardMaterial {
@@ -141,4 +159,17 @@ export function createFeatureMaterial(feature: ModelFeature): THREE.MeshStandard
     roughness: 0.62,
     metalness: 0.04,
   });
+}
+
+export function createFeatureMaterialSet(
+  feature: ModelFeature,
+  onTextureReady?: () => void,
+): {
+  base: THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
+  overlay?: THREE.MeshStandardMaterial[];
+} {
+  const skinLayers = createVoxelSkinMaterialLayers(feature, onTextureReady);
+  return skinLayers
+    ? skinLayers
+    : { base: createFeatureMaterial(feature) };
 }

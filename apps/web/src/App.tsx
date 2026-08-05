@@ -67,6 +67,7 @@ import {
   type RoomShellSource,
   type Unit,
   type Vector3Tuple,
+  type VoxelSkinModel,
 } from "@solidloom/shared";
 import {
   ApiError,
@@ -84,6 +85,7 @@ import { ModelActionsPanel } from "./components/ModelActionsPanel";
 import { SelectionSummary, type SelectionSummaryIcon } from "./components/SelectionSummary";
 import { StatusBar } from "./components/StatusBar";
 import { TopBar } from "./components/TopBar";
+import { VoxelSkinPanel } from "./components/VoxelSkinPanel";
 import { resolveFeatureColor } from "./featureMaterials";
 import { evaluateBoolean, evaluatePlaneCut, featureTriangleCount, featureVolume, type BooleanOperation } from "./meshOperations";
 import { upsertModelInStableOrder } from "./modelCollection";
@@ -94,6 +96,7 @@ import {
   resolveModelReferences,
 } from "./modelReferences";
 import { readTreeUrlState, writeTreeUrlState } from "./treeUrlState";
+import { BUILTIN_VOXEL_SKIN_URL } from "./voxelSkin";
 
 type ServiceState = "checking" | "online" | "offline";
 type Locale = "zh-CN" | "en";
@@ -244,6 +247,18 @@ const copyByLocale = {
     color: "颜色",
     resetAppearance: "重置外观",
     useMaterialColor: "使用材质颜色",
+    voxelSkinTitle: "像素皮肤",
+    voxelSkinModel: "手臂模型",
+    voxelSkinClassic: "Classic · 4 像素",
+    voxelSkinSlim: "Slim · 3 像素",
+    voxelSkinSource: "皮肤来源",
+    voxelSkinBuiltIn: "内置原创皮肤",
+    voxelSkinImported: "本地导入皮肤",
+    voxelSkinImport: "导入 64×64 PNG",
+    voxelSkinReset: "恢复默认",
+    voxelSkinHint: "兼容通用 64×64 皮肤布局，基础身体与略微外扩的透明服饰层会分别渲染；图片只保存在当前本地模型中。",
+    voxelSkinInvalid: "请选择有效的 64×64 PNG 皮肤文件。",
+    voxelSkinTooLarge: "皮肤文件不能超过 256 KB。",
     metadata: "模型信息",
     selectionSummary: "对象摘要",
     multipleSelection: "多选",
@@ -474,6 +489,18 @@ const copyByLocale = {
     color: "Color",
     resetAppearance: "Reset appearance",
     useMaterialColor: "Use material color",
+    voxelSkinTitle: "Pixel skin",
+    voxelSkinModel: "Arm model",
+    voxelSkinClassic: "Classic · 4 px",
+    voxelSkinSlim: "Slim · 3 px",
+    voxelSkinSource: "Skin source",
+    voxelSkinBuiltIn: "Built-in original skin",
+    voxelSkinImported: "Locally imported skin",
+    voxelSkinImport: "Import 64×64 PNG",
+    voxelSkinReset: "Restore default",
+    voxelSkinHint: "Uses the common 64×64 skin layout with base and overlay layers. The image stays in the local model.",
+    voxelSkinInvalid: "Choose a valid 64×64 PNG skin file.",
+    voxelSkinTooLarge: "The skin file must not exceed 256 KB.",
     metadata: "Model information",
     selectionSummary: "Object summary",
     multipleSelection: "Multiple selection",
@@ -795,6 +822,18 @@ export function App() {
   );
   const isDirty = comparableModel(savedModel) !== comparableModel(draftModel);
   const featureGroups = useMemo(() => draftModel?.featureGraph.groups ?? [], [draftModel?.featureGraph.groups]);
+  const voxelSkinFeatures = useMemo(
+    () => draftModel?.featureGraph.features.filter((feature) => feature.appearance?.voxelSkin) ?? [],
+    [draftModel?.featureGraph.features],
+  );
+  const voxelSkin = voxelSkinFeatures[0]?.appearance?.voxelSkin ?? null;
+  const navigationAvatarSkin = useMemo(() => {
+    const avatarModel = models.find((item) => item.name === "原创方块角色")
+      ?? models.find((item) => item.featureGraph.features.some((feature) => feature.appearance?.voxelSkin));
+    const skin = avatarModel?.featureGraph.features.find((feature) => feature.appearance?.voxelSkin)
+      ?.appearance?.voxelSkin;
+    return skin ? { model: skin.model, url: skin.url } : null;
+  }, [models]);
   const locomotionProfile = draftModel?.featureGraph.locomotion;
   const locomotionPreview = useMemo(() => locomotionProfile
     ? createLocomotionAnimation(locomotionProfile, draftModel?.featureGraph.animations ?? [], locomotionSpeed)
@@ -1777,6 +1816,53 @@ export function App() {
           const { appearance: _appearance, ...rest } = feature;
           return rest as ModelFeature;
         }),
+      },
+    }));
+  };
+
+  const updateVoxelSkinModel = (nextModel: VoxelSkinModel) => {
+    if (!voxelSkin) return;
+    updateDraftWithHistory((current) => {
+      const torso = current.featureGraph.features.find((feature) => (
+        feature.type === "box" && feature.appearance?.voxelSkin?.part === "torso"
+      ));
+      const pixelSize = torso?.type === "box" ? torso.parameters.width / 8 : null;
+      const features = current.featureGraph.features.map((feature) => {
+        const skin = feature.appearance?.voxelSkin;
+        if (!skin) return feature;
+        const appearance = { ...feature.appearance, voxelSkin: { ...skin, model: nextModel } };
+        if (feature.type !== "box" || pixelSize === null || (skin.part !== "leftArm" && skin.part !== "rightArm")) {
+          return { ...feature, appearance };
+        }
+        const width = pixelSize * (nextModel === "slim" ? 3 : 4);
+        const torsoWidth = torso?.type === "box" ? torso.parameters.width : pixelSize * 8;
+        const direction = skin.part === "leftArm" ? -1 : 1;
+        return {
+          ...feature,
+          appearance,
+          position: [direction * (torsoWidth / 2 + width / 2), feature.position[1], feature.position[2]] as Vector3Tuple,
+          parameters: { ...feature.parameters, width },
+        };
+      });
+      return { ...current, featureGraph: { ...current.featureGraph, features } };
+    });
+  };
+
+  const updateVoxelSkinUrl = (url: string) => {
+    if (!voxelSkin || (!url.startsWith("data:image/png") && url !== BUILTIN_VOXEL_SKIN_URL)) return;
+    updateDraftWithHistory((current) => ({
+      ...current,
+      featureGraph: {
+        ...current.featureGraph,
+        features: current.featureGraph.features.map((feature) => feature.appearance?.voxelSkin
+          ? {
+              ...feature,
+              appearance: {
+                ...feature.appearance,
+                voxelSkin: { ...feature.appearance.voxelSkin, url },
+              },
+            }
+          : feature),
       },
     }));
   };
@@ -2941,6 +3027,7 @@ export function App() {
             }}
             onTransformCommit={commitViewportTransforms}
             navigation={draftModel.featureGraph.navigation ?? null}
+            navigationAvatarSkin={navigationAvatarSkin}
             navigationCameraLabels={{
               god: copy.navigationGodCamera,
               "first-person": copy.navigationFirstPerson,
@@ -3023,6 +3110,28 @@ export function App() {
                       </label>
                     ))}
                   </div>
+                )}
+                {selectedFeatures.length === 0 && !selectedGroup && !selectedReference && voxelSkin && (
+                  <VoxelSkinPanel
+                    labels={{
+                      builtIn: copy.voxelSkinBuiltIn,
+                      classic: copy.voxelSkinClassic,
+                      hint: copy.voxelSkinHint,
+                      import: copy.voxelSkinImport,
+                      imported: copy.voxelSkinImported,
+                      invalid: copy.voxelSkinInvalid,
+                      model: copy.voxelSkinModel,
+                      reset: copy.voxelSkinReset,
+                      slim: copy.voxelSkinSlim,
+                      source: copy.voxelSkinSource,
+                      title: copy.voxelSkinTitle,
+                      tooLarge: copy.voxelSkinTooLarge,
+                    }}
+                    model={voxelSkin.model}
+                    onModelChange={updateVoxelSkinModel}
+                    onSkinUrlChange={updateVoxelSkinUrl}
+                    skinUrl={voxelSkin.url}
+                  />
                 )}
                 {selectedFeatures.length === 0 && !selectedGroup && !selectedReference && (draftModel?.featureGraph.joints?.length ?? 0) > 0 && (
                   <ModelActionsPanel
