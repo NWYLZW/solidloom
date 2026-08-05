@@ -11,8 +11,14 @@
         --ink: #eef6f4;
         --muted: #8fa7a4;
         --line: rgba(151, 190, 184, 0.2);
-        --surface: rgba(14, 22, 26, 0.82);
+        --surface: rgba(14, 22, 26, 0.84);
         --accent: #58d7c5;
+        --warning: #f3d45c;
+        --danger: #ef8c78;
+        --panel-edge-inset: 14px;
+        --panel-padding: var(--panel-edge-inset);
+        --control-padding-y: 8px;
+        --control-padding-x: 10px;
       }
 
       * { box-sizing: border-box; }
@@ -24,6 +30,7 @@
         color: var(--ink);
       }
 
+      button, input, select { font: inherit; }
       #preview-root { position: relative; }
       #preview-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
@@ -31,7 +38,7 @@
         position: absolute;
         top: 22px;
         left: 24px;
-        max-width: min(390px, calc(100% - 48px));
+        max-width: min(430px, calc(100% - 48px));
         pointer-events: none;
       }
       .eyebrow {
@@ -46,74 +53,173 @@
       .badge {
         border: 1px solid var(--line);
         border-radius: 999px;
-        background: rgba(12, 19, 23, 0.64);
+        background: rgba(12, 19, 23, 0.68);
         color: #c7d8d5;
         padding: 6px 10px;
         font-size: 11px;
+      }
+      .badge[data-active="true"] { border-color: rgba(88, 215, 197, 0.7); color: var(--accent); }
+
+      .controls,
+      .virtual-menu,
+      .legend {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+        backdrop-filter: blur(18px);
       }
 
       .controls {
         position: absolute;
         top: 22px;
         right: 24px;
-        width: 290px;
-        border: 1px solid var(--line);
+        width: 304px;
         border-radius: 16px;
-        background: var(--surface);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
-        backdrop-filter: blur(18px);
-        padding: 16px;
+        padding: var(--panel-padding);
       }
       .controls h2 { margin: 0 0 4px; font-size: 14px; }
       .control-note { margin: 0 0 14px; color: var(--muted); font-size: 11px; }
-      .control-row { display: grid; grid-template-columns: 62px 1fr 52px; gap: 9px; align-items: center; margin-top: 10px; }
+      .control-row {
+        display: grid;
+        grid-template-columns: 62px 1fr 52px;
+        gap: 9px;
+        align-items: center;
+        margin-top: 10px;
+      }
       .control-row label { color: #c6d6d3; font-size: 12px; }
       .control-row output { color: var(--accent); font-size: 11px; text-align: right; }
       input[type="range"] { width: 100%; accent-color: var(--accent); }
-      select, button {
+      select,
+      .action-button {
         width: 100%;
         min-height: 36px;
         border: 1px solid rgba(126, 170, 164, 0.28);
         border-radius: 9px;
-        background: rgba(24, 36, 41, 0.9);
+        background: rgba(24, 36, 41, 0.92);
         color: var(--ink);
-        padding: 7px 9px;
-        font: inherit;
+        padding: var(--control-padding-y) var(--control-padding-x);
       }
       .select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
       .select-row label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
-      button { margin-top: 10px; cursor: pointer; }
-      button[aria-pressed="true"] { border-color: var(--accent); background: rgba(53, 132, 124, 0.3); }
-      .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+      .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 10px; }
+      .action-button { cursor: pointer; }
+      .action-button:hover,
+      .action-button:focus-visible { border-color: rgba(88, 215, 197, 0.75); outline: none; }
+      .action-button[aria-pressed="true"] {
+        border-color: var(--accent);
+        background: rgba(53, 132, 124, 0.3);
+      }
+
+      .virtual-menu {
+        position: absolute;
+        top: 178px;
+        left: 24px;
+        width: 422px;
+        max-height: calc(100% - 208px);
+        overflow: auto;
+        border-radius: 16px;
+        padding: var(--panel-padding);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(12px) scale(0.98);
+        transform-origin: top left;
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+      .virtual-menu[data-visible="true"] {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+      .menu-heading { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+      .menu-heading h2 { margin: 0; font-size: 17px; }
+      .menu-heading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+      .sensor-state {
+        flex: none;
+        border: 1px solid rgba(88, 215, 197, 0.45);
+        border-radius: 999px;
+        color: var(--accent);
+        padding: 5px 8px;
+        font-size: 10px;
+      }
+
+      .stock-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 7px;
+        margin-top: 13px;
+      }
+      .stock-item { min-width: 0; }
+      .stock-meta { display: flex; justify-content: space-between; gap: 4px; color: #b8cac7; font-size: 9px; }
+      .stock-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .stock-value { color: var(--muted); white-space: nowrap; }
+      .stock-track {
+        height: 4px;
+        margin-top: 5px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(151, 190, 184, 0.14);
+      }
+      .stock-fill { height: 100%; border-radius: inherit; background: var(--accent); transition: width 220ms ease; }
+      .stock-fill[data-low="true"] { background: var(--danger); }
+
+      .recipe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 13px; }
+      .recipe-card {
+        min-width: 0;
+        min-height: 82px;
+        border: 1px solid rgba(126, 170, 164, 0.25);
+        border-radius: 11px;
+        background: rgba(20, 32, 37, 0.9);
+        color: var(--ink);
+        padding: 10px;
+        text-align: left;
+        cursor: pointer;
+      }
+      .recipe-card:hover,
+      .recipe-card:focus-visible { border-color: var(--accent); outline: none; background: rgba(31, 56, 59, 0.92); }
+      .recipe-card:disabled { cursor: not-allowed; opacity: 0.5; }
+      .recipe-title { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+      .recipe-title strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+      .recipe-ready { flex: none; color: var(--accent); font-size: 9px; }
+      .recipe-ready[data-ready="false"] { color: var(--danger); }
+      .recipe-description { margin-top: 5px; color: var(--muted); font-size: 9px; }
+      .recipe-usage { margin-top: 7px; color: #c3d4d1; font-size: 9px; line-height: 1.45; }
+      .brew-feedback {
+        min-height: 28px;
+        margin-top: 11px;
+        border-left: 2px solid var(--accent);
+        color: #c9dcda;
+        padding: 3px 0 3px 9px;
+        font-size: 10px;
+        line-height: 1.5;
+      }
+      .brew-feedback[data-error="true"] { border-left-color: var(--danger); color: #f2b6aa; }
 
       .legend {
         position: absolute;
-        left: 24px;
+        right: 24px;
         bottom: 22px;
         display: flex;
-        gap: 16px;
-        border: 1px solid var(--line);
+        gap: 14px;
         border-radius: 12px;
-        background: rgba(9, 16, 19, 0.72);
         padding: 10px 12px;
         color: #aec1bd;
         font-size: 11px;
-        backdrop-filter: blur(12px);
         pointer-events: none;
       }
       .legend span { display: flex; gap: 6px; align-items: center; }
       .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px currentColor; }
-      .dot.power { background: #f3d45c; }
+      .dot.proximity { background: #d59cf4; }
+      .dot.power { background: var(--warning); }
       .dot.take { background: #f1ae62; }
-      .dot.socket { background: #88aef0; }
 
-      @media (max-width: 640px) {
-        .brand { top: 16px; left: 16px; max-width: calc(100% - 32px); }
-        .eyebrow { font-size: 10px; }
-        h1 { margin-top: 5px; font-size: 25px; }
+      @media (max-width: 780px) {
+        .brand { top: 12px; left: 12px; max-width: calc(100% - 24px); }
+        .eyebrow { font-size: 9px; }
+        h1 { margin: 4px 0; font-size: 23px; }
         .subtitle { display: none; }
-        .badges { margin-top: 8px; gap: 6px; }
-        .badge { padding: 5px 8px; font-size: 10px; }
+        .badges { margin-top: 7px; gap: 5px; }
+        .badge { padding: 4px 7px; font-size: 9px; }
+
         .controls {
           top: auto;
           right: 12px;
@@ -121,39 +227,82 @@
           left: 12px;
           width: auto;
           border-radius: 14px;
-          padding: 12px;
+          padding: 10px;
         }
-        .controls h2 { font-size: 13px; }
-        .control-note { display: none; }
-        .control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
-        .control-row { grid-template-columns: 42px 1fr; margin-top: 7px; }
-        .control-row output { display: none; }
-        .select-row { margin-top: 9px; }
-        select, button { min-height: 32px; padding: 5px 7px; font-size: 11px; }
-        button { margin-top: 8px; }
-        .button-row { gap: 8px; }
-        .legend { left: 16px; bottom: 242px; gap: 10px; padding: 7px 9px; }
+        .controls h2 { font-size: 12px; }
+        .control-note,
+        .control-grid,
+        .select-row { display: none; }
+        .button-row { gap: 7px; margin-top: 8px; }
+        .action-button { min-height: 32px; padding: 5px 7px; font-size: 10px; }
+
+        .virtual-menu {
+          top: 126px;
+          right: 12px;
+          bottom: auto;
+          left: 12px;
+          width: auto;
+          max-height: calc(100% - 270px);
+          border-radius: 14px;
+          padding: 11px;
+        }
+        .menu-heading h2 { font-size: 14px; }
+        .menu-heading p { font-size: 9px; }
+        .sensor-state { padding: 4px 7px; font-size: 9px; }
+        .stock-grid { gap: 5px; margin-top: 10px; }
+        .stock-meta { display: block; font-size: 8px; }
+        .stock-value { display: block; margin-top: 2px; }
+        .recipe-grid { gap: 6px; margin-top: 10px; }
+        .recipe-card { min-height: 73px; padding: 8px; }
+        .recipe-title strong { font-size: 11px; }
+        .recipe-description,
+        .recipe-usage { font-size: 8px; }
+        .brew-feedback { margin-top: 8px; font-size: 9px; }
+        .legend { display: none; }
       }
     </style>
   </head>
   <body>
     <main id="preview-root">
       <canvas id="preview-canvas" aria-label="参数化咖啡机三维预览"></canvas>
+
       <section class="brand" aria-label="资产信息">
         <div class="eyebrow">赛博工厂 · 茶水区资产</div>
         <h1>参数化咖啡机</h1>
-        <div class="subtitle">紧凑机身、透明水箱、制作与取杯锚点，以及适配窄屏的简化层级。</div>
+        <div class="subtitle">内部维护水、牛奶和多豆种库存；用户接近后显示可制作的饮品菜单。</div>
         <div class="badges">
           <span class="badge" id="device-badge">桌面层级</span>
           <span class="badge" id="dimension-badge">380 × 520 × 440 mm</span>
           <span class="badge" id="power-badge">电源：关闭</span>
+          <span class="badge" id="proximity-badge">用户：远离</span>
           <span class="badge">状态：规划中</span>
         </div>
       </section>
 
-      <section class="controls" aria-label="预览参数">
-        <h2>模型参数</h2>
-        <p class="control-note">拖动视口旋转，滚轮或双指缩放。</p>
+      <section
+        class="virtual-menu"
+        id="virtual-menu"
+        data-visible="false"
+        aria-hidden="true"
+        aria-labelledby="menu-title"
+      >
+        <header class="menu-heading">
+          <div>
+            <h2 id="menu-title">虚拟咖啡菜单</h2>
+            <p>选择后按当前配方自动扣减库存。</p>
+          </div>
+          <span class="sensor-state">接近感应已触发</span>
+        </header>
+        <div class="stock-grid" id="stock-grid" aria-label="耗材库存"></div>
+        <div class="recipe-grid" id="recipe-grid" aria-label="咖啡配方"></div>
+        <div class="brew-feedback" id="brew-feedback" role="status" aria-live="polite">
+          请选择一种饮品。
+        </div>
+      </section>
+
+      <section class="controls" aria-label="预览参数与交互">
+        <h2>模型与交互模拟</h2>
+        <p class="control-note">拖动视口旋转；接近后菜单才会显示。</p>
         <div class="control-grid">
           <div class="control-row">
             <label for="width">宽度</label>
@@ -188,16 +337,18 @@
           </label>
         </div>
         <div class="button-row">
-          <button id="power-toggle" type="button" aria-pressed="false">开启电源</button>
-          <button id="lid-toggle" type="button" aria-pressed="false">打开水箱翻盖</button>
+          <button class="action-button" id="power-toggle" type="button" aria-pressed="false">开启电源</button>
+          <button class="action-button" id="proximity-toggle" type="button" aria-pressed="false">模拟用户接近</button>
+          <button class="action-button" id="refill-stock" type="button">补满全部耗材</button>
+          <button class="action-button" id="lid-toggle" type="button" aria-pressed="false">打开水箱翻盖</button>
         </div>
       </section>
 
       <aside class="legend" aria-label="锚点图例">
+        <span><i class="dot proximity"></i>接近</span>
         <span><i class="dot"></i>制作</span>
         <span><i class="dot power"></i>电源</span>
         <span><i class="dot take"></i>取杯</span>
-        <span><i class="dot socket"></i>杯位</span>
       </aside>
     </main>
     <script type="module" src="./preview.ts"></script>
