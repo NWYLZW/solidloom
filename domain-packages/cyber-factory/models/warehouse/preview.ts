@@ -129,7 +129,7 @@ const assetConfigs: Record<AssetKey, AssetPreviewConfig> = {
   },
   stacker: {
     title: "参数化巷道堆垛机",
-    summary: "紧凑单立柱与 4.5 米短轨为默认配置；跨度、高度、载货台和货叉仍可按仓库参数扩展。",
+    summary: "轨道与立柱默认对齐三跨货架；跨度、高度、载货台和货叉仍可独立配置。",
     defaults: valuesOf(defaultWarehouseStackerCraneParameters),
     parameters: [
       { key: "railLength", label: "轨道长度", minimum: 3_500, maximum: 30_000, step: 500, unit: "毫米" },
@@ -256,7 +256,7 @@ function geometryFor(feature: ModelFeature) {
   return geometry;
 }
 
-function buildAsset(definition: ModelAssetDefinition, position: Vector3Tuple) {
+function buildAsset(definition: ModelAssetDefinition, position: Vector3Tuple, mirrorDepth = false) {
   const graph = definition.createModel().featureGraph!;
   const lod = definition.manifest.lod.find(({ device }) => device === quality)!.levels[0]!;
   const visible = new Set(lod.featureIds ?? graph.features.map(({ id }) => id));
@@ -272,6 +272,7 @@ function buildAsset(definition: ModelAssetDefinition, position: Vector3Tuple) {
     root.add(mesh);
   }
   root.position.set(...position);
+  root.scale.z = mirrorDepth ? -1 : 1;
   assetLayer.add(root);
   return visible.size;
 }
@@ -379,7 +380,7 @@ interface StackerAnimationState {
   lastRenderedAt: number;
 }
 
-const stackerRackPosition: Vector3Tuple = [0, 0, 1_500];
+const stackerRackPosition: Vector3Tuple = [0, 0, -1_500];
 let stackerPose: WarehouseStackerCranePose = { ...defaultWarehouseStackerCranePose };
 let stackerPlan: ValidWarehouseRetrievalPlan | null = null;
 let stackerAnimation: StackerAnimationState | null = null;
@@ -418,30 +419,30 @@ function renderStackerScene(
   const pallet = createWarehousePalletDefinition(defaultWarehousePalletParameters);
   const plan = activeStackerPlan();
   let drawUnits = buildAsset(rack, stackerRackPosition);
-  drawUnits += buildAsset(stacker, [0, 0, 0]);
+  drawUnits += buildAsset(stacker, [0, 0, 0], true);
   if (plan) {
     const shelfY = warehouseRackShelfY(rackParameters, plan.levelIndex) + 22;
     let cargoPosition: Vector3Tuple;
     if (cargoMode === "rack") {
       cargoPosition = [plan.targetPose.travelX, shelfY, stackerRackPosition[2]];
     } else if (cargoMode === "fork") {
-      cargoPosition = [pose.travelX, pose.liftY + 32, stackerParameters.carriageDepth / 2 + pose.forkExtension];
+      cargoPosition = [pose.travelX, pose.liftY + 32, -stackerParameters.carriageDepth / 2 - pose.forkExtension];
     } else {
-      cargoPosition = [0, defaultWarehouseStackerCranePose.liftY + 32, -stackerParameters.carriageDepth];
+      cargoPosition = [pose.travelX, pose.liftY + 32, 0];
     }
     drawUnits += buildAsset(pallet, cargoPosition);
     marker("#54D5C4", [
       plan.targetPose.travelX,
       shelfY + 120,
-      stackerRackPosition[2] - rackParameters.depth / 2 - 180,
+      stackerRackPosition[2] + rackParameters.depth / 2 + 180,
     ], 42);
   }
   if (resetCamera) {
     const railLength = stackerParameters.railLength;
     const distance = Math.max(5_800, railLength * 0.9, stackerParameters.mastHeight * 1.8);
     setCamera(
-      [distance * 0.8, Math.max(3_900, stackerParameters.mastHeight * 1.35), -distance],
-      [900, stackerParameters.mastHeight * 0.46, 700],
+      [distance * 0.8, Math.max(3_900, stackerParameters.mastHeight * 1.35), distance],
+      [900, stackerParameters.mastHeight * 0.46, -700],
       3_200,
       Math.max(18_000, railLength * 2.5),
     );
@@ -473,7 +474,7 @@ function updateStackerAnimation(timestamp: number) {
   }
   if (progress < 1) return;
   if (stackerAnimation.stepIndex === stackerAnimation.plan.steps.length - 1) {
-    stackerTaskStatus.textContent = `演示完成：${stackerAnimation.plan.slotId} 已运送到默认出库位。`;
+    stackerTaskStatus.textContent = `演示完成：${stackerAnimation.plan.slotId} 已运送到左侧载货台出库位。`;
     renderStackerScene(step.pose, "outbound", "取货演示完成");
     stackerAnimation = null;
     return;
@@ -491,8 +492,8 @@ function renderCurrentMode() {
   if (currentMode === "overview") {
     const drawUnits = renderOverview();
     assetTitle.textContent = "仓储与内部物流套件";
-    assetSummary.textContent = "六项资产可独立引用，也可通过货位与搬运锚点组合。";
-    metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · 6 项独立资产`;
+    assetSummary.textContent = "五项资产可独立引用，也可通过货位与搬运锚点组合。";
+    metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · 5 项独立资产`;
     return;
   }
 

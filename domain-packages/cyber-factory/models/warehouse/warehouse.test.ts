@@ -4,6 +4,7 @@ import {
   createWarehouseCartDefinition,
   createWarehousePalletDefinition,
   createWarehouseRackDefinition,
+  createWarehouseStackerCrane,
   createWarehouseStackerCraneDefinition,
   createWarehouseToteDefinition,
   defaultWarehouseRackParameters,
@@ -67,6 +68,25 @@ describe("warehouse and internal logistics asset kit", () => {
     expect(definition.manifest.colliders.every(({ groupId }) => groupId !== warehouseGroupIds.rackStorage)).toBe(true);
   });
 
+  it("keeps the pick face open and aligns every steel beam with its shelf top", () => {
+    const graph = createWarehouseRackDefinition().createModel().featureGraph!;
+    expect(graph.features.some(({ id }) => id.includes("top-beam"))).toBe(false);
+    expect(graph.features.filter(({ id }) => id.includes("level-beam"))).toHaveLength(
+      defaultWarehouseRackParameters.levelCount * 2,
+    );
+    for (let level = 0; level < defaultWarehouseRackParameters.levelCount; level += 1) {
+      const suffix = String(level + 1).padStart(2, "0");
+      const shelf = graph.features.find(({ id }) => id === `warehouse-rack-shelf-b01-l${suffix}`);
+      const frontBeam = graph.features.find(({ id }) => id === `warehouse-rack-level-beam-front-l${suffix}`);
+      expect(shelf?.type).toBe("box");
+      expect(frontBeam?.type).toBe("box");
+      if (shelf?.type !== "box" || frontBeam?.type !== "box") continue;
+      expect(frontBeam.position[1] + frontBeam.parameters.height / 2).toBe(
+        shelf.position[1] + shelf.parameters.height / 2,
+      );
+    }
+  });
+
   it("keeps pallet fork access, tote content storage and cart transport semantics distinct", () => {
     const pallet = createWarehousePalletDefinition({ width: 1_200, depth: 1_000 });
     const tote = createWarehouseToteDefinition({ width: 700, height: 440 });
@@ -111,8 +131,8 @@ describe("warehouse and internal logistics asset kit", () => {
 
   it("uses a compact single-mast default that still reaches every slot in the default rack", () => {
     expect(defaultWarehouseStackerCraneParameters).toEqual({
-      railLength: 4_500,
-      mastHeight: 3_200,
+      railLength: 3_500,
+      mastHeight: 2_600,
       carriageWidth: 900,
       carriageDepth: 700,
       forkReach: 1_200,
@@ -120,11 +140,35 @@ describe("warehouse and internal logistics asset kit", () => {
     const graph = createWarehouseStackerCraneDefinition().createModel().featureGraph!;
     expect(graph.features.some(({ id }) => id === "warehouse-stacker-single-mast")).toBe(true);
     expect(graph.features.some(({ id }) => id === "warehouse-stacker-right-mast")).toBe(false);
-    expect(planWarehouseRetrieval(
+    const outerTopPlan = planWarehouseRetrieval(
       "warehouse-rack-slot-b03-l04",
       defaultWarehouseRackParameters,
       defaultWarehouseStackerCraneParameters,
-    )).toMatchObject({ valid: true });
+    );
+    expect(outerTopPlan).toMatchObject({ valid: true });
+    if (outerTopPlan.valid) {
+      expect(outerTopPlan.targetPose.liftY).toBe(warehouseRackShelfY(defaultWarehouseRackParameters, 3) + 74);
+    }
+  });
+
+  it("keeps retracted forks inside the carriage and extends only toward the rack", () => {
+    const retracted = createWarehouseStackerCrane(defaultWarehouseStackerCraneParameters, { forkExtension: 0 });
+    const extended = createWarehouseStackerCrane(defaultWarehouseStackerCraneParameters, { forkExtension: 900 });
+    const retractedFork = retracted.featureGraph!.features.find(({ id }) => id === "warehouse-stacker-left-fork");
+    const extendedFork = extended.featureGraph!.features.find(({ id }) => id === "warehouse-stacker-left-fork");
+    expect(retractedFork?.type).toBe("box");
+    expect(extendedFork?.type).toBe("box");
+    if (retractedFork?.type !== "box" || extendedFork?.type !== "box") return;
+    expect(retractedFork.parameters.depth).toBe(defaultWarehouseStackerCraneParameters.carriageDepth);
+    expect(retractedFork.position[2] - retractedFork.parameters.depth / 2).toBe(
+      -defaultWarehouseStackerCraneParameters.carriageDepth / 2,
+    );
+    expect(extendedFork.position[2] - extendedFork.parameters.depth / 2).toBe(
+      -defaultWarehouseStackerCraneParameters.carriageDepth / 2,
+    );
+    expect(extendedFork.position[2] + extendedFork.parameters.depth / 2).toBe(
+      defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 900,
+    );
   });
 
   it("turns a stable rack slot id into a deterministic planned retrieval sequence", () => {
@@ -152,6 +196,12 @@ describe("warehouse and internal logistics asset kit", () => {
     ]);
     expect(plan.steps.find(({ id }) => id === "capture")?.plannedActions).toEqual(["attach-cargo"]);
     expect(plan.steps.find(({ id }) => id === "release")?.plannedActions).toEqual(["detach-cargo", "release-slot"]);
+    const maximumTravel = 14_000 / 2 - defaultWarehouseStackerCraneParameters.carriageWidth / 2 - 180;
+    expect(plan.steps.find(({ id }) => id === "deliver")?.pose.travelX).toBe(-maximumTravel);
+    expect(plan.steps.find(({ id }) => id === "release")?.pose.travelX).toBe(-maximumTravel);
+    expect(createWarehouseStackerCraneDefinition().manifest.anchors.find(
+      ({ id }) => id === "warehouse-stacker-outbound-socket",
+    )?.position[2]).toBe(0);
   });
 
   it("rejects malformed, missing and unreachable stacker targets without inventing availability", () => {

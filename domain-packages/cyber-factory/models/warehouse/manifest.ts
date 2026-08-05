@@ -58,7 +58,7 @@ export function createWarehouseRackManifest(
   const detailIds = allIds.filter((id) => id.includes("back-brace"));
   const coreIds = allIds.filter((id) => !detailIds.includes(id));
   const collidable = boxFeatures(graph.features).filter((feature) => (
-    feature.id.includes("upright") || feature.id.includes("shelf-") || feature.id.includes("top-beam")
+    feature.id.includes("upright") || feature.id.includes("shelf-") || feature.id.includes("level-beam")
   ));
   const colliders = collidable.map((feature) => ({
     id: `${feature.id}-collider`,
@@ -365,7 +365,7 @@ export function createWarehouseStackerCraneManifest(
     schemaVersion: 1,
     id: "cyber-factory-warehouse-stacker-crane",
     displayName: "参数化巷道堆垛机",
-    description: "默认采用紧凑单立柱与 4.5 米短轨，并可按仓库跨度扩展的自动化仓储取放设备。",
+    description: "默认轨道宽度和立柱高度与三跨货架对齐，并可按仓库跨度扩展的自动化仓储取放设备。",
     version: "1.0.0",
     kind: "asset",
     modelUnit: "mm",
@@ -388,7 +388,7 @@ export function createWarehouseStackerCraneManifest(
     anchors: [
       { id: "warehouse-stacker-fork-load-socket", label: "货叉装载位", kind: "socket", position: [0, defaultWarehouseStackerCranePose.liftY + 34, parameters.carriageDepth / 2], rotation: [0, 0, 0], range: 620, groupId: warehouseGroupIds.stackerForks, tags: ["warehouse", "cargo", "planned-attachment"] },
       { id: "warehouse-stacker-control-panel", label: "堆垛机控制面板", kind: "interaction", position: [-parameters.carriageWidth * 0.34, 640, -parameters.carriageDepth * 0.65], rotation: [0, 0, 0], range: 720, featureId: "warehouse-stacker-control-cabinet", tags: ["warehouse", "automation", "planned-control"] },
-      { id: "warehouse-stacker-outbound-socket", label: "默认出库位", kind: "placement", position: [0, defaultWarehouseStackerCranePose.liftY, -parameters.carriageDepth], rotation: [0, 180, 0], range: 820, groupId: warehouseGroupIds.stackerCarriage, tags: ["warehouse", "outbound", "planned-attachment"] },
+      { id: "warehouse-stacker-outbound-socket", label: "载货台内出库放置位", kind: "placement", position: [0, defaultWarehouseStackerCranePose.liftY, 0], rotation: [0, 180, 0], range: 620, groupId: warehouseGroupIds.stackerCarriage, tags: ["warehouse", "outbound", "planned-attachment"] },
       { id: "warehouse-stacker-maintenance-approach", label: "堆垛机维护接近位", kind: "approach", position: [0, 0, -parameters.carriageDepth * 1.1], rotation: [0, 0, 0], range: 900, groupId: warehouseGroupIds.stackerTravelFrame, tags: ["warehouse", "maintenance", "navigation"] },
     ],
     joints: [],
