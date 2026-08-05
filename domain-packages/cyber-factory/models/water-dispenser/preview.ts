@@ -15,6 +15,7 @@ const quality: WaterDispenserQuality = requestedQuality === "mobile" ? "mobile" 
 const definition = createWaterDispenserAssetDefinition();
 const model = definition.createModel();
 const graph = model.featureGraph!;
+const previewPose = graph.poses?.find(({ id }) => id === "cabinet-door-open");
 const lod = definition.manifest.lod.find(({ device }) => device === quality)!.levels[0]!;
 const visibleFeatureIds = new Set(lod.featureIds ?? graph.features.map(({ id }) => id));
 const visibleFeatures = graph.features.filter(({ id }) => visibleFeatureIds.has(id));
@@ -106,10 +107,27 @@ function createFeatureMesh(feature: ModelFeature): THREE.Mesh | null {
   return mesh;
 }
 
+function applyPreviewPose(mesh: THREE.Mesh, featureId: string): void {
+  const group = graph.groups?.find(({ featureIds }) => featureIds.includes(featureId));
+  const joint = graph.joints?.find(({ groupId }) => groupId === group?.id);
+  if (!joint) return;
+  const value = previewPose?.jointValues[joint.id] ?? joint.value;
+  if (value === 0) return;
+
+  const pivot = new THREE.Vector3(...joint.pivot);
+  const axis = new THREE.Vector3(...joint.axis).normalize();
+  const angle = THREE.MathUtils.degToRad(value);
+  mesh.position.sub(pivot).applyAxisAngle(axis, angle).add(pivot);
+  mesh.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, angle));
+}
+
 const modelGroup = new THREE.Group();
 for (const feature of visibleFeatures) {
   const mesh = createFeatureMesh(feature);
-  if (mesh) modelGroup.add(mesh);
+  if (mesh) {
+    applyPreviewPose(mesh, feature.id);
+    modelGroup.add(mesh);
+  }
 }
 scene.add(modelGroup);
 

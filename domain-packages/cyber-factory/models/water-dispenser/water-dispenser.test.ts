@@ -47,12 +47,40 @@ describe("parameterized water dispenser asset", () => {
     const bodyCollider = definition.manifest.colliders.find(({ id }) => id === "body-collider");
     const tankCollider = definition.manifest.colliders.find(({ id }) => id === "tank-collider");
 
-    expect(shell).toMatchObject({ type: "box", parameters: { width: 420, height: 1_120, depth: 440 }, position: [0, 560, 0] });
-    expect(tank).toMatchObject({ type: "cylinder", parameters: { radius: 160, height: 480 } });
-    expect(bodyCollider).toMatchObject({ shape: "box", size: [420, 1_120, 440] });
-    expect(tankCollider).toMatchObject({ shape: "cylinder", radius: 160, height: 480, position: [0, 1_416, 0] });
+    expect(shell).toMatchObject({ type: "box", parameters: { width: 420, height: 537.6, depth: 440 }, position: [0, 851.2, 0] });
+    expect(tank).toMatchObject({ type: "cylinder", parameters: { radius: 160, height: 390 }, position: [0, 225, -12] });
+    expect(bodyCollider).toMatchObject({ shape: "box", size: [420, 537.6, 440], position: [0, 851.2, 0] });
+    expect(tankCollider).toMatchObject({ shape: "cylinder", radius: 160, height: 480, position: [0, 270, -12] });
     expect(definition.manifest.anchors.find(({ id }) => id === "hot-water-button")?.position[0]).toBe(-70);
     expect(definition.manifest.placement.groundY).toBe(0);
+  });
+
+  it("stores an upright bottle inside an articulated lower cabinet", () => {
+    const graph = waterDispenserAssetDefinition.createModel().featureGraph!;
+    const connector = graph.features.find(({ id }) => id === "tank-connector")!;
+    const cap = graph.features.find(({ id }) => id === "tank-cap")!;
+    const neck = graph.features.find(({ id }) => id === "tank-neck")!;
+    const shoulder = graph.features.find(({ id }) => id === "tank-shoulder")!;
+    const tank = graph.features.find(({ id }) => id === "water-tank")!;
+    const ceiling = graph.features.find(({ id }) => id === "cabinet-ceiling")!;
+    const doorGroup = graph.groups!.find(({ id }) => id === "dispenser-door")!;
+    const doorJoint = graph.joints!.find(({ id }) => id === "cabinet-door-hinge")!;
+    const openPose = graph.poses!.find(({ id }) => id === "cabinet-door-open")!;
+
+    expect(tank.position[1]).toBeLessThan(shoulder.position[1]);
+    expect(shoulder.position[1]).toBeLessThan(neck.position[1]);
+    expect(neck.position[1]).toBeLessThan(cap.position[1]);
+    expect(cap.position[1]).toBeLessThan(connector.position[1]);
+    expect(cap).toMatchObject({ type: "cylinder", name: "水桶聪明盖" });
+    expect(tank).toMatchObject({ type: "cylinder" });
+    expect(doorGroup.featureIds).toEqual(["cabinet-door", "cabinet-door-handle"]);
+    expect(doorJoint).toMatchObject({ groupId: "dispenser-door", min: -105, max: 0 });
+    expect(openPose.jointValues["cabinet-door-hinge"]).toBe(-72);
+    if (connector.type === "cylinder" && ceiling.type === "box") {
+      const connectorTop = connector.position[1] + connector.parameters.height / 2;
+      const ceilingBottom = ceiling.position[1] - ceiling.parameters.height / 2;
+      expect(connectorTop).toBeLessThan(ceilingBottom);
+    }
   });
 
   it("places the fill target and actor approach in front of the body", () => {
@@ -79,6 +107,7 @@ describe("parameterized water dispenser asset", () => {
     expect(mobileLevel.featureIds).toEqual([...waterDispenserCoreFeatureIds]);
     expect(mobileLevel.featureIds).toEqual(expect.arrayContaining([
       "body-shell",
+      "cabinet-door",
       "hot-button",
       "cold-button",
       "hot-nozzle",
@@ -100,14 +129,15 @@ describe("parameterized water dispenser asset", () => {
     expect(result.issues).toEqual([]);
     expect(shell).toMatchObject({
       type: "box",
-      position: [0, 560, 0],
-      parameters: { width: 420, height: 1_120 },
+      position: [0, 851.2, 0],
+      parameters: { width: 420, height: 537.6 },
     });
   });
 
   it("rejects physically invalid parameter combinations", () => {
     expect(() => createWaterDispenserAssetDefinition({ width: 299 })).toThrow(/width/);
-    expect(() => createWaterDispenserAssetDefinition({ tankRadius: 180, width: 340 })).toThrow(/clearance/);
+    expect(() => createWaterDispenserAssetDefinition({ tankRadius: 180, width: 340 })).toThrow(/lower cabinet/);
+    expect(() => createWaterDispenserAssetDefinition({ bodyHeight: 900, tankHeight: 420 })).toThrow(/cabinet ceiling/);
     expect(() => createWaterDispenserAssetDefinition({ nozzleSpacing: 151 })).toThrow(/nozzleSpacing/);
     expect(() => createWaterDispenserAssetDefinition({ depth: Number.NaN })).toThrow(/depth/);
   });
