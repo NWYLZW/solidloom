@@ -22,6 +22,7 @@ const simplifiedFeatureIds = [
   coffeeMachineFeatureIds.topCap,
   coffeeMachineFeatureIds.display,
   coffeeMachineFeatureIds.statusLight,
+  coffeeMachineFeatureIds.powerSwitch,
   coffeeMachineFeatureIds.brewCollar,
   coffeeMachineFeatureIds.spout,
   coffeeMachineFeatureIds.cupRing,
@@ -33,8 +34,8 @@ export const coffeeMachineManifest: ModelAssetManifest = {
   schemaVersion: 1,
   id: "cyber-factory-coffee-machine",
   displayName: "参数化咖啡机",
-  description: "适用于办公室茶水区的紧凑咖啡机，包含制作、取杯和补水语义锚点。",
-  version: "1.0.0",
+  description: "适用于办公室茶水区的紧凑咖啡机，包含电源、制作、取杯和补水语义锚点。",
+  version: "1.1.0",
   kind: "asset",
   modelUnit: "mm",
   parameters: [
@@ -74,6 +75,12 @@ export const coffeeMachineManifest: ModelAssetManifest = {
       type: "select",
       defaultValue: defaultCoffeeMachineParameters.finish,
       options: ["graphite", "porcelain", "cobalt"],
+    },
+    {
+      id: "powered",
+      label: "电源状态",
+      type: "boolean",
+      defaultValue: defaultCoffeeMachineParameters.powered,
     },
   ],
   materials: [
@@ -125,8 +132,17 @@ export const coffeeMachineManifest: ModelAssetManifest = {
       material: "plastic",
       color: "#58D7C5",
       featureIds: [
-        coffeeMachineFeatureIds.statusLight,
         coffeeMachineFeatureIds.brewButton,
+      ],
+    },
+    {
+      id: "power-control",
+      label: "电源开关与指示灯",
+      material: "plastic",
+      color: "#314047",
+      featureIds: [
+        coffeeMachineFeatureIds.powerSwitch,
+        coffeeMachineFeatureIds.statusLight,
       ],
     },
     {
@@ -187,6 +203,16 @@ export const coffeeMachineManifest: ModelAssetManifest = {
       range: 900,
       groupId: coffeeMachineGroupIds.body,
       tags: ["navigation", "front"],
+    },
+    {
+      id: "power-toggle",
+      label: "切换电源",
+      kind: "interaction",
+      position: [-180, 330, defaultCoffeeMachineParameters.depth / 2 + 250],
+      rotation: [0, 180, 0],
+      range: 720,
+      groupId: coffeeMachineGroupIds.control,
+      tags: ["power", "toggle"],
     },
     {
       id: "brew-coffee",

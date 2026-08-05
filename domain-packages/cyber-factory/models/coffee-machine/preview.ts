@@ -84,11 +84,11 @@ function materialFor(feature: ModelFeature) {
   });
   if (feature.id === coffeeMachineFeatureIds.display) {
     material.emissive = new THREE.Color("#1D7183");
-    material.emissiveIntensity = 1.25;
+    material.emissiveIntensity = parameters.powered ? 1.25 : 0.08;
   }
   if (feature.id === coffeeMachineFeatureIds.statusLight) {
     material.emissive = new THREE.Color(color);
-    material.emissiveIntensity = 2.8;
+    material.emissiveIntensity = parameters.powered ? 3.4 : 0.05;
   }
   return material;
 }
@@ -132,7 +132,7 @@ function resolvedDevice(): ModelAssetDeviceClass {
 }
 
 function createAnchorMarker(
-  id: "brew-coffee" | "cup-socket" | "take-cup",
+  id: "brew-coffee" | "cup-socket" | "power-toggle" | "take-cup",
   color: number,
   radius: number,
 ) {
@@ -210,11 +210,13 @@ function rebuildModel() {
   }
 
   modelRoot.add(createAnchorMarker("brew-coffee", 0x58d7c5, 38));
+  modelRoot.add(createAnchorMarker("power-toggle", 0xf3d45c, 30));
   modelRoot.add(createAnchorMarker("take-cup", 0xf1ae62, 32));
   modelRoot.add(createAnchorMarker("cup-socket", 0x88aef0, 48));
 
   requiredElement("device-badge").textContent = device === "mobile" ? "手机简化层级" : "桌面完整层级";
   requiredElement("dimension-badge").textContent = `${parameters.width} × ${parameters.height} × ${parameters.depth} mm`;
+  requiredElement("power-badge").textContent = parameters.powered ? "电源：开启" : "电源：关闭";
 }
 
 function updateParameter(id: "depth" | "height" | "width") {
@@ -233,6 +235,13 @@ requiredElement<HTMLSelectElement>("finish").addEventListener("change", (event) 
 });
 requiredElement<HTMLSelectElement>("device").addEventListener("change", (event) => {
   devicePreference = (event.currentTarget as HTMLSelectElement).value as typeof devicePreference;
+  rebuildModel();
+});
+requiredElement<HTMLButtonElement>("power-toggle").addEventListener("click", (event) => {
+  parameters = { ...parameters, powered: !parameters.powered };
+  const button = event.currentTarget as HTMLButtonElement;
+  button.setAttribute("aria-pressed", String(parameters.powered));
+  button.textContent = parameters.powered ? "关闭电源" : "开启电源";
   rebuildModel();
 });
 requiredElement<HTMLButtonElement>("lid-toggle").addEventListener("click", (event) => {

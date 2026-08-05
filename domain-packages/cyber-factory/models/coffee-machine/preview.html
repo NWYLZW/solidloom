@@ -84,6 +84,7 @@
       .select-row label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
       button { margin-top: 10px; cursor: pointer; }
       button[aria-pressed="true"] { border-color: var(--accent); background: rgba(53, 132, 124, 0.3); }
+      .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 
       .legend {
         position: absolute;
@@ -102,6 +103,7 @@
       }
       .legend span { display: flex; gap: 6px; align-items: center; }
       .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px currentColor; }
+      .dot.power { background: #f3d45c; }
       .dot.take { background: #f1ae62; }
       .dot.socket { background: #88aef0; }
 
@@ -129,6 +131,7 @@
         .select-row { margin-top: 9px; }
         select, button { min-height: 32px; padding: 5px 7px; font-size: 11px; }
         button { margin-top: 8px; }
+        .button-row { gap: 8px; }
         .legend { left: 16px; bottom: 242px; gap: 10px; padding: 7px 9px; }
       }
     </style>
@@ -143,6 +146,7 @@
         <div class="badges">
           <span class="badge" id="device-badge">桌面层级</span>
           <span class="badge" id="dimension-badge">380 × 520 × 440 mm</span>
+          <span class="badge" id="power-badge">电源：关闭</span>
           <span class="badge">状态：规划中</span>
         </div>
       </section>
@@ -183,11 +187,15 @@
             </select>
           </label>
         </div>
-        <button id="lid-toggle" type="button" aria-pressed="false">打开水箱翻盖</button>
+        <div class="button-row">
+          <button id="power-toggle" type="button" aria-pressed="false">开启电源</button>
+          <button id="lid-toggle" type="button" aria-pressed="false">打开水箱翻盖</button>
+        </div>
       </section>
 
       <aside class="legend" aria-label="锚点图例">
         <span><i class="dot"></i>制作</span>
+        <span><i class="dot power"></i>电源</span>
         <span><i class="dot take"></i>取杯</span>
         <span><i class="dot socket"></i>杯位</span>
       </aside>
