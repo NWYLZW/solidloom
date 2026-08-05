@@ -144,6 +144,24 @@ h2 {
   accent-color: #66d8c8;
 }
 
+.parameter-control input[type="number"] {
+  width: 100%;
+  min-width: 0;
+  padding: var(--control-padding-y) var(--control-padding-x);
+  border: 1px solid rgb(105 199 186 / 32%);
+  border-radius: 8px;
+  color: #e8f3f3;
+  background: rgb(15 33 36 / 88%);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.parameter-control input[type="number"]:focus-visible {
+  border-color: #66d8c8;
+  outline: 2px solid rgb(102 216 200 / 24%);
+  outline-offset: 1px;
+}
+
 .parameter-value {
   color: #e8f3f3;
   font-variant-numeric: tabular-nums;

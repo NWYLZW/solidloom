@@ -86,8 +86,8 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-function integer(value: number, minimum: number, maximum: number) {
-  return Math.round(clamp(value, minimum, maximum));
+function integerAtLeast(value: number, minimum: number) {
+  return Math.max(minimum, Math.round(Number.isFinite(value) ? value : minimum));
 }
 
 function box(
@@ -155,8 +155,8 @@ export function normalizeWarehouseRackParameters(
   input: Partial<WarehouseRackParameters> = {},
 ): WarehouseRackParameters {
   return {
-    bayCount: integer(input.bayCount ?? defaultWarehouseRackParameters.bayCount, 1, 5),
-    levelCount: integer(input.levelCount ?? defaultWarehouseRackParameters.levelCount, 2, 6),
+    bayCount: integerAtLeast(input.bayCount ?? defaultWarehouseRackParameters.bayCount, 1),
+    levelCount: integerAtLeast(input.levelCount ?? defaultWarehouseRackParameters.levelCount, 2),
     bayWidth: clamp(input.bayWidth ?? defaultWarehouseRackParameters.bayWidth, 800, 1_400),
     height: clamp(input.height ?? defaultWarehouseRackParameters.height, 1_800, 3_600),
     depth: clamp(input.depth ?? defaultWarehouseRackParameters.depth, 600, 1_200),

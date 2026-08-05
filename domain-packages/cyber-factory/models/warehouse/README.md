@@ -4,7 +4,7 @@
 
 ## 独立资产
 
-- `cyber-factory-warehouse-rack`：按跨数、层数、单跨宽度、高度和深度生成货架；每个货位具有稳定 socket、前侧取货锚点和后侧补货锚点。
+- `cyber-factory-warehouse-rack`：按跨数、层数、单跨宽度、高度和深度生成货架；跨数与层数没有人为设置的上限，仅受运行设备资源约束；每个货位具有稳定 socket、前侧取货锚点和后侧补货锚点。
 - `cyber-factory-warehouse-pallet`：带顶部装载 socket 和前后货叉入口的木质托盘。
 - `cyber-factory-warehouse-tote`：带真实开放内腔、内容 socket 和双侧搬运锚点的塑料周转箱。
 - `cyber-factory-warehouse-cart`：带装载 socket、推行锚点、双层台面和四轮的物流推车。

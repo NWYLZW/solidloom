@@ -27,21 +27,23 @@ describe("warehouse and internal logistics asset kit", () => {
 
   it("generates deterministic rack shelf and slot ids from bay and level parameters", () => {
     const compact = createWarehouseRackDefinition({ bayCount: 2, levelCount: 3 });
-    const expanded = createWarehouseRackDefinition({ bayCount: 4, levelCount: 5 });
+    const expanded = createWarehouseRackDefinition({ bayCount: 12, levelCount: 8 });
     const compactFeatures = compact.createModel().featureGraph!.features.map(({ id }) => id);
     const expandedFeatures = expanded.createModel().featureGraph!.features.map(({ id }) => id);
     const compactSlots = compact.manifest.anchors.filter(({ id }) => id.startsWith("warehouse-rack-slot-"));
     const expandedSlots = expanded.manifest.anchors.filter(({ id }) => id.startsWith("warehouse-rack-slot-"));
 
     expect(compactFeatures.filter((id) => id.includes("rack-shelf-"))).toHaveLength(6);
-    expect(expandedFeatures.filter((id) => id.includes("rack-shelf-"))).toHaveLength(20);
+    expect(expandedFeatures.filter((id) => id.includes("rack-shelf-"))).toHaveLength(96);
     expect(compactSlots).toHaveLength(6);
-    expect(expandedSlots).toHaveLength(20);
+    expect(expandedSlots).toHaveLength(96);
     expect(compactSlots.map(({ id }) => id)).toEqual(expect.arrayContaining([
       "warehouse-rack-slot-b01-l01",
       "warehouse-rack-slot-b02-l03",
     ]));
     expect(expandedSlots.map(({ id }) => id)).toEqual(expect.arrayContaining(compactSlots.map(({ id }) => id)));
+    expect(expanded.manifest.parameters.find(({ id }) => id === "bay-count")?.maximum).toBeUndefined();
+    expect(expanded.manifest.parameters.find(({ id }) => id === "level-count")?.maximum).toBeUndefined();
   });
 
   it("exposes a socket, front pick point and rear restock point for every rack slot", () => {

@@ -28,7 +28,7 @@ interface ParameterControl {
   key: string;
   label: string;
   minimum: number;
-  maximum: number;
+  maximum?: number;
   step: number;
   unit?: string;
 }
@@ -61,8 +61,8 @@ const assetConfigs: Record<AssetKey, AssetPreviewConfig> = {
     summary: "独立货架模型；跨数和层数变化时自动生成稳定货位、取货位与补货位。",
     defaults: valuesOf(defaultWarehouseRackParameters),
     parameters: [
-      { key: "bayCount", label: "货架跨数", minimum: 1, maximum: 5, step: 1 },
-      { key: "levelCount", label: "货架层数", minimum: 2, maximum: 6, step: 1 },
+      { key: "bayCount", label: "货架跨数", minimum: 1, step: 1 },
+      { key: "levelCount", label: "货架层数", minimum: 2, step: 1 },
       { key: "bayWidth", label: "单跨宽度", minimum: 800, maximum: 1_400, step: 50, unit: "毫米" },
       { key: "height", label: "货架高度", minimum: 1_800, maximum: 3_600, step: 100, unit: "毫米" },
       { key: "depth", label: "货架深度", minimum: 600, maximum: 1_200, step: 50, unit: "毫米" },
@@ -135,9 +135,10 @@ const metrics = requiredElement<HTMLElement>("#metrics");
 const assetTabs = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-asset]"));
 
 const quality = new URLSearchParams(window.location.search).get("quality") === "mobile" ? "mobile" : "desktop";
+const defaultFogDensity = quality === "mobile" ? 0.000035 : 0.0001;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#172328");
-scene.fog = new THREE.FogExp2("#172328", quality === "mobile" ? 0.000035 : 0.0001);
+scene.fog = new THREE.FogExp2("#172328", defaultFogDensity);
 
 const camera = new THREE.PerspectiveCamera(quality === "mobile" ? 42 : 38, 1, 1, 24_000);
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality === "desktop" });
@@ -168,13 +169,13 @@ rim.position.set(-4_000, 2_800, -3_000);
 scene.add(rim);
 
 const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(12_000, 12_000),
+  new THREE.PlaneGeometry(60_000, 60_000),
   new THREE.MeshStandardMaterial({ color: "#2A3B41", roughness: 0.88, metalness: 0.08 }),
 );
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
-const grid = new THREE.GridHelper(12_000, 40, "#34565A", "#1E3236");
+const grid = new THREE.GridHelper(60_000, 120, "#34565A", "#1E3236");
 grid.position.y = 2;
 scene.add(grid);
 
@@ -292,6 +293,10 @@ function placeRepresentativeAnchors(definition: ModelAssetDefinition, offset: Ve
 function setCamera(position: Vector3Tuple, target: Vector3Tuple, minimumDistance: number, maximumDistance: number) {
   const mobileScale = quality === "mobile" ? 1.24 : 1;
   camera.position.set(position[0] * mobileScale, position[1] * mobileScale, position[2] * mobileScale);
+  const cameraDistance = camera.position.distanceTo(new THREE.Vector3(...target));
+  camera.far = Math.max(24_000, maximumDistance * 1.5);
+  if (scene.fog instanceof THREE.FogExp2) scene.fog.density = Math.min(defaultFogDensity, 0.9 / cameraDistance);
+  camera.updateProjectionMatrix();
   controls.target.set(...target);
   controls.minDistance = minimumDistance;
   controls.maxDistance = maximumDistance;
@@ -349,7 +354,19 @@ function renderCurrentMode() {
   const definition = config.createDefinition(parameterValues[currentMode]);
   const drawUnits = buildAsset(definition, [0, 0, 0]);
   placeRepresentativeAnchors(definition);
-  setCamera(config.cameraPosition, config.cameraTarget, config.minimumDistance, config.maximumDistance);
+  if (currentMode === "rack") {
+    const rack = parameterValues.rack;
+    const totalWidth = rack.bayCount! * rack.bayWidth!;
+    const distance = Math.max(5_900, totalWidth * 0.85, rack.height! * 2.25);
+    setCamera(
+      [distance * 0.8, Math.max(3_500, rack.height! * 1.35), distance],
+      [0, rack.height! / 2, 0],
+      Math.max(2_800, totalWidth * 0.55),
+      Math.max(18_000, totalWidth * 3),
+    );
+  } else {
+    setCamera(config.cameraPosition, config.cameraTarget, config.minimumDistance, config.maximumDistance);
+  }
   assetTitle.textContent = config.title;
   assetSummary.textContent = config.summary;
   metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · 独立模型：${definition.manifest.id}`;
@@ -367,18 +384,23 @@ function renderParameterControls(asset: AssetKey) {
     label.textContent = parameter.label;
     const input = document.createElement("input");
     input.id = inputId;
-    input.type = "range";
+    const hasMaximum = parameter.maximum !== undefined;
+    input.type = hasMaximum ? "range" : "number";
     input.min = String(parameter.minimum);
-    input.max = String(parameter.maximum);
+    if (hasMaximum) input.max = String(parameter.maximum);
     input.step = String(parameter.step);
     input.value = String(parameterValues[asset][parameter.key]);
     const value = document.createElement("output");
     value.className = "parameter-value";
     value.htmlFor = inputId;
-    value.textContent = formatValue(parameterValues[asset][parameter.key]!, parameter.unit);
+    value.textContent = hasMaximum
+      ? formatValue(parameterValues[asset][parameter.key]!, parameter.unit)
+      : "无预设上限";
     input.addEventListener("input", () => {
-      parameterValues[asset][parameter.key] = Number(input.value);
-      value.textContent = formatValue(parameterValues[asset][parameter.key]!, parameter.unit);
+      const nextValue = Number(input.value);
+      if (!Number.isFinite(nextValue) || nextValue < parameter.minimum) return;
+      parameterValues[asset][parameter.key] = hasMaximum ? nextValue : Math.round(nextValue);
+      if (hasMaximum) value.textContent = formatValue(parameterValues[asset][parameter.key]!, parameter.unit);
       renderCurrentMode();
     });
     row.append(label, input, value);

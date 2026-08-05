@@ -122,8 +122,8 @@ export function createWarehouseRackManifest(
     kind: "asset",
     modelUnit: "mm",
     parameters: [
-      { id: "bay-count", label: "货架跨数", type: "number", defaultValue: parameters.bayCount, minimum: 1, maximum: 5, step: 1 },
-      { id: "level-count", label: "货架层数", type: "number", defaultValue: parameters.levelCount, minimum: 2, maximum: 6, step: 1 },
+      { id: "bay-count", label: "货架跨数", type: "number", defaultValue: parameters.bayCount, minimum: 1, step: 1 },
+      { id: "level-count", label: "货架层数", type: "number", defaultValue: parameters.levelCount, minimum: 2, step: 1 },
       { id: "bay-width", label: "单跨宽度", type: "number", defaultValue: parameters.bayWidth, unit: "mm", minimum: 800, maximum: 1_400, step: 50 },
       { id: "height", label: "货架高度", type: "number", defaultValue: parameters.height, unit: "mm", minimum: 1_800, maximum: 3_600, step: 100 },
       { id: "depth", label: "货架深度", type: "number", defaultValue: parameters.depth, unit: "mm", minimum: 600, maximum: 1_200, step: 50 },
@@ -135,11 +135,11 @@ export function createWarehouseRackManifest(
     joints: [],
     lod: [
       { device: "desktop", levels: [
-        { id: "rack-desktop-full", maximumDistance: 8_000, featureIds: allIds, triangleBudget: 1_600 },
-        { id: "rack-desktop-core", maximumDistance: 18_000, featureIds: coreIds, triangleBudget: 1_200 },
+        { id: "rack-desktop-full", maximumDistance: 8_000, featureIds: allIds, triangleBudget: Math.max(1_600, allIds.length * 16) },
+        { id: "rack-desktop-core", maximumDistance: 18_000, featureIds: coreIds, triangleBudget: Math.max(1_200, coreIds.length * 16) },
       ] },
       { device: "mobile", levels: [
-        { id: "rack-mobile-core", maximumDistance: 10_000, featureIds: coreIds, triangleBudget: 1_000 },
+        { id: "rack-mobile-core", maximumDistance: 10_000, featureIds: coreIds, triangleBudget: Math.max(1_000, coreIds.length * 12) },
       ] },
     ],
     previews: [
