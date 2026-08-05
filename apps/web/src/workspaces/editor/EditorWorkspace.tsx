@@ -66,6 +66,7 @@ import { readTreeUrlState, writeTreeUrlState } from "../../treeUrlState";
 import { BUILTIN_VOXEL_SKIN_URL } from "../../voxelSkin";
 import { EditorDialogs } from "./components/EditorDialogs";
 import { EditorInspectorPanel } from "./components/EditorInspectorPanel";
+import { ModelVariableEditor } from "./components/ModelVariableEditor";
 import { EditorViewportToolbar, type ViewportObjectTool } from "./components/EditorViewportToolbar";
 import { ObjectToolPopover } from "./components/ObjectToolPopover";
 import { EditorWorkspaceShell } from "./components/EditorWorkspaceShell";
@@ -1080,12 +1081,15 @@ export function EditorWorkspace() {
     });
   };
 
-  const updateModelVariable = (variableId: string, value: number) => {
-    if (!Number.isFinite(value)) return;
+  const updateModelVariable = (variableId: string, value: number | string) => {
+    if (typeof value === "number" ? !Number.isFinite(value) : !/^#[0-9A-F]{6}$/.test(value)) return;
     updateDraftWithHistory((current) => {
-      const variables = (current.featureGraph.variables ?? []).map((variable) => (
-        variable.id === variableId ? { ...variable, value } : variable
-      ));
+      const variables = (current.featureGraph.variables ?? []).map((variable) => {
+        if (variable.id !== variableId) return variable;
+        if (variable.type === "color" && typeof value === "string") return { ...variable, value };
+        if (variable.type !== "color" && typeof value === "number") return { ...variable, value };
+        return variable;
+      });
       const resolved = rebuildParameterizedFeatureGraph({ ...current.featureGraph, variables });
       setParameterExpressionError(resolved.issues[0]
         ? `${copy.expressionError}：${resolved.issues[0].message}`
@@ -2010,16 +2014,13 @@ export function EditorWorkspace() {
               <section className="inspector-section properties">
                 <div className="section-title"><span>{selectedReference ? copy.referenceTransform : selectedGroup ? copy.groupTransform : copy.parameters}</span><Settings2 size={15} /></div>
                 {selectedFeatures.length === 0 && !selectedGroup && !selectedReference && (draftModel?.featureGraph.variables?.length ?? 0) > 0 && (
-                  <div className="model-variable-editor">
-                    <strong>{copy.modelVariables}</strong>
-                    <p>{copy.modelVariablesHint}</p>
-                    {draftModel?.featureGraph.variables?.map((variable) => (
-                      <label key={variable.id}>
-                        <span className="model-variable-name"><strong>{variable.label}</strong><code>{variable.id}</code></span>
-                        <span><input aria-label={`${variable.label} ${variable.id}`} type="number" step="1" value={variable.value} onChange={(event) => updateModelVariable(variable.id, Number(event.target.value))} /> {variable.unit ?? draftModel.unit}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <ModelVariableEditor
+                    fallbackUnit={draftModel?.unit ?? "mm"}
+                    hint={copy.modelVariablesHint}
+                    title={copy.modelVariables}
+                    variables={draftModel?.featureGraph.variables ?? []}
+                    onChange={updateModelVariable}
+                  />
                 )}
                 {selectedFeatures.length === 0 && !selectedGroup && !selectedReference && voxelSkin && (
                   <VoxelSkinPanel

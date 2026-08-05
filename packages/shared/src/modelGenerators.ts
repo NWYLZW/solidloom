@@ -5,8 +5,10 @@ import type {
 } from "./types.js";
 import {
   createSnackCabinet,
+  normalizeSnackCabinetColors,
   snackCabinetGeneratorId,
   snackCabinetVariableIds,
+  type SnackCabinetColors,
   type SnackCabinetFinish,
   type SnackCabinetShelfInventory,
 } from "./models/cyberFactory/snackCabinet.js";
@@ -15,11 +17,25 @@ type FeatureGraphGeneratorHandler = (featureGraph: FeatureGraph) => FeatureGraph
 
 function numberVariable(featureGraph: FeatureGraph, id: string): number | undefined {
   const value = featureGraph.variables?.find((variable) => variable.id === id)?.value;
-  return Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function colorVariable(featureGraph: FeatureGraph, id: string): string | undefined {
+  const value = featureGraph.variables?.find((variable) => variable.id === id)?.value;
+  return typeof value === "string" && /^#[0-9A-Fa-f]{6}$/.test(value) ? value.toUpperCase() : undefined;
 }
 
 function snackCabinetFinish(value: unknown): SnackCabinetFinish | undefined {
   return value === "graphite" || value === "porcelain" || value === "sage" ? value : undefined;
+}
+
+function snackCabinetColors(value: unknown): Partial<SnackCabinetColors> | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const source = value as Record<string, unknown>;
+  const entries = Object.entries(source).flatMap(([key, color]) => (
+    typeof color === "string" && /^#[0-9A-Fa-f]{6}$/.test(color) ? [[key, color.toUpperCase()]] : []
+  ));
+  return Object.fromEntries(entries) as Partial<SnackCabinetColors>;
 }
 
 function snackCabinetInventory(value: unknown): readonly SnackCabinetShelfInventory[] | undefined {
@@ -55,14 +71,22 @@ function snackCabinetInventory(value: unknown): readonly SnackCabinetShelfInvent
   return shelves;
 }
 
-function preserveFeatureOverrides(generated: ModelFeature[], current: ModelFeature[]): ModelFeature[] {
+function preserveFeatureOverrides(
+  generated: ModelFeature[],
+  current: ModelFeature[],
+  baseline: ModelFeature[] = generated,
+): ModelFeature[] {
   const currentById = new Map(current.map((feature) => [feature.id, feature]));
+  const baselineById = new Map(baseline.map((feature) => [feature.id, feature]));
   return generated.map((feature) => {
     const previous = currentById.get(feature.id);
     if (!previous) return feature;
+    const baselineFeature = baselineById.get(feature.id);
+    const appearanceWasOverridden = previous.appearance
+      && JSON.stringify(previous.appearance) !== JSON.stringify(baselineFeature?.appearance);
     return {
       ...feature,
-      ...(previous.appearance ? { appearance: previous.appearance } : {}),
+      ...(appearanceWasOverridden ? { appearance: previous.appearance } : {}),
       ...(previous.parameterExpressions ? { parameterExpressions: previous.parameterExpressions } : {}),
     } as ModelFeature;
   });
@@ -89,24 +113,35 @@ const regenerateSnackCabinet: FeatureGraphGeneratorHandler = (featureGraph) => {
   const depth = numberVariable(featureGraph, snackCabinetVariableIds.depth);
   const finish = snackCabinetFinish(options.finish);
   const inventory = snackCabinetInventory(options.inventory);
-  const generated = createSnackCabinet({
+  const previousColors = normalizeSnackCabinetColors(snackCabinetColors(options.colors), finish);
+  const colors: SnackCabinetColors = {
+    body: colorVariable(featureGraph, snackCabinetVariableIds.bodyColor) ?? previousColors.body,
+    trim: colorVariable(featureGraph, snackCabinetVariableIds.trimColor) ?? previousColors.trim,
+    accent: colorVariable(featureGraph, snackCabinetVariableIds.accentColor) ?? previousColors.accent,
+    shelf: colorVariable(featureGraph, snackCabinetVariableIds.shelfColor) ?? previousColors.shelf,
+    glass: colorVariable(featureGraph, snackCabinetVariableIds.glassColor) ?? previousColors.glass,
+    darkGlass: colorVariable(featureGraph, snackCabinetVariableIds.darkGlassColor) ?? previousColors.darkGlass,
+  };
+  const generatorInput = {
     ...(width === undefined ? {} : { width }),
     ...(height === undefined ? {} : { height }),
     ...(depth === undefined ? {} : { depth }),
     ...(finish === undefined ? {} : { finish }),
     ...(inventory === undefined ? {} : { inventory }),
-  }).featureGraph!;
+  };
+  const baseline = createSnackCabinet({ ...generatorInput, colors: previousColors }).featureGraph!;
+  const generated = createSnackCabinet({ ...generatorInput, colors }).featureGraph!;
   const currentJointValues = new Map((featureGraph.joints ?? []).map((joint) => [joint.id, joint.value]));
   return {
     ...featureGraph,
     ...generated,
-    features: preserveFeatureOverrides(generated.features, featureGraph.features),
+    features: preserveFeatureOverrides(generated.features, featureGraph.features, baseline.features),
     groups: preserveGroupTransforms(generated.groups, featureGraph.groups),
     joints: (generated.joints ?? []).map((joint) => ({
       ...joint,
       value: currentJointValues.get(joint.id) ?? joint.value,
     })),
-    generator: featureGraph.generator ?? generated.generator!,
+    generator: generated.generator!,
   };
 };
 

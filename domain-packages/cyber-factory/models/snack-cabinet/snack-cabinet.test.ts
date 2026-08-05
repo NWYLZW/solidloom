@@ -128,6 +128,40 @@ describe("parameterized snack cabinet asset", () => {
     expect(regenerated.joints?.[0]?.value).toBe(31);
   });
 
+  it("applies model color variables while preserving explicit feature overrides", () => {
+    const graph = createSnackCabinet().featureGraph!;
+    const manuallyColoredGraph = {
+      ...graph,
+      features: graph.features.map((feature) => feature.id === snackCabinetFeatureIds.base
+        ? { ...feature, appearance: { ...feature.appearance, color: "#FF00FF" } }
+        : feature),
+      variables: graph.variables?.map((variable) => variable.type === "color" && variable.id === "--snack-cabinet-body-color"
+        ? { ...variable, value: "#336699" }
+        : variable.type === "color" && variable.id === "--snack-cabinet-shelf-color"
+          ? { ...variable, value: "#CC8844" }
+          : variable),
+    };
+    const recolored = regenerateGeneratedFeatureGraph(manuallyColoredGraph);
+    const base = recolored.features.find((feature) => feature.id === snackCabinetFeatureIds.base);
+    const back = recolored.features.find((feature) => feature.id === snackCabinetFeatureIds.back);
+    const shelf = recolored.features.find((feature) => feature.id === snackCabinetFeatureIds.shelfOne);
+    const resized = regenerateGeneratedFeatureGraph({
+      ...recolored,
+      variables: recolored.variables?.map((variable) => variable.type !== "color" && variable.id === "--snack-cabinet-width"
+        ? { ...variable, value: 1080 }
+        : variable),
+    });
+
+    expect(base?.appearance?.color).toBe("#FF00FF");
+    expect(back?.appearance?.color).toBe("#336699");
+    expect(shelf?.appearance?.color).toBe("#CC8844");
+    expect(resized.features.find((feature) => feature.id === snackCabinetFeatureIds.back)?.appearance?.color)
+      .toBe("#336699");
+    expect(resized.generator?.options).toMatchObject({
+      colors: { body: "#336699", shelf: "#CC8844" },
+    });
+  });
+
   it("accepts externally supplied shelf contents without repeating exact stock", () => {
     const model = createSnackCabinet({
       inventory: [{
