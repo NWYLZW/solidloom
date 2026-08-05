@@ -11,6 +11,17 @@ import {
   type CoffeeMachineFinish,
   type CoffeeMachineParameters,
 } from "./model.js";
+import {
+  brewCoffee,
+  coffeeBeanKinds,
+  coffeeBeanLabels,
+  configureCoffeeMachineSupplies,
+  defaultCoffeeRecipes,
+  getCoffeeStockShortages,
+  refillCoffeeMachineSupplies,
+  type CoffeeMachineStock,
+  type CoffeeRecipe,
+} from "./operations.js";
 
 function requiredElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -67,6 +78,12 @@ let lidOpen = false;
 let devicePreference: "auto" | ModelAssetDeviceClass = "auto";
 let cameraDevice: ModelAssetDeviceClass | null = null;
 let parameters: CoffeeMachineParameters = { ...defaultCoffeeMachineParameters };
+let userNearby = false;
+const supplyConfiguration = configureCoffeeMachineSupplies();
+let stock: CoffeeMachineStock = {
+  ...supplyConfiguration.initialStock,
+  beansGrams: { ...supplyConfiguration.initialStock.beansGrams },
+};
 
 function materialFor(feature: ModelFeature) {
   const color = feature.appearance?.color ?? "#AAB4B9";
@@ -132,7 +149,7 @@ function resolvedDevice(): ModelAssetDeviceClass {
 }
 
 function createAnchorMarker(
-  id: "brew-coffee" | "cup-socket" | "power-toggle" | "take-cup",
+  id: "brew-coffee" | "cup-socket" | "front-approach" | "power-toggle" | "take-cup",
   color: number,
   radius: number,
 ) {
@@ -141,9 +158,10 @@ function createAnchorMarker(
   const ringMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 });
   const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 5, 10, 36), ringMaterial);
   ring.rotation.x = Math.PI / 2;
-  ring.position.set(anchor.position[0], id === "cup-socket" ? anchor.position[1] : 5, anchor.position[2]);
+  const ringY = id === "cup-socket" ? anchor.position[1] : 5;
+  ring.position.set(anchor.position[0], ringY, anchor.position[2]);
   marker.add(ring);
-  if (id !== "cup-socket") {
+  if (id !== "cup-socket" && id !== "front-approach") {
     const point = new THREE.Mesh(
       new THREE.SphereGeometry(12, 18, 12),
       new THREE.MeshBasicMaterial({ color }),
@@ -210,6 +228,7 @@ function rebuildModel() {
   }
 
   modelRoot.add(createAnchorMarker("brew-coffee", 0x58d7c5, 38));
+  modelRoot.add(createAnchorMarker("front-approach", 0xd59cf4, 120));
   modelRoot.add(createAnchorMarker("power-toggle", 0xf3d45c, 30));
   modelRoot.add(createAnchorMarker("take-cup", 0xf1ae62, 32));
   modelRoot.add(createAnchorMarker("cup-socket", 0x88aef0, 48));
@@ -217,6 +236,141 @@ function rebuildModel() {
   requiredElement("device-badge").textContent = device === "mobile" ? "手机简化层级" : "桌面完整层级";
   requiredElement("dimension-badge").textContent = `${parameters.width} × ${parameters.height} × ${parameters.depth} mm`;
   requiredElement("power-badge").textContent = parameters.powered ? "电源：开启" : "电源：关闭";
+  renderMenu();
+}
+
+function ingredientSummary(recipe: CoffeeRecipe) {
+  const parts = [`水 ${recipe.ingredients.waterMl} ml`];
+  if (recipe.ingredients.milkMl > 0) parts.push(`奶 ${recipe.ingredients.milkMl} ml`);
+  coffeeBeanKinds.forEach((kind) => {
+    const amount = recipe.ingredients.beansGrams[kind];
+    if (amount > 0) parts.push(`${coffeeBeanLabels[kind].replace("豆", "")} ${amount} g`);
+  });
+  return parts.join(" · ");
+}
+
+function stockEntries() {
+  return [
+    {
+      id: "water",
+      name: "水",
+      value: stock.waterMl,
+      capacity: supplyConfiguration.capacities.waterMl,
+      unit: "ml",
+    },
+    {
+      id: "milk",
+      name: "牛奶",
+      value: stock.milkMl,
+      capacity: supplyConfiguration.capacities.milkMl,
+      unit: "ml",
+    },
+    ...coffeeBeanKinds.map((kind) => ({
+      id: kind,
+      name: coffeeBeanLabels[kind].replace("豆", ""),
+      value: stock.beansGrams[kind],
+      capacity: supplyConfiguration.capacities.beansGrams[kind],
+      unit: "g",
+    })),
+  ];
+}
+
+function renderStock() {
+  const grid = requiredElement("stock-grid");
+  const items = stockEntries().map((entry) => {
+    const item = document.createElement("div");
+    item.className = "stock-item";
+
+    const meta = document.createElement("div");
+    meta.className = "stock-meta";
+    const name = document.createElement("span");
+    name.className = "stock-name";
+    name.textContent = entry.name;
+    const value = document.createElement("span");
+    value.className = "stock-value";
+    value.textContent = `${entry.value} ${entry.unit}`;
+    meta.append(name, value);
+
+    const track = document.createElement("div");
+    track.className = "stock-track";
+    const fill = document.createElement("div");
+    fill.className = "stock-fill";
+    const ratio = entry.capacity > 0 ? entry.value / entry.capacity : 0;
+    fill.style.width = `${Math.min(100, ratio * 100)}%`;
+    fill.dataset.low = String(ratio < 0.2);
+    track.append(fill);
+    item.append(meta, track);
+    return item;
+  });
+  grid.replaceChildren(...items);
+}
+
+function renderRecipes() {
+  const grid = requiredElement("recipe-grid");
+  const cards = defaultCoffeeRecipes.map((recipe) => {
+    const shortages = getCoffeeStockShortages(stock, recipe);
+    const button = document.createElement("button");
+    button.className = "recipe-card";
+    button.type = "button";
+    button.disabled = shortages.length > 0;
+    button.setAttribute("aria-label", `制作${recipe.name}，${ingredientSummary(recipe)}`);
+
+    const title = document.createElement("div");
+    title.className = "recipe-title";
+    const name = document.createElement("strong");
+    name.textContent = recipe.name;
+    const readiness = document.createElement("span");
+    readiness.className = "recipe-ready";
+    readiness.dataset.ready = String(shortages.length === 0);
+    readiness.textContent = shortages.length === 0 ? "可制作" : "库存不足";
+    title.append(name, readiness);
+
+    const description = document.createElement("div");
+    description.className = "recipe-description";
+    description.textContent = recipe.description;
+    const usage = document.createElement("div");
+    usage.className = "recipe-usage";
+    usage.textContent = ingredientSummary(recipe);
+    button.append(title, description, usage);
+    button.addEventListener("click", () => runRecipe(recipe));
+    return button;
+  });
+  grid.replaceChildren(...cards);
+}
+
+function renderMenu() {
+  const visible = parameters.powered && userNearby;
+  const menu = requiredElement("virtual-menu");
+  menu.dataset.visible = String(visible);
+  menu.setAttribute("aria-hidden", String(!visible));
+
+  const proximityBadge = requiredElement("proximity-badge");
+  proximityBadge.textContent = userNearby ? "用户：附近" : "用户：远离";
+  proximityBadge.dataset.active = String(userNearby);
+  requiredElement("power-badge").dataset.active = String(parameters.powered);
+
+  renderStock();
+  renderRecipes();
+}
+
+function runRecipe(recipe: CoffeeRecipe) {
+  const feedback = requiredElement("brew-feedback");
+  if (!parameters.powered || !userNearby) {
+    feedback.dataset.error = "true";
+    feedback.textContent = "需要开启电源并进入接近范围。";
+    return;
+  }
+  const result = brewCoffee(stock, recipe);
+  if (!result.ok) {
+    feedback.dataset.error = "true";
+    feedback.textContent = `无法制作${recipe.name}：${result.shortages.map((item) => item.label).join("、")}不足。`;
+    renderMenu();
+    return;
+  }
+  stock = result.stock;
+  feedback.dataset.error = "false";
+  feedback.textContent = `已制作${recipe.name}；本次消耗 ${ingredientSummary(recipe)}。`;
+  renderMenu();
 }
 
 function updateParameter(id: "depth" | "height" | "width") {
@@ -242,7 +396,37 @@ requiredElement<HTMLButtonElement>("power-toggle").addEventListener("click", (ev
   const button = event.currentTarget as HTMLButtonElement;
   button.setAttribute("aria-pressed", String(parameters.powered));
   button.textContent = parameters.powered ? "关闭电源" : "开启电源";
+  const feedback = requiredElement("brew-feedback");
+  if (parameters.powered && userNearby) {
+    feedback.dataset.error = "false";
+    feedback.textContent = "请选择一种饮品。";
+  } else if (!parameters.powered && userNearby) {
+    feedback.dataset.error = "true";
+    feedback.textContent = "已检测到用户，但机器尚未开启。";
+  }
   rebuildModel();
+});
+requiredElement<HTMLButtonElement>("proximity-toggle").addEventListener("click", (event) => {
+  userNearby = !userNearby;
+  const button = event.currentTarget as HTMLButtonElement;
+  button.setAttribute("aria-pressed", String(userNearby));
+  button.textContent = userNearby ? "模拟用户离开" : "模拟用户接近";
+  const feedback = requiredElement("brew-feedback");
+  if (userNearby && !parameters.powered) {
+    feedback.dataset.error = "true";
+    feedback.textContent = "已检测到用户，但机器尚未开启。";
+  } else if (userNearby) {
+    feedback.dataset.error = "false";
+    feedback.textContent = "请选择一种饮品。";
+  }
+  renderMenu();
+});
+requiredElement<HTMLButtonElement>("refill-stock").addEventListener("click", () => {
+  stock = refillCoffeeMachineSupplies(supplyConfiguration);
+  const feedback = requiredElement("brew-feedback");
+  feedback.dataset.error = "false";
+  feedback.textContent = "水、牛奶和全部豆仓已经补满。";
+  renderMenu();
 });
 requiredElement<HTMLButtonElement>("lid-toggle").addEventListener("click", (event) => {
   lidOpen = !lidOpen;

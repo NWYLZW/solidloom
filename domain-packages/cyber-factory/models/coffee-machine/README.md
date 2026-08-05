@@ -5,9 +5,10 @@
 ## 交付内容
 
 - `model.ts`：可调整宽度、高度、深度与石墨黑、瓷白、钴蓝三种配色的硬朗工业几何工厂；外壳仅保留 2–8 mm 小倒角。
-- `manifest.ts`：稳定 ID、材质槽、地面基准、机身/托盘碰撞体、电源/制作/取杯/杯位/补水锚点、水箱翻盖关节，以及桌面和移动 LOD。
-- `preview.html` / `preview.ts`：不依赖公共 registry 的独立交互预览，可调整参数、切换电源与指示灯状态，并开合水箱翻盖。
-- `coffee-machine.test.ts`：契约、参数边界、稳定 ID、锚点和移动 LOD 测试。
+- `operations.ts`：可配置的容量、初始库存和单杯配方；内部维护水、牛奶与阿拉比卡、罗布斯塔、低因三类豆仓，提供库存预检、原子扣减与补满操作。
+- `manifest.ts`：稳定 ID、材质槽、地面基准、机身/托盘碰撞体、电源/接近菜单触发/制作/取杯/杯位/补水锚点、水箱翻盖关节，以及桌面和移动 LOD。
+- `preview.html` / `preview.ts`：不依赖公共 registry 的独立交互预览，可调整参数、切换电源与指示灯状态、模拟用户接近、从虚拟菜单选择咖啡、查看库存扣减，并开合水箱翻盖。
+- `coffee-machine.test.ts` / `operations.test.ts`：契约、参数边界、稳定 ID、锚点、移动 LOD、配方差异、库存配置和原子扣减测试。
 - `tsconfig.json`：独立覆盖资产工厂、测试和预览代码的严格类型检查。
 
 ## 独立预览
@@ -20,11 +21,15 @@ npx vite --host 127.0.0.1
 
 打开 `/domain-packages/cyber-factory/models/coffee-machine/preview.html`。窄屏会自动切换至移动 LOD，可通过右上角设备选择器显式切换。
 
+预览中的菜单只在电源开启且模拟用户进入正面接近范围后显示。选择饮品会按照配方扣减库存；例如拿铁消耗水、牛奶和阿拉比卡豆，浓缩咖啡消耗阿拉比卡与罗布斯塔拼配，低因美式只消耗低因豆。容量、初始库存和配方均可通过 `operations.ts` 导出的纯函数与类型配置。
+
+> 资产模块仍为 `planned`。当前交付了可复用计算逻辑、接近锚点语义和独立预览，但公共运行时尚未接入接近事件、菜单投影与库存动作。
+
 局部验证：
 
 ```bash
 npx tsc -p domain-packages/cyber-factory/models/coffee-machine/tsconfig.json
-npx vitest run domain-packages/cyber-factory/models/coffee-machine/coffee-machine.test.ts
+npx vitest run domain-packages/cyber-factory/models/coffee-machine/coffee-machine.test.ts domain-packages/cyber-factory/models/coffee-machine/operations.test.ts
 ```
 
 ## 验收截图

@@ -34,8 +34,8 @@ export const coffeeMachineManifest: ModelAssetManifest = {
   schemaVersion: 1,
   id: "cyber-factory-coffee-machine",
   displayName: "参数化咖啡机",
-  description: "适用于办公室茶水区的紧凑咖啡机，包含电源、制作、取杯和补水语义锚点。",
-  version: "1.1.0",
+  description: "适用于办公室茶水区的紧凑咖啡机，包含电源、接近菜单触发、制作、取杯和补水语义锚点。",
+  version: "1.2.0",
   kind: "asset",
   modelUnit: "mm",
   parameters: [
@@ -196,13 +196,13 @@ export const coffeeMachineManifest: ModelAssetManifest = {
   anchors: [
     {
       id: "front-approach",
-      label: "正面接近位",
+      label: "正面接近与菜单触发位",
       kind: "approach",
       position: [0, 0, defaultCoffeeMachineParameters.depth / 2 + 720],
       rotation: [0, 180, 0],
       range: 900,
       groupId: coffeeMachineGroupIds.body,
-      tags: ["navigation", "front"],
+      tags: ["navigation", "front", "proximity", "menu-trigger"],
     },
     {
       id: "power-toggle",
@@ -292,7 +292,7 @@ export const coffeeMachineManifest: ModelAssetManifest = {
       background: "dark",
     },
   ],
-  tags: ["cyber-factory", "break-room", "beverage", "planned"],
+  tags: ["cyber-factory", "break-room", "beverage", "menu", "planned"],
 };
 
 export const coffeeMachineDefinition: ModelAssetDefinition = {

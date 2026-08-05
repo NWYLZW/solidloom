@@ -111,6 +111,16 @@ describe("parameterized coffee machine asset", () => {
     expect(cupSocket.position[1]).toBeLessThan(spout!.position[1]);
   });
 
+  it("marks the front approach anchor as the planned proximity menu trigger", () => {
+    const approachAnchor = coffeeMachineManifest.anchors.find((anchor) => anchor.id === "front-approach");
+
+    expect(approachAnchor).toMatchObject({
+      kind: "approach",
+      tags: ["navigation", "front", "proximity", "menu-trigger"],
+    });
+    expect(coffeeMachineManifest.version).toBe("1.2.0");
+  });
+
   it("uses a smaller mobile LOD while preserving the primary silhouette", () => {
     const desktopFull = coffeeMachineManifest.lod.find((profile) => profile.device === "desktop")!.levels[0]!;
     const mobileNear = coffeeMachineManifest.lod.find((profile) => profile.device === "mobile")!.levels[0]!;
