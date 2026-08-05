@@ -13,8 +13,6 @@ import {
 } from "./model.js";
 import {
   brewCoffee,
-  coffeeBeanKinds,
-  coffeeBeanLabels,
   configureCoffeeMachineSupplies,
   defaultCoffeeRecipes,
   getCoffeeStockShortages,
@@ -83,6 +81,15 @@ const supplyConfiguration = configureCoffeeMachineSupplies();
 let stock: CoffeeMachineStock = {
   ...supplyConfiguration.initialStock,
   beansGrams: { ...supplyConfiguration.initialStock.beansGrams },
+};
+let selectedRecipeId: string | null = null;
+
+const coffeeImageByRecipeId: Record<string, string> = {
+  espresso: "./images/espresso.svg",
+  americano: "./images/americano.svg",
+  latte: "./images/latte.svg",
+  cappuccino: "./images/cappuccino.svg",
+  "decaf-americano": "./images/decaf-americano.svg",
 };
 
 function materialFor(feature: ModelFeature) {
@@ -239,99 +246,34 @@ function rebuildModel() {
   renderMenu();
 }
 
-function ingredientSummary(recipe: CoffeeRecipe) {
-  const parts = [`水 ${recipe.ingredients.waterMl} ml`];
-  if (recipe.ingredients.milkMl > 0) parts.push(`奶 ${recipe.ingredients.milkMl} ml`);
-  coffeeBeanKinds.forEach((kind) => {
-    const amount = recipe.ingredients.beansGrams[kind];
-    if (amount > 0) parts.push(`${coffeeBeanLabels[kind].replace("豆", "")} ${amount} g`);
-  });
-  return parts.join(" · ");
-}
-
-function stockEntries() {
-  return [
-    {
-      id: "water",
-      name: "水",
-      value: stock.waterMl,
-      capacity: supplyConfiguration.capacities.waterMl,
-      unit: "ml",
-    },
-    {
-      id: "milk",
-      name: "牛奶",
-      value: stock.milkMl,
-      capacity: supplyConfiguration.capacities.milkMl,
-      unit: "ml",
-    },
-    ...coffeeBeanKinds.map((kind) => ({
-      id: kind,
-      name: coffeeBeanLabels[kind].replace("豆", ""),
-      value: stock.beansGrams[kind],
-      capacity: supplyConfiguration.capacities.beansGrams[kind],
-      unit: "g",
-    })),
-  ];
-}
-
-function renderStock() {
-  const grid = requiredElement("stock-grid");
-  const items = stockEntries().map((entry) => {
-    const item = document.createElement("div");
-    item.className = "stock-item";
-
-    const meta = document.createElement("div");
-    meta.className = "stock-meta";
-    const name = document.createElement("span");
-    name.className = "stock-name";
-    name.textContent = entry.name;
-    const value = document.createElement("span");
-    value.className = "stock-value";
-    value.textContent = `${entry.value} ${entry.unit}`;
-    meta.append(name, value);
-
-    const track = document.createElement("div");
-    track.className = "stock-track";
-    const fill = document.createElement("div");
-    fill.className = "stock-fill";
-    const ratio = entry.capacity > 0 ? entry.value / entry.capacity : 0;
-    fill.style.width = `${Math.min(100, ratio * 100)}%`;
-    fill.dataset.low = String(ratio < 0.2);
-    track.append(fill);
-    item.append(meta, track);
-    return item;
-  });
-  grid.replaceChildren(...items);
-}
-
 function renderRecipes() {
   const grid = requiredElement("recipe-grid");
   const cards = defaultCoffeeRecipes.map((recipe) => {
     const shortages = getCoffeeStockShortages(stock, recipe);
     const button = document.createElement("button");
-    button.className = "recipe-card";
+    button.className = "coffee-choice";
     button.type = "button";
     button.disabled = shortages.length > 0;
-    button.setAttribute("aria-label", `制作${recipe.name}，${ingredientSummary(recipe)}`);
+    button.dataset.selected = String(selectedRecipeId === recipe.id);
+    button.setAttribute("aria-pressed", String(selectedRecipeId === recipe.id));
+    button.setAttribute("aria-label", shortages.length > 0 ? `${recipe.name}，暂时缺货` : `选择${recipe.name}`);
 
-    const title = document.createElement("div");
-    title.className = "recipe-title";
+    const image = document.createElement("img");
+    image.className = "coffee-image";
+    image.src = coffeeImageByRecipeId[recipe.id] ?? "./images/americano.svg";
+    image.alt = "";
+    image.draggable = false;
+
     const name = document.createElement("strong");
+    name.className = "coffee-name";
     name.textContent = recipe.name;
-    const readiness = document.createElement("span");
-    readiness.className = "recipe-ready";
-    readiness.dataset.ready = String(shortages.length === 0);
-    readiness.textContent = shortages.length === 0 ? "可制作" : "库存不足";
-    title.append(name, readiness);
-
-    const description = document.createElement("div");
-    description.className = "recipe-description";
-    description.textContent = recipe.description;
-    const usage = document.createElement("div");
-    usage.className = "recipe-usage";
-    usage.textContent = ingredientSummary(recipe);
-    button.append(title, description, usage);
+    button.append(image, name);
+    if (shortages.length > 0) {
+      const unavailable = document.createElement("span");
+      unavailable.className = "coffee-unavailable";
+      unavailable.textContent = "缺货";
+      button.append(unavailable);
+    }
     button.addEventListener("click", () => runRecipe(recipe));
     return button;
   });
@@ -349,7 +291,6 @@ function renderMenu() {
   proximityBadge.dataset.active = String(userNearby);
   requiredElement("power-badge").dataset.active = String(parameters.powered);
 
-  renderStock();
   renderRecipes();
 }
 
@@ -363,13 +304,14 @@ function runRecipe(recipe: CoffeeRecipe) {
   const result = brewCoffee(stock, recipe);
   if (!result.ok) {
     feedback.dataset.error = "true";
-    feedback.textContent = `无法制作${recipe.name}：${result.shortages.map((item) => item.label).join("、")}不足。`;
+    feedback.textContent = `${recipe.name}暂时缺货。`;
     renderMenu();
     return;
   }
   stock = result.stock;
+  selectedRecipeId = recipe.id;
   feedback.dataset.error = "false";
-  feedback.textContent = `已制作${recipe.name}；本次消耗 ${ingredientSummary(recipe)}。`;
+  feedback.textContent = `${recipe.name}正在制作。`;
   renderMenu();
 }
 
@@ -399,7 +341,7 @@ requiredElement<HTMLButtonElement>("power-toggle").addEventListener("click", (ev
   const feedback = requiredElement("brew-feedback");
   if (parameters.powered && userNearby) {
     feedback.dataset.error = "false";
-    feedback.textContent = "请选择一种饮品。";
+    feedback.textContent = "";
   } else if (!parameters.powered && userNearby) {
     feedback.dataset.error = "true";
     feedback.textContent = "已检测到用户，但机器尚未开启。";
@@ -417,7 +359,7 @@ requiredElement<HTMLButtonElement>("proximity-toggle").addEventListener("click",
     feedback.textContent = "已检测到用户，但机器尚未开启。";
   } else if (userNearby) {
     feedback.dataset.error = "false";
-    feedback.textContent = "请选择一种饮品。";
+    feedback.textContent = "";
   }
   renderMenu();
 });
@@ -425,7 +367,7 @@ requiredElement<HTMLButtonElement>("refill-stock").addEventListener("click", () 
   stock = refillCoffeeMachineSupplies(supplyConfiguration);
   const feedback = requiredElement("brew-feedback");
   feedback.dataset.error = "false";
-  feedback.textContent = "水、牛奶和全部豆仓已经补满。";
+  feedback.textContent = "耗材已补满。";
   renderMenu();
 });
 requiredElement<HTMLButtonElement>("lid-toggle").addEventListener("click", (event) => {

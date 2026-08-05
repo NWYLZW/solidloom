@@ -13,7 +13,6 @@
         --line: rgba(151, 190, 184, 0.2);
         --surface: rgba(14, 22, 26, 0.84);
         --accent: #58d7c5;
-        --warning: #f3d45c;
         --danger: #ef8c78;
         --panel-edge-inset: 14px;
         --panel-padding: var(--panel-edge-inset);
@@ -61,8 +60,7 @@
       .badge[data-active="true"] { border-color: rgba(88, 215, 197, 0.7); color: var(--accent); }
 
       .controls,
-      .virtual-menu,
-      .legend {
+      .virtual-menu {
         border: 1px solid var(--line);
         background: var(--surface);
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
@@ -112,105 +110,97 @@
 
       .virtual-menu {
         position: absolute;
-        top: 178px;
-        left: 24px;
-        width: 422px;
-        max-height: calc(100% - 208px);
-        overflow: auto;
+        bottom: 22px;
+        left: 50%;
+        width: min(720px, calc(100% - 48px));
         border-radius: 16px;
-        padding: var(--panel-padding);
+        padding: 10px 12px 12px;
         opacity: 0;
         pointer-events: none;
-        transform: translateY(12px) scale(0.98);
-        transform-origin: top left;
+        transform: translate(-50%, 14px) scale(0.98);
+        transform-origin: bottom center;
         transition: opacity 180ms ease, transform 180ms ease;
       }
       .virtual-menu[data-visible="true"] {
         opacity: 1;
         pointer-events: auto;
-        transform: translateY(0) scale(1);
+        transform: translate(-50%, 0) scale(1);
       }
-      .menu-heading { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
-      .menu-heading h2 { margin: 0; font-size: 17px; }
-      .menu-heading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
-      .sensor-state {
-        flex: none;
-        border: 1px solid rgba(88, 215, 197, 0.45);
-        border-radius: 999px;
-        color: var(--accent);
-        padding: 5px 8px;
-        font-size: 10px;
+      .menu-topline {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        min-height: 18px;
+        margin-bottom: 8px;
       }
+      .menu-prompt { display: flex; gap: 7px; align-items: center; color: #d5e3e0; font-size: 11px; }
+      .sensor-pulse {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 14px var(--accent);
+      }
+      .brew-feedback { color: var(--muted); font-size: 10px; text-align: right; }
+      .brew-feedback[data-error="true"] { color: var(--danger); }
 
-      .stock-grid {
+      .recipe-grid {
         display: grid;
         grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 7px;
-        margin-top: 13px;
+        gap: 8px;
       }
-      .stock-item { min-width: 0; }
-      .stock-meta { display: flex; justify-content: space-between; gap: 4px; color: #b8cac7; font-size: 9px; }
-      .stock-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .stock-value { color: var(--muted); white-space: nowrap; }
-      .stock-track {
-        height: 4px;
-        margin-top: 5px;
-        overflow: hidden;
-        border-radius: 999px;
-        background: rgba(151, 190, 184, 0.14);
-      }
-      .stock-fill { height: 100%; border-radius: inherit; background: var(--accent); transition: width 220ms ease; }
-      .stock-fill[data-low="true"] { background: var(--danger); }
-
-      .recipe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 13px; }
-      .recipe-card {
+      .coffee-choice {
+        position: relative;
         min-width: 0;
-        min-height: 82px;
-        border: 1px solid rgba(126, 170, 164, 0.25);
+        border: 1px solid rgba(126, 170, 164, 0.24);
         border-radius: 11px;
-        background: rgba(20, 32, 37, 0.9);
+        background: rgba(20, 32, 37, 0.88);
         color: var(--ink);
-        padding: 10px;
-        text-align: left;
+        padding: 6px;
         cursor: pointer;
       }
-      .recipe-card:hover,
-      .recipe-card:focus-visible { border-color: var(--accent); outline: none; background: rgba(31, 56, 59, 0.92); }
-      .recipe-card:disabled { cursor: not-allowed; opacity: 0.5; }
-      .recipe-title { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-      .recipe-title strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-      .recipe-ready { flex: none; color: var(--accent); font-size: 9px; }
-      .recipe-ready[data-ready="false"] { color: var(--danger); }
-      .recipe-description { margin-top: 5px; color: var(--muted); font-size: 9px; }
-      .recipe-usage { margin-top: 7px; color: #c3d4d1; font-size: 9px; line-height: 1.45; }
-      .brew-feedback {
-        min-height: 28px;
-        margin-top: 11px;
-        border-left: 2px solid var(--accent);
-        color: #c9dcda;
-        padding: 3px 0 3px 9px;
-        font-size: 10px;
-        line-height: 1.5;
+      .coffee-choice:hover,
+      .coffee-choice:focus-visible {
+        border-color: var(--accent);
+        outline: none;
+        background: rgba(31, 56, 59, 0.92);
       }
-      .brew-feedback[data-error="true"] { border-left-color: var(--danger); color: #f2b6aa; }
-
-      .legend {
-        position: absolute;
-        right: 24px;
-        bottom: 22px;
-        display: flex;
-        gap: 14px;
-        border-radius: 12px;
-        padding: 10px 12px;
-        color: #aec1bd;
+      .coffee-choice[data-selected="true"] {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(88, 215, 197, 0.3), 0 8px 24px rgba(31, 133, 124, 0.22);
+      }
+      .coffee-choice:disabled { cursor: not-allowed; opacity: 0.48; }
+      .coffee-image {
+        display: block;
+        width: 100%;
+        height: 76px;
+        border-radius: 8px;
+        object-fit: cover;
+        user-select: none;
+      }
+      .coffee-name {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        margin-top: 6px;
+        color: #dce9e6;
         font-size: 11px;
-        pointer-events: none;
+        font-weight: 600;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
-      .legend span { display: flex; gap: 6px; align-items: center; }
-      .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px currentColor; }
-      .dot.proximity { background: #d59cf4; }
-      .dot.power { background: var(--warning); }
-      .dot.take { background: #f1ae62; }
+      .coffee-unavailable {
+        position: absolute;
+        top: 11px;
+        right: 11px;
+        border-radius: 999px;
+        background: rgba(37, 18, 17, 0.9);
+        color: #f4b2a6;
+        padding: 3px 6px;
+        font-size: 8px;
+      }
 
       @media (max-width: 780px) {
         .brand { top: 12px; left: 12px; max-width: calc(100% - 24px); }
@@ -223,7 +213,7 @@
         .controls {
           top: auto;
           right: 12px;
-          bottom: 12px;
+          bottom: 142px;
           left: 12px;
           width: auto;
           border-radius: 14px;
@@ -237,28 +227,20 @@
         .action-button { min-height: 32px; padding: 5px 7px; font-size: 10px; }
 
         .virtual-menu {
-          top: 126px;
-          right: 12px;
-          bottom: auto;
-          left: 12px;
-          width: auto;
-          max-height: calc(100% - 270px);
+          bottom: 10px;
+          width: calc(100% - 20px);
           border-radius: 14px;
-          padding: 11px;
+          padding: 8px;
         }
-        .menu-heading h2 { font-size: 14px; }
-        .menu-heading p { font-size: 9px; }
-        .sensor-state { padding: 4px 7px; font-size: 9px; }
-        .stock-grid { gap: 5px; margin-top: 10px; }
-        .stock-meta { display: block; font-size: 8px; }
-        .stock-value { display: block; margin-top: 2px; }
-        .recipe-grid { gap: 6px; margin-top: 10px; }
-        .recipe-card { min-height: 73px; padding: 8px; }
-        .recipe-title strong { font-size: 11px; }
-        .recipe-description,
-        .recipe-usage { font-size: 8px; }
-        .brew-feedback { margin-top: 8px; font-size: 9px; }
-        .legend { display: none; }
+        .menu-topline { min-height: 14px; margin-bottom: 6px; }
+        .menu-prompt { gap: 5px; font-size: 9px; }
+        .sensor-pulse { width: 5px; height: 5px; }
+        .brew-feedback { max-width: 55%; font-size: 8px; }
+        .recipe-grid { gap: 5px; }
+        .coffee-choice { border-radius: 8px; padding: 4px; }
+        .coffee-image { height: 50px; border-radius: 6px; }
+        .coffee-name { margin-top: 4px; font-size: 9px; }
+        .coffee-unavailable { top: 7px; right: 7px; padding: 2px 4px; font-size: 7px; }
       }
     </style>
   </head>
@@ -269,7 +251,7 @@
       <section class="brand" aria-label="资产信息">
         <div class="eyebrow">赛博工厂 · 茶水区资产</div>
         <h1>参数化咖啡机</h1>
-        <div class="subtitle">内部维护水、牛奶和多豆种库存；用户接近后显示可制作的饮品菜单。</div>
+        <div class="subtitle">靠近机器，在页面底部直接选择一杯咖啡。</div>
         <div class="badges">
           <span class="badge" id="device-badge">桌面层级</span>
           <span class="badge" id="dimension-badge">380 × 520 × 440 mm</span>
@@ -284,25 +266,18 @@
         id="virtual-menu"
         data-visible="false"
         aria-hidden="true"
-        aria-labelledby="menu-title"
+        aria-label="咖啡菜单"
       >
-        <header class="menu-heading">
-          <div>
-            <h2 id="menu-title">虚拟咖啡菜单</h2>
-            <p>选择后按当前配方自动扣减库存。</p>
-          </div>
-          <span class="sensor-state">接近感应已触发</span>
-        </header>
-        <div class="stock-grid" id="stock-grid" aria-label="耗材库存"></div>
-        <div class="recipe-grid" id="recipe-grid" aria-label="咖啡配方"></div>
-        <div class="brew-feedback" id="brew-feedback" role="status" aria-live="polite">
-          请选择一种饮品。
+        <div class="menu-topline">
+          <span class="menu-prompt"><i class="sensor-pulse"></i>请选择咖啡</span>
+          <span class="brew-feedback" id="brew-feedback" role="status" aria-live="polite"></span>
         </div>
+        <div class="recipe-grid" id="recipe-grid"></div>
       </section>
 
       <section class="controls" aria-label="预览参数与交互">
         <h2>模型与交互模拟</h2>
-        <p class="control-note">拖动视口旋转；接近后菜单才会显示。</p>
+        <p class="control-note">拖动视口旋转；开机并接近后显示底部菜单。</p>
         <div class="control-grid">
           <div class="control-row">
             <label for="width">宽度</label>
@@ -343,13 +318,6 @@
           <button class="action-button" id="lid-toggle" type="button" aria-pressed="false">打开水箱翻盖</button>
         </div>
       </section>
-
-      <aside class="legend" aria-label="锚点图例">
-        <span><i class="dot proximity"></i>接近</span>
-        <span><i class="dot"></i>制作</span>
-        <span><i class="dot power"></i>电源</span>
-        <span><i class="dot take"></i>取杯</span>
-      </aside>
     </main>
     <script type="module" src="./preview.ts"></script>
   </body>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="卡布奇诺">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#294b49"/><stop offset="1" stop-color="#0d1719"/></linearGradient>
+    <linearGradient id="cup" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#78d2c5"/><stop offset="1" stop-color="#246b68"/></linearGradient>
+    <radialGradient id="foam"><stop stop-color="#fff9e9"/><stop offset=".78" stop-color="#e7d4b7"/><stop offset="1" stop-color="#a66f43"/></radialGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="9" stdDeviation="8" flood-opacity=".5"/></filter>
+  </defs>
+  <rect width="320" height="220" rx="28" fill="url(#bg)"/>
+  <ellipse cx="158" cy="184" rx="94" ry="16" fill="#050b0c" opacity=".45"/>
+  <g filter="url(#shadow)">
+    <ellipse cx="150" cy="171" rx="82" ry="14" fill="#aacbc6" opacity=".8"/>
+    <path d="M82 85h145l-13 73c-3 17-23 25-59 25s-58-8-61-25z" fill="url(#cup)"/>
+    <path d="M224 101c55-4 60 66 5 73" fill="none" stroke="#55b6ae" stroke-width="15"/>
+    <ellipse cx="155" cy="87" rx="73" ry="22" fill="#b9dcd6"/>
+    <ellipse cx="155" cy="89" rx="63" ry="17" fill="url(#foam)"/>
+    <path d="M155 91c-28-28-55 3-22 14 12 4 22-3 22-14zm0 0c28-28 55 3 22 14-12 4-22-3-22-14z" fill="#fff9e9"/>
+    <path d="M155 91c-12 12-10 25 0 31 10-6 12-19 0-31z" fill="#b47a4c"/>
+  </g>
+</svg>
