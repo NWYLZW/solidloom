@@ -11,21 +11,28 @@
       <canvas id="preview" aria-label="仓储与内部物流资产三维预览"></canvas>
       <section class="panel" aria-label="资产信息">
         <p class="eyebrow">赛博工厂 · 仓储资产</p>
-        <h1>仓储与内部物流套件</h1>
-        <p class="summary">货架、托盘、周转箱和推车可独立引用，也可通过货位与搬运锚点组合。</p>
-        <div class="assets" aria-label="资产清单">
-          <span>参数化货架</span>
-          <span>木质托盘</span>
-          <span>开放周转箱</span>
-          <span>四轮推车</span>
-        </div>
+        <h1 id="asset-title">仓储与内部物流套件</h1>
+        <p id="asset-summary" class="summary">四项资产可独立引用，也可通过货位与搬运锚点组合。</p>
+        <nav class="asset-tabs" aria-label="预览模型">
+          <button type="button" data-asset="overview" aria-pressed="true">场景总览</button>
+          <button type="button" data-asset="rack" aria-pressed="false">货架</button>
+          <button type="button" data-asset="pallet" aria-pressed="false">托盘</button>
+          <button type="button" data-asset="tote" aria-pressed="false">周转箱</button>
+          <button type="button" data-asset="cart" aria-pressed="false">推车</button>
+        </nav>
+        <section id="parameter-panel" class="parameter-panel" aria-label="模型参数" hidden>
+          <div class="parameter-heading">
+            <h2>模型参数</h2>
+            <button id="reset-parameters" class="reset-button" type="button">恢复默认值</button>
+          </div>
+          <div id="parameter-controls" class="parameter-controls"></div>
+        </section>
         <p id="metrics" class="metrics"></p>
       </section>
       <aside class="legend" aria-label="锚点图例">
-        <span><i class="slot"></i>货位</span>
-        <span><i class="pick"></i>取货</span>
-        <span><i class="restock"></i>补货</span>
-        <span><i class="transport"></i>搬运</span>
+        <span><i class="socket"></i>挂接位</span>
+        <span><i class="interaction"></i>交互位</span>
+        <span><i class="approach"></i>接近位</span>
       </aside>
     </main>
     <script type="module" src="./preview.ts"></script>

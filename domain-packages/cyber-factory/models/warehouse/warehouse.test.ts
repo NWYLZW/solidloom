@@ -111,4 +111,13 @@ describe("warehouse and internal logistics asset kit", () => {
       expect(ids.every((id) => /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(id))).toBe(true);
     }
   });
+
+  it("keeps every numeric default value on its declared control step", () => {
+    for (const definition of warehouseAssetDefinitions) {
+      for (const parameter of definition.manifest.parameters) {
+        if (parameter.type !== "number" || parameter.minimum === undefined || parameter.step === undefined) continue;
+        expect((Number(parameter.defaultValue) - parameter.minimum) % parameter.step).toBe(0);
+      }
+    }
+  });
 });

@@ -170,7 +170,7 @@ export function createWarehousePalletManifest(
     parameters: [
       { id: "width", label: "托盘宽度", type: "number", defaultValue: parameters.width, unit: "mm", minimum: 800, maximum: 1_300, step: 50 },
       { id: "depth", label: "托盘深度", type: "number", defaultValue: parameters.depth, unit: "mm", minimum: 600, maximum: 1_200, step: 50 },
-      { id: "height", label: "托盘高度", type: "number", defaultValue: parameters.height, unit: "mm", minimum: 110, maximum: 190, step: 5 },
+      { id: "height", label: "托盘高度", type: "number", defaultValue: parameters.height, unit: "mm", minimum: 110, maximum: 190, step: 1 },
     ],
     materials: [{ id: "pallet-wood", label: "托盘木材", material: "wood", color: "#C99861", featureIds: allIds }],
     placement: fixedPlacement(),
@@ -286,8 +286,8 @@ export function createWarehouseCartManifest(
     modelUnit: "mm",
     parameters: [
       { id: "width", label: "推车宽度", type: "number", defaultValue: parameters.width, unit: "mm", minimum: 650, maximum: 1_100, step: 50 },
-      { id: "depth", label: "推车深度", type: "number", defaultValue: parameters.depth, unit: "mm", minimum: 900, maximum: 1_500, step: 50 },
-      { id: "deck-height", label: "承载台高度", type: "number", defaultValue: parameters.deckHeight, unit: "mm", minimum: 240, maximum: 460, step: 20 },
+      { id: "depth", label: "推车深度", type: "number", defaultValue: parameters.depth, unit: "mm", minimum: 900, maximum: 1_500, step: 10 },
+      { id: "deck-height", label: "承载台高度", type: "number", defaultValue: parameters.deckHeight, unit: "mm", minimum: 240, maximum: 460, step: 10 },
       { id: "handle-height", label: "把手高度", type: "number", defaultValue: parameters.handleHeight, unit: "mm", minimum: 720, maximum: 1_400, step: 20 },
     ],
     materials: [

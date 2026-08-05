@@ -3,16 +3,47 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import {
+  defaultWarehouseCartParameters,
+  defaultWarehousePalletParameters,
   defaultWarehouseRackParameters,
+  defaultWarehouseToteParameters,
   warehouseRackBayX,
   warehouseRackShelfY,
+  type WarehouseCartParameters,
+  type WarehousePalletParameters,
+  type WarehouseRackParameters,
+  type WarehouseToteParameters,
 } from "./model.js";
 import {
-  warehouseCartDefinition,
-  warehousePalletDefinition,
-  warehouseRackDefinition,
-  warehouseToteDefinition,
+  createWarehouseCartDefinition,
+  createWarehousePalletDefinition,
+  createWarehouseRackDefinition,
+  createWarehouseToteDefinition,
 } from "./manifest.js";
+
+type AssetKey = "rack" | "pallet" | "tote" | "cart";
+type PreviewMode = "overview" | AssetKey;
+
+interface ParameterControl {
+  key: string;
+  label: string;
+  minimum: number;
+  maximum: number;
+  step: number;
+  unit?: string;
+}
+
+interface AssetPreviewConfig {
+  title: string;
+  summary: string;
+  defaults: Record<string, number>;
+  parameters: ParameterControl[];
+  createDefinition: (parameters: Record<string, number>) => ModelAssetDefinition;
+  cameraPosition: Vector3Tuple;
+  cameraTarget: Vector3Tuple;
+  minimumDistance: number;
+  maximumDistance: number;
+}
 
 function requiredElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -20,8 +51,88 @@ function requiredElement<T extends HTMLElement>(selector: string): T {
   return element;
 }
 
+function valuesOf(parameters: object): Record<string, number> {
+  return { ...parameters } as Record<string, number>;
+}
+
+const assetConfigs: Record<AssetKey, AssetPreviewConfig> = {
+  rack: {
+    title: "参数化仓储货架",
+    summary: "独立货架模型；跨数和层数变化时自动生成稳定货位、取货位与补货位。",
+    defaults: valuesOf(defaultWarehouseRackParameters),
+    parameters: [
+      { key: "bayCount", label: "货架跨数", minimum: 1, maximum: 5, step: 1 },
+      { key: "levelCount", label: "货架层数", minimum: 2, maximum: 6, step: 1 },
+      { key: "bayWidth", label: "单跨宽度", minimum: 800, maximum: 1_400, step: 50, unit: "毫米" },
+      { key: "height", label: "货架高度", minimum: 1_800, maximum: 3_600, step: 100, unit: "毫米" },
+      { key: "depth", label: "货架深度", minimum: 600, maximum: 1_200, step: 50, unit: "毫米" },
+    ],
+    createDefinition: (parameters) => createWarehouseRackDefinition(parameters as Partial<WarehouseRackParameters>),
+    cameraPosition: [4_800, 3_500, 5_900],
+    cameraTarget: [0, 1_300, 0],
+    minimumDistance: 2_800,
+    maximumDistance: 14_000,
+  },
+  pallet: {
+    title: "参数化仓储托盘",
+    summary: "独立木质托盘模型；具有装载面和前后货叉入口。",
+    defaults: valuesOf(defaultWarehousePalletParameters),
+    parameters: [
+      { key: "width", label: "托盘宽度", minimum: 800, maximum: 1_300, step: 50, unit: "毫米" },
+      { key: "depth", label: "托盘深度", minimum: 600, maximum: 1_200, step: 50, unit: "毫米" },
+      { key: "height", label: "托盘高度", minimum: 110, maximum: 190, step: 1, unit: "毫米" },
+    ],
+    createDefinition: (parameters) => createWarehousePalletDefinition(parameters as Partial<WarehousePalletParameters>),
+    cameraPosition: [1_800, 1_100, 2_100],
+    cameraTarget: [0, 120, 0],
+    minimumDistance: 900,
+    maximumDistance: 6_000,
+  },
+  tote: {
+    title: "参数化仓储周转箱",
+    summary: "独立开放式周转箱模型；内腔可挂接内容物，两侧提供搬运交互位。",
+    defaults: valuesOf(defaultWarehouseToteParameters),
+    parameters: [
+      { key: "width", label: "周转箱宽度", minimum: 400, maximum: 800, step: 20, unit: "毫米" },
+      { key: "depth", label: "周转箱深度", minimum: 300, maximum: 600, step: 20, unit: "毫米" },
+      { key: "height", label: "周转箱高度", minimum: 240, maximum: 520, step: 20, unit: "毫米" },
+    ],
+    createDefinition: (parameters) => createWarehouseToteDefinition(parameters as Partial<WarehouseToteParameters>),
+    cameraPosition: [1_300, 850, 1_500],
+    cameraTarget: [0, 180, 0],
+    minimumDistance: 700,
+    maximumDistance: 5_000,
+  },
+  cart: {
+    title: "参数化仓储推车",
+    summary: "独立四轮物流推车模型；承载台、把手与搬运锚点可直接用于内部运输。",
+    defaults: valuesOf(defaultWarehouseCartParameters),
+    parameters: [
+      { key: "width", label: "推车宽度", minimum: 650, maximum: 1_100, step: 50, unit: "毫米" },
+      { key: "depth", label: "推车深度", minimum: 900, maximum: 1_500, step: 10, unit: "毫米" },
+      { key: "deckHeight", label: "承载台高度", minimum: 240, maximum: 460, step: 10, unit: "毫米" },
+      { key: "handleHeight", label: "把手高度", minimum: 720, maximum: 1_400, step: 20, unit: "毫米" },
+    ],
+    createDefinition: (parameters) => createWarehouseCartDefinition(parameters as Partial<WarehouseCartParameters>),
+    cameraPosition: [2_100, 1_450, 2_700],
+    cameraTarget: [0, 520, 0],
+    minimumDistance: 1_200,
+    maximumDistance: 7_000,
+  },
+};
+
+const parameterValues = Object.fromEntries(
+  Object.entries(assetConfigs).map(([key, config]) => [key, { ...config.defaults }]),
+) as Record<AssetKey, Record<string, number>>;
+
 const canvas = requiredElement<HTMLCanvasElement>("#preview");
+const assetTitle = requiredElement<HTMLElement>("#asset-title");
+const assetSummary = requiredElement<HTMLElement>("#asset-summary");
+const parameterPanel = requiredElement<HTMLElement>("#parameter-panel");
+const parameterControls = requiredElement<HTMLElement>("#parameter-controls");
+const resetParameters = requiredElement<HTMLButtonElement>("#reset-parameters");
 const metrics = requiredElement<HTMLElement>("#metrics");
+const assetTabs = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-asset]"));
 
 const quality = new URLSearchParams(window.location.search).get("quality") === "mobile" ? "mobile" : "desktop";
 const scene = new THREE.Scene();
@@ -29,9 +140,6 @@ scene.background = new THREE.Color("#172328");
 scene.fog = new THREE.FogExp2("#172328", quality === "mobile" ? 0.000035 : 0.0001);
 
 const camera = new THREE.PerspectiveCamera(quality === "mobile" ? 42 : 38, 1, 1, 24_000);
-camera.position.set(...(quality === "mobile"
-  ? [7_500, 4_200, 9_300] as Vector3Tuple
-  : [5_300, 3_700, 6_500] as Vector3Tuple));
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality === "desktop" });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
@@ -42,9 +150,6 @@ renderer.toneMappingExposure = 1.35;
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
-controls.target.set(180, 1_150, 0);
-controls.minDistance = 3_600;
-controls.maxDistance = 18_000;
 controls.maxPolarAngle = Math.PI * 0.49;
 
 scene.add(new THREE.HemisphereLight("#E5FFFB", "#23373D", 4.2));
@@ -72,6 +177,10 @@ scene.add(floor);
 const grid = new THREE.GridHelper(12_000, 40, "#34565A", "#1E3236");
 grid.position.y = 2;
 scene.add(grid);
+
+const assetLayer = new THREE.Group();
+const markerLayer = new THREE.Group();
+scene.add(assetLayer, markerLayer);
 
 function materialFor(feature: ModelFeature) {
   const preset = feature.appearance?.material ?? "default";
@@ -133,20 +242,9 @@ function buildAsset(definition: ModelAssetDefinition, position: Vector3Tuple) {
     root.add(mesh);
   }
   root.position.set(...position);
-  scene.add(root);
+  assetLayer.add(root);
   return visible.size;
 }
-
-let drawUnits = 0;
-const rackPosition: Vector3Tuple = [-500, 0, -180];
-drawUnits += buildAsset(warehouseRackDefinition, rackPosition);
-drawUnits += buildAsset(warehousePalletDefinition, [rackPosition[0] + warehouseRackBayX(defaultWarehouseRackParameters, 0), warehouseRackShelfY(defaultWarehouseRackParameters, 0) + 22, rackPosition[2]]);
-drawUnits += buildAsset(warehouseToteDefinition, [rackPosition[0] + warehouseRackBayX(defaultWarehouseRackParameters, 1), warehouseRackShelfY(defaultWarehouseRackParameters, 1) + 22, rackPosition[2]]);
-drawUnits += buildAsset(warehouseToteDefinition, [rackPosition[0] + warehouseRackBayX(defaultWarehouseRackParameters, 2), warehouseRackShelfY(defaultWarehouseRackParameters, 2) + 22, rackPosition[2]]);
-const cartPosition: Vector3Tuple = quality === "mobile" ? [1_450, 0, 260] : [2_300, 0, 420];
-drawUnits += buildAsset(warehouseCartDefinition, cartPosition);
-if (quality === "desktop") drawUnits += buildAsset(warehousePalletDefinition, [2_150, 0, -1_050]);
-metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · 4 项独立资产`;
 
 function marker(color: string, position: Vector3Tuple, radius = 38) {
   const root = new THREE.Group();
@@ -158,19 +256,160 @@ function marker(color: string, position: Vector3Tuple, radius = 38) {
   const core = new THREE.Mesh(new THREE.SphereGeometry(11, 12, 10), new THREE.MeshBasicMaterial({ color }));
   root.add(ring, core);
   root.position.set(...position);
-  scene.add(root);
+  markerLayer.add(root);
 }
 
-const rackAnchors = warehouseRackDefinition.manifest.anchors;
-for (const anchor of rackAnchors.filter(({ id }) => id.startsWith("warehouse-rack-slot-b02-")).slice(0, 3)) {
-  marker("#54D5C4", [anchor.position[0] + rackPosition[0], anchor.position[1], anchor.position[2] + rackPosition[2]], 30);
+function clearLayer(layer: THREE.Group) {
+  for (const child of [...layer.children]) {
+    child.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      object.geometry.dispose();
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) material.dispose();
+    });
+    layer.remove(child);
+  }
 }
-const pick = rackAnchors.find(({ id }) => id === "warehouse-rack-pick-b02-l01")!;
-marker("#F2C45F", [pick.position[0] + rackPosition[0], pick.position[1], pick.position[2] + rackPosition[2]], 45);
-const restock = rackAnchors.find(({ id }) => id === "warehouse-rack-restock-b02-l02")!;
-marker("#EE855E", [restock.position[0] + rackPosition[0], restock.position[1], restock.position[2] + rackPosition[2]], 42);
-const push = warehouseCartDefinition.manifest.anchors.find(({ id }) => id === "warehouse-cart-push-handle")!;
-marker("#9F8CFF", [push.position[0] + cartPosition[0], push.position[1], push.position[2] + cartPosition[2]], 46);
+
+function placeRepresentativeAnchors(definition: ModelAssetDefinition, offset: Vector3Tuple = [0, 0, 0]) {
+  const anchors = definition.manifest.anchors;
+  const selected = [];
+  const socket = anchors.find(({ kind }) => kind === "socket");
+  const approach = anchors.find(({ kind }) => kind === "approach");
+  if (socket) selected.push(socket);
+  selected.push(...anchors.filter(({ kind }) => kind === "interaction").slice(0, 2));
+  if (approach) selected.push(approach);
+  for (const anchor of selected) {
+    const color = anchor.kind === "socket" ? "#54D5C4" : anchor.kind === "approach" ? "#9F8CFF" : "#F2C45F";
+    marker(color, [
+      anchor.position[0] + offset[0],
+      anchor.position[1] + offset[1],
+      anchor.position[2] + offset[2],
+    ], anchor.kind === "approach" ? 45 : 34);
+  }
+}
+
+function setCamera(position: Vector3Tuple, target: Vector3Tuple, minimumDistance: number, maximumDistance: number) {
+  const mobileScale = quality === "mobile" ? 1.24 : 1;
+  camera.position.set(position[0] * mobileScale, position[1] * mobileScale, position[2] * mobileScale);
+  controls.target.set(...target);
+  controls.minDistance = minimumDistance;
+  controls.maxDistance = maximumDistance;
+  controls.update();
+}
+
+function renderOverview() {
+  const rack = createWarehouseRackDefinition(defaultWarehouseRackParameters);
+  const pallet = createWarehousePalletDefinition(defaultWarehousePalletParameters);
+  const tote = createWarehouseToteDefinition(defaultWarehouseToteParameters);
+  const cart = createWarehouseCartDefinition(defaultWarehouseCartParameters);
+  const rackPosition: Vector3Tuple = [-500, 0, -180];
+  let drawUnits = buildAsset(rack, rackPosition);
+  drawUnits += buildAsset(pallet, [
+    rackPosition[0] + warehouseRackBayX(defaultWarehouseRackParameters, 0),
+    warehouseRackShelfY(defaultWarehouseRackParameters, 0) + 22,
+    rackPosition[2],
+  ]);
+  drawUnits += buildAsset(tote, [
+    rackPosition[0] + warehouseRackBayX(defaultWarehouseRackParameters, 1),
+    warehouseRackShelfY(defaultWarehouseRackParameters, 1) + 22,
+    rackPosition[2],
+  ]);
+  drawUnits += buildAsset(tote, [
+    rackPosition[0] + warehouseRackBayX(defaultWarehouseRackParameters, 2),
+    warehouseRackShelfY(defaultWarehouseRackParameters, 2) + 22,
+    rackPosition[2],
+  ]);
+  const cartPosition: Vector3Tuple = quality === "mobile" ? [1_450, 0, 260] : [2_300, 0, 420];
+  drawUnits += buildAsset(cart, cartPosition);
+  if (quality === "desktop") drawUnits += buildAsset(pallet, [2_150, 0, -1_050]);
+  placeRepresentativeAnchors(cart, cartPosition);
+  setCamera([5_300, 3_700, 6_500], [180, 1_150, 0], 3_600, 18_000);
+  return drawUnits;
+}
+
+function formatValue(value: number, unit?: string) {
+  return `${new Intl.NumberFormat("zh-CN").format(value)}${unit ? ` ${unit}` : ""}`;
+}
+
+let currentMode: PreviewMode = "overview";
+
+function renderCurrentMode() {
+  clearLayer(assetLayer);
+  clearLayer(markerLayer);
+  if (currentMode === "overview") {
+    const drawUnits = renderOverview();
+    assetTitle.textContent = "仓储与内部物流套件";
+    assetSummary.textContent = "四项资产可独立引用，也可通过货位与搬运锚点组合。";
+    metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · 4 项独立资产`;
+    return;
+  }
+
+  const config = assetConfigs[currentMode];
+  const definition = config.createDefinition(parameterValues[currentMode]);
+  const drawUnits = buildAsset(definition, [0, 0, 0]);
+  placeRepresentativeAnchors(definition);
+  setCamera(config.cameraPosition, config.cameraTarget, config.minimumDistance, config.maximumDistance);
+  assetTitle.textContent = config.title;
+  assetSummary.textContent = config.summary;
+  metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · 独立模型：${definition.manifest.id}`;
+}
+
+function renderParameterControls(asset: AssetKey) {
+  const config = assetConfigs[asset];
+  parameterControls.replaceChildren();
+  for (const parameter of config.parameters) {
+    const row = document.createElement("div");
+    row.className = "parameter-control";
+    const inputId = `parameter-${asset}-${parameter.key}`;
+    const label = document.createElement("label");
+    label.htmlFor = inputId;
+    label.textContent = parameter.label;
+    const input = document.createElement("input");
+    input.id = inputId;
+    input.type = "range";
+    input.min = String(parameter.minimum);
+    input.max = String(parameter.maximum);
+    input.step = String(parameter.step);
+    input.value = String(parameterValues[asset][parameter.key]);
+    const value = document.createElement("output");
+    value.className = "parameter-value";
+    value.htmlFor = inputId;
+    value.textContent = formatValue(parameterValues[asset][parameter.key]!, parameter.unit);
+    input.addEventListener("input", () => {
+      parameterValues[asset][parameter.key] = Number(input.value);
+      value.textContent = formatValue(parameterValues[asset][parameter.key]!, parameter.unit);
+      renderCurrentMode();
+    });
+    row.append(label, input, value);
+    parameterControls.append(row);
+  }
+}
+
+function isPreviewMode(value: string | undefined): value is PreviewMode {
+  return value === "overview" || value === "rack" || value === "pallet" || value === "tote" || value === "cart";
+}
+
+function selectMode(mode: PreviewMode) {
+  currentMode = mode;
+  for (const tab of assetTabs) tab.setAttribute("aria-pressed", String(tab.dataset.asset === mode));
+  parameterPanel.hidden = mode === "overview";
+  if (mode !== "overview") renderParameterControls(mode);
+  renderCurrentMode();
+}
+
+for (const tab of assetTabs) {
+  tab.addEventListener("click", () => {
+    if (isPreviewMode(tab.dataset.asset)) selectMode(tab.dataset.asset);
+  });
+}
+
+resetParameters.addEventListener("click", () => {
+  if (currentMode === "overview") return;
+  parameterValues[currentMode] = { ...assetConfigs[currentMode].defaults };
+  renderParameterControls(currentMode);
+  renderCurrentMode();
+});
 
 function resize() {
   const width = canvas.clientWidth;
@@ -187,5 +426,6 @@ function render() {
 }
 
 window.addEventListener("resize", resize);
+selectMode("overview");
 resize();
 render();
