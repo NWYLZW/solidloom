@@ -1,0 +1,21 @@
+.dialog-backdrop { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; background: rgba(18, 21, 17, 0.28); }
+.create-dialog { display: grid; width: min(360px, calc(100vw - 40px)); gap: var(--panel-padding); padding: var(--panel-padding); border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-popover); box-shadow: 0 18px 54px rgba(18, 21, 17, 0.24); }
+.dialog-heading { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; }
+.shortcut-dialog { display: grid; width: min(900px, calc(100vw - 40px)); max-height: calc(100vh - 40px); gap: var(--panel-padding); padding: var(--panel-padding); overflow: auto; border: 1px solid var(--color-border); border-radius: 10px; color: var(--color-text); background: var(--color-popover); box-shadow: 0 18px 54px rgba(18, 21, 17, 0.24); }
+.shortcut-dialog-heading, .shortcut-dialog-heading > div { display: flex; align-items: center; }
+.shortcut-dialog-heading { justify-content: space-between; gap: var(--panel-padding); }
+.shortcut-dialog-heading > div { gap: 8px; font-size: 12px; font-weight: 700; }
+.shortcut-dialog-heading > button { display: grid; flex: 0 0 31px; place-items: center; width: 31px; height: 31px; padding: 0; border: 1px solid var(--color-border-soft); border-radius: 6px; color: var(--color-muted); background: var(--color-control); cursor: pointer; }
+.shortcut-dialog-heading > button:hover { color: var(--color-text); border-color: var(--color-border); }
+.shortcut-dialog > p { margin: 0; color: var(--color-muted); font-size: 11px; line-height: 1.5; }
+.shortcut-sections { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--panel-padding); align-items: start; }
+.shortcut-section { min-width: 0; }
+.shortcut-section h3 { margin: 0 0 8px; font-size: 11px; }
+.shortcut-section dl { display: grid; gap: 5px; margin: 0; }
+.shortcut-row { display: grid; grid-template-columns: minmax(124px, 0.9fr) minmax(0, 1fr); align-items: center; gap: 8px; min-height: 31px; }
+.shortcut-row dt, .shortcut-row dd { min-width: 0; margin: 0; }
+.shortcut-row dd { color: var(--color-muted); font-size: 10px; line-height: 1.4; }
+.shortcut-row kbd { display: inline-block; max-width: 100%; padding: 4px 6px; overflow: hidden; border: 1px solid var(--color-border-soft); border-bottom-color: var(--color-border); border-radius: 5px; color: var(--color-text); background: var(--color-control); font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.create-dialog label { display: grid; gap: 7px; color: var(--color-muted); font-size: 10px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 7px; }
+.dialog-actions > button:not(.primary-button) { height: 31px; padding: 0 12px; border: 1px solid var(--color-border-soft); border-radius: 6px; background: var(--color-control); cursor: pointer; }
