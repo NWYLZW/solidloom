@@ -11,12 +11,6 @@ import {
   type SnackCabinetParameters,
 } from "./model.js";
 
-const packetRows = new Set<string>([
-  snackCabinetFeatureIds.productRowOne,
-  snackCabinetFeatureIds.productRowTwo,
-  snackCabinetFeatureIds.productRowThree,
-]);
-
 function materialFor(feature: ModelFeature) {
   const color = feature.appearance?.color ?? "#A8B6B8";
   const preset = feature.appearance?.material ?? "default";
@@ -68,37 +62,7 @@ function geometryFor(feature: ModelFeature) {
   return geometry;
 }
 
-function createPacketRow(feature: ModelFeature) {
-  if (feature.type !== "box") return null;
-  const count = 7;
-  const width = feature.parameters.width;
-  const height = feature.parameters.height;
-  const depth = feature.parameters.depth;
-  const packetWidth = width / (count + 1.8);
-  const geometry = new RoundedBoxGeometry(packetWidth, height, depth, 3, Math.min(12, packetWidth * 0.15));
-  const material = materialFor(feature);
-  const mesh = new THREE.InstancedMesh(geometry, material, count);
-  const palette = ["#F08B4A", "#F4C45A", "#80C7B5", "#EA6F72", "#9CA7ED", "#B8F13C", "#F0A1CA"];
-  const matrix = new THREE.Matrix4();
-  const color = new THREE.Color();
-  for (let index = 0; index < count; index += 1) {
-    const x = -width / 2 + packetWidth * 0.9 + index * ((width - packetWidth * 1.8) / (count - 1));
-    matrix.makeTranslation(x, 0, 0);
-    mesh.setMatrixAt(index, matrix);
-    mesh.setColorAt(index, color.set(palette[index]!));
-  }
-  mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  mesh.position.set(...feature.position);
-  mesh.rotation.set(...feature.rotation.map((value) => THREE.MathUtils.degToRad(value)) as Vector3Tuple);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  mesh.name = feature.id;
-  return mesh;
-}
-
 function createFeatureObject(feature: ModelFeature) {
-  if (packetRows.has(feature.id)) return createPacketRow(feature);
   const mesh = new THREE.Mesh(geometryFor(feature), materialFor(feature));
   mesh.position.set(...feature.position);
   mesh.rotation.set(...feature.rotation.map((value) => THREE.MathUtils.degToRad(value)) as Vector3Tuple);
@@ -210,7 +174,11 @@ export class SnackCabinetPreviewScene {
     const model = createSnackCabinet(parameters);
     const graph = model.featureGraph!;
     const level = snackCabinetManifest.lod.find((profile) => profile.device === device)!.levels[0]!;
-    const visibleIds = new Set(level.featureIds ?? graph.features.map((feature) => feature.id));
+    const visibleIds = new Set(
+      device === "desktop"
+        ? graph.features.map((feature) => feature.id)
+        : level.featureIds ?? graph.features.map((feature) => feature.id),
+    );
     const joint = graph.joints?.find((entry) => entry.id === snackCabinetJointIds.pickupFlap);
 
     for (const feature of graph.features) {

@@ -5,9 +5,12 @@ import {
   snackCabinetFeatureIds,
   snackCabinetGroupIds,
   snackCabinetJointIds,
+  snackCabinetProductFeaturePrefix,
 } from "./model.js";
 
-const allFeatureIds = Object.values(snackCabinetFeatureIds);
+const defaultGraph = createSnackCabinet().featureGraph!;
+const allFeatureIds = defaultGraph.features.map((feature) => feature.id);
+const defaultProductFeatureIds = allFeatureIds.filter((id) => id.startsWith(snackCabinetProductFeaturePrefix));
 const silhouetteFeatureIds = [
   snackCabinetFeatureIds.base,
   snackCabinetFeatureIds.back,
@@ -23,9 +26,7 @@ const simplifiedFeatureIds = [
   snackCabinetFeatureIds.shelfTwo,
   snackCabinetFeatureIds.shelfThree,
   snackCabinetFeatureIds.shelfFour,
-  snackCabinetFeatureIds.productRowOne,
-  snackCabinetFeatureIds.productRowTwo,
-  snackCabinetFeatureIds.productRowThree,
+  ...defaultProductFeatureIds.filter((_, index) => index % 2 === 0),
   snackCabinetFeatureIds.pickupFlap,
   snackCabinetFeatureIds.paymentDisplay,
   snackCabinetFeatureIds.statusLight,
@@ -130,12 +131,14 @@ export const snackCabinetManifest: ModelAssetManifest = {
       label: "零食包装",
       material: "plastic",
       color: "#E88D4D",
-      featureIds: [
-        snackCabinetFeatureIds.productRowOne,
-        snackCabinetFeatureIds.productRowTwo,
-        snackCabinetFeatureIds.productRowThree,
-        snackCabinetFeatureIds.statusLight,
-      ],
+      featureIds: defaultProductFeatureIds,
+    },
+    {
+      id: "status-accent",
+      label: "设备状态灯",
+      material: "plastic",
+      color: "#B8F13C",
+      featureIds: [snackCabinetFeatureIds.statusLight],
     },
   ],
   placement: {
@@ -233,15 +236,15 @@ export const snackCabinetManifest: ModelAssetManifest = {
     {
       device: "desktop",
       levels: [
-        { id: "snack-cabinet-desktop-full", maximumDistance: 5000, featureIds: allFeatureIds, triangleBudget: 760 },
-        { id: "snack-cabinet-desktop-medium", maximumDistance: 10000, featureIds: simplifiedFeatureIds, triangleBudget: 420 },
+        { id: "snack-cabinet-desktop-full", maximumDistance: 5000, featureIds: allFeatureIds, triangleBudget: 2200 },
+        { id: "snack-cabinet-desktop-medium", maximumDistance: 10000, featureIds: simplifiedFeatureIds, triangleBudget: 1100 },
         { id: "snack-cabinet-desktop-silhouette", maximumDistance: 20000, featureIds: silhouetteFeatureIds, triangleBudget: 180 },
       ],
     },
     {
       device: "mobile",
       levels: [
-        { id: "snack-cabinet-mobile-near", maximumDistance: 4200, featureIds: simplifiedFeatureIds, triangleBudget: 380 },
+        { id: "snack-cabinet-mobile-near", maximumDistance: 4200, featureIds: simplifiedFeatureIds, triangleBudget: 920 },
         { id: "snack-cabinet-mobile-silhouette", maximumDistance: 12000, featureIds: silhouetteFeatureIds, triangleBudget: 160 },
       ],
     },
@@ -260,7 +263,7 @@ export const snackCabinetManifest: ModelAssetManifest = {
       background: "dark",
     },
   ],
-  tags: ["cyber-factory", "office", "inventory", "snack", "planned"],
+  tags: ["cyber-factory", "office", "inventory", "snack"],
 };
 
 export const snackCabinetDefinition: ModelAssetDefinition = {

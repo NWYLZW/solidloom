@@ -38,6 +38,7 @@ describe("extension registries", () => {
       "简易人体工学椅",
       "极简风小人",
       "原创方块角色",
+      "参数化零食售货机",
     ]);
     expect(builtInDomainRegistry.models.ids()).toEqual([
       "cyber-factory-desk",
@@ -48,6 +49,7 @@ describe("extension registries", () => {
       "cyber-factory-chair",
       "cyber-factory-figure",
       "solidloom-block-avatar",
+      "cyber-factory-snack-cabinet",
     ]);
   });
 

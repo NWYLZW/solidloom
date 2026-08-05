@@ -92,8 +92,9 @@ describe("cyber factory examples", () => {
       "简易人体工学椅",
       "极简风小人",
       "原创方块角色",
+      "参数化零食售货机",
     ]);
-    expect(cyberFactoryModels.reduce((total, model) => total + (model.featureGraph?.features.length ?? 0), 0)).toBe(90);
+    expect(cyberFactoryModels.reduce((total, model) => total + (model.featureGraph?.features.length ?? 0), 0)).toBe(137);
 
     for (const model of cyberFactoryModels) {
       const graph = model.featureGraph;
