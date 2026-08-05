@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>仓储与内部物流资产套件预览</title>
+    <link rel="stylesheet" href="./preview.css" />
+  </head>
+  <body>
+    <main>
+      <canvas id="preview" aria-label="仓储与内部物流资产三维预览"></canvas>
+      <section class="panel" aria-label="资产信息">
+        <p class="eyebrow">赛博工厂 · 仓储资产</p>
+        <h1>仓储与内部物流套件</h1>
+        <p class="summary">货架、托盘、周转箱和推车可独立引用，也可通过货位与搬运锚点组合。</p>
+        <div class="assets" aria-label="资产清单">
+          <span>参数化货架</span>
+          <span>木质托盘</span>
+          <span>开放周转箱</span>
+          <span>四轮推车</span>
+        </div>
+        <p id="metrics" class="metrics"></p>
+      </section>
+      <aside class="legend" aria-label="锚点图例">
+        <span><i class="slot"></i>货位</span>
+        <span><i class="pick"></i>取货</span>
+        <span><i class="restock"></i>补货</span>
+        <span><i class="transport"></i>搬运</span>
+      </aside>
+    </main>
+    <script type="module" src="./preview.ts"></script>
+  </body>
+</html>

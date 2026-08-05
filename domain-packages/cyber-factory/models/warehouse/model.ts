@@ -1,0 +1,411 @@
+import type {
+  BoxFeature,
+  CreateModelInput,
+  CylinderFeature,
+  FeatureAppearance,
+  FeatureGroup,
+  ModelFeature,
+  ModelVariable,
+  Vector3Tuple,
+} from "@solidloom/shared";
+
+export interface WarehouseRackParameters {
+  bayCount: number;
+  levelCount: number;
+  bayWidth: number;
+  height: number;
+  depth: number;
+}
+
+export interface WarehousePalletParameters {
+  width: number;
+  depth: number;
+  height: number;
+}
+
+export interface WarehouseToteParameters {
+  width: number;
+  depth: number;
+  height: number;
+}
+
+export interface WarehouseCartParameters {
+  width: number;
+  depth: number;
+  deckHeight: number;
+  handleHeight: number;
+}
+
+export const defaultWarehouseRackParameters: WarehouseRackParameters = {
+  bayCount: 3,
+  levelCount: 4,
+  bayWidth: 1_100,
+  height: 2_600,
+  depth: 900,
+};
+
+export const defaultWarehousePalletParameters: WarehousePalletParameters = {
+  width: 1_000,
+  depth: 800,
+  height: 144,
+};
+
+export const defaultWarehouseToteParameters: WarehouseToteParameters = {
+  width: 600,
+  depth: 420,
+  height: 360,
+};
+
+export const defaultWarehouseCartParameters: WarehouseCartParameters = {
+  width: 850,
+  depth: 1_180,
+  deckHeight: 310,
+  handleHeight: 1_080,
+};
+
+export const warehouseGroupIds = {
+  rackStructure: "warehouse-rack-structure-group",
+  rackStorage: "warehouse-rack-storage-group",
+  rackDetail: "warehouse-rack-detail-group",
+  pallet: "warehouse-pallet-group",
+  tote: "warehouse-tote-group",
+  cartFrame: "warehouse-cart-frame-group",
+  cartWheels: "warehouse-cart-wheels-group",
+} as const;
+
+const metalAppearance: FeatureAppearance = { material: "metal", color: "#71858E" };
+const shelfAppearance: FeatureAppearance = { material: "metal", color: "#B9C7CC" };
+const woodAppearance: FeatureAppearance = { material: "wood", color: "#C99861" };
+const plasticAppearance: FeatureAppearance = { material: "plastic", color: "#45A8BF" };
+const toteRimAppearance: FeatureAppearance = { material: "plastic", color: "#236A7C" };
+const cartAppearance: FeatureAppearance = { material: "metal", color: "#82959C" };
+const cartDeckAppearance: FeatureAppearance = { material: "metal", color: "#C4D0D3" };
+const rubberAppearance: FeatureAppearance = { material: "rubber", color: "#20282C" };
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function integer(value: number, minimum: number, maximum: number) {
+  return Math.round(clamp(value, minimum, maximum));
+}
+
+function box(
+  id: string,
+  name: string,
+  size: Vector3Tuple,
+  position: Vector3Tuple,
+  appearance: FeatureAppearance,
+  cornerRadius = 0,
+  rotation: Vector3Tuple = [0, 0, 0],
+): BoxFeature {
+  return {
+    id,
+    name,
+    type: "box",
+    operation: "add",
+    position,
+    rotation,
+    appearance,
+    parameters: {
+      width: size[0],
+      height: size[1],
+      depth: size[2],
+      ...(cornerRadius > 0 ? { cornerRadius, cornerAlgorithm: "smooth" as const } : {}),
+    },
+  };
+}
+
+function cylinder(
+  id: string,
+  name: string,
+  radius: number,
+  height: number,
+  position: Vector3Tuple,
+  appearance: FeatureAppearance,
+  rotation: Vector3Tuple = [0, 0, 0],
+): CylinderFeature {
+  return {
+    id,
+    name,
+    type: "cylinder",
+    operation: "add",
+    position,
+    rotation,
+    appearance,
+    parameters: { radius, height },
+  };
+}
+
+function group(id: string, name: string, features: ModelFeature[]): FeatureGroup {
+  return {
+    id,
+    name,
+    featureIds: features.map((feature) => feature.id),
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+  };
+}
+
+function variables(values: Array<[string, string, number]>): ModelVariable[] {
+  return values.map(([id, label, value]) => ({ id, label, value, unit: "mm" }));
+}
+
+export function normalizeWarehouseRackParameters(
+  input: Partial<WarehouseRackParameters> = {},
+): WarehouseRackParameters {
+  return {
+    bayCount: integer(input.bayCount ?? defaultWarehouseRackParameters.bayCount, 1, 5),
+    levelCount: integer(input.levelCount ?? defaultWarehouseRackParameters.levelCount, 2, 6),
+    bayWidth: clamp(input.bayWidth ?? defaultWarehouseRackParameters.bayWidth, 800, 1_400),
+    height: clamp(input.height ?? defaultWarehouseRackParameters.height, 1_800, 3_600),
+    depth: clamp(input.depth ?? defaultWarehouseRackParameters.depth, 600, 1_200),
+  };
+}
+
+export function warehouseRackShelfY(parameters: WarehouseRackParameters, levelIndex: number) {
+  const bottom = 220;
+  const top = parameters.height - 180;
+  if (parameters.levelCount === 1) return bottom;
+  return bottom + (top - bottom) * (levelIndex / (parameters.levelCount - 1));
+}
+
+export function warehouseRackBayX(parameters: WarehouseRackParameters, bayIndex: number) {
+  return -parameters.bayCount * parameters.bayWidth / 2 + parameters.bayWidth * (bayIndex + 0.5);
+}
+
+export function createWarehouseRack(
+  input: Partial<WarehouseRackParameters> = {},
+): CreateModelInput {
+  const parameters = normalizeWarehouseRackParameters(input);
+  const totalWidth = parameters.bayCount * parameters.bayWidth;
+  const postSize = 72;
+  const structure: ModelFeature[] = [];
+  const shelves: ModelFeature[] = [];
+  const details: ModelFeature[] = [];
+
+  for (let column = 0; column <= parameters.bayCount; column += 1) {
+    const x = -totalWidth / 2 + column * parameters.bayWidth;
+    for (const side of ["front", "back"] as const) {
+      const z = side === "front" ? parameters.depth / 2 - postSize / 2 : -parameters.depth / 2 + postSize / 2;
+      structure.push(box(
+        `warehouse-rack-upright-${String(column + 1).padStart(2, "0")}-${side}`,
+        `第 ${column + 1} 列${side === "front" ? "前" : "后"}立柱`,
+        [postSize, parameters.height, postSize],
+        [x, parameters.height / 2, z],
+        metalAppearance,
+        6,
+      ));
+    }
+  }
+
+  for (let bay = 0; bay < parameters.bayCount; bay += 1) {
+    for (let level = 0; level < parameters.levelCount; level += 1) {
+      shelves.push(box(
+        `warehouse-rack-shelf-b${String(bay + 1).padStart(2, "0")}-l${String(level + 1).padStart(2, "0")}`,
+        `第 ${bay + 1} 跨第 ${level + 1} 层货板`,
+        [parameters.bayWidth - postSize - 26, 44, parameters.depth - postSize - 34],
+        [warehouseRackBayX(parameters, bay), warehouseRackShelfY(parameters, level), 0],
+        shelfAppearance,
+        5,
+      ));
+    }
+  }
+
+  for (const side of ["front", "back"] as const) {
+    structure.push(box(
+      `warehouse-rack-top-beam-${side}`,
+      `${side === "front" ? "前" : "后"}顶部横梁`,
+      [totalWidth + postSize, 72, 48],
+      [0, parameters.height - 46, side === "front" ? parameters.depth / 2 - 28 : -parameters.depth / 2 + 28],
+      metalAppearance,
+      5,
+    ));
+  }
+
+  const braceLength = Math.hypot(totalWidth, parameters.height - 260);
+  const braceAngle = Math.atan2(parameters.height - 260, totalWidth) * 180 / Math.PI;
+  details.push(
+    box("warehouse-rack-back-brace-up", "后侧上行斜撑", [braceLength, 38, 28], [0, parameters.height / 2, -parameters.depth / 2 + 54], metalAppearance, 3, [0, 0, braceAngle]),
+    box("warehouse-rack-back-brace-down", "后侧下行斜撑", [braceLength, 38, 28], [0, parameters.height / 2, -parameters.depth / 2 + 82], metalAppearance, 3, [0, 0, -braceAngle]),
+  );
+
+  return {
+    name: "参数化仓储货架",
+    description: "可按跨数、层数和尺寸生成稳定货位的仓储货架。",
+    unit: "mm",
+    featureGraph: {
+      version: 1,
+      features: [...structure, ...shelves, ...details],
+      groups: [
+        group(warehouseGroupIds.rackStructure, "货架结构", structure),
+        group(warehouseGroupIds.rackStorage, "货位层板", shelves),
+        group(warehouseGroupIds.rackDetail, "货架斜撑", details),
+      ],
+      variables: variables([
+        ["--bay-width", "单跨宽度", parameters.bayWidth],
+        ["--height", "货架高度", parameters.height],
+        ["--depth", "货架深度", parameters.depth],
+      ]),
+    },
+  };
+}
+
+export function normalizeWarehousePalletParameters(
+  input: Partial<WarehousePalletParameters> = {},
+): WarehousePalletParameters {
+  return {
+    width: clamp(input.width ?? defaultWarehousePalletParameters.width, 800, 1_300),
+    depth: clamp(input.depth ?? defaultWarehousePalletParameters.depth, 600, 1_200),
+    height: clamp(input.height ?? defaultWarehousePalletParameters.height, 110, 190),
+  };
+}
+
+export function createWarehousePallet(
+  input: Partial<WarehousePalletParameters> = {},
+): CreateModelInput {
+  const parameters = normalizeWarehousePalletParameters(input);
+  const features: ModelFeature[] = [];
+  const runnerHeight = parameters.height * 0.54;
+  [-0.4, 0, 0.4].forEach((ratio, index) => features.push(box(
+    `warehouse-pallet-runner-${String(index + 1).padStart(2, "0")}`,
+    `第 ${index + 1} 条承重梁`,
+    [82, runnerHeight, parameters.depth],
+    [parameters.width * ratio, runnerHeight / 2, 0],
+    woodAppearance,
+    5,
+  )));
+  const boardCount = 7;
+  const boardWidth = (parameters.width - 72) / boardCount;
+  for (let index = 0; index < boardCount; index += 1) {
+    const x = -parameters.width / 2 + 36 + boardWidth / 2 + index * boardWidth;
+    features.push(box(
+      `warehouse-pallet-top-board-${String(index + 1).padStart(2, "0")}`,
+      `第 ${index + 1} 块顶板`,
+      [boardWidth - 12, parameters.height - runnerHeight, parameters.depth],
+      [x, runnerHeight + (parameters.height - runnerHeight) / 2, 0],
+      woodAppearance,
+      4,
+    ));
+  }
+  return {
+    name: "参数化仓储托盘",
+    description: "保留前后叉车入口和顶部装载面的木质托盘。",
+    unit: "mm",
+    featureGraph: {
+      version: 1,
+      features,
+      groups: [group(warehouseGroupIds.pallet, "托盘结构", features)],
+      variables: variables([
+        ["--width", "托盘宽度", parameters.width],
+        ["--depth", "托盘深度", parameters.depth],
+        ["--height", "托盘高度", parameters.height],
+      ]),
+    },
+  };
+}
+
+export function normalizeWarehouseToteParameters(
+  input: Partial<WarehouseToteParameters> = {},
+): WarehouseToteParameters {
+  return {
+    width: clamp(input.width ?? defaultWarehouseToteParameters.width, 400, 800),
+    depth: clamp(input.depth ?? defaultWarehouseToteParameters.depth, 300, 600),
+    height: clamp(input.height ?? defaultWarehouseToteParameters.height, 240, 520),
+  };
+}
+
+export function createWarehouseTote(
+  input: Partial<WarehouseToteParameters> = {},
+): CreateModelInput {
+  const parameters = normalizeWarehouseToteParameters(input);
+  const wall = 28;
+  const base = 30;
+  const wallHeight = parameters.height - base;
+  const features: ModelFeature[] = [
+    box("warehouse-tote-base", "周转箱底板", [parameters.width, base, parameters.depth], [0, base / 2, 0], plasticAppearance, 12),
+    box("warehouse-tote-left-wall", "周转箱左壁", [wall, wallHeight, parameters.depth], [-parameters.width / 2 + wall / 2, base + wallHeight / 2, 0], plasticAppearance, 10),
+    box("warehouse-tote-right-wall", "周转箱右壁", [wall, wallHeight, parameters.depth], [parameters.width / 2 - wall / 2, base + wallHeight / 2, 0], plasticAppearance, 10),
+    box("warehouse-tote-front-wall", "周转箱前壁", [parameters.width - wall * 2, wallHeight, wall], [0, base + wallHeight / 2, parameters.depth / 2 - wall / 2], plasticAppearance, 10),
+    box("warehouse-tote-back-wall", "周转箱后壁", [parameters.width - wall * 2, wallHeight, wall], [0, base + wallHeight / 2, -parameters.depth / 2 + wall / 2], plasticAppearance, 10),
+    box("warehouse-tote-left-grip", "左侧搬运握边", [72, 34, parameters.depth + 30], [-parameters.width / 2 - 8, parameters.height - 30, 0], toteRimAppearance, 10),
+    box("warehouse-tote-right-grip", "右侧搬运握边", [72, 34, parameters.depth + 30], [parameters.width / 2 + 8, parameters.height - 30, 0], toteRimAppearance, 10),
+  ];
+  return {
+    name: "参数化仓储周转箱",
+    description: "带开放内腔和两侧搬运握边的塑料周转箱。",
+    unit: "mm",
+    featureGraph: {
+      version: 1,
+      features,
+      groups: [group(warehouseGroupIds.tote, "周转箱结构", features)],
+      variables: variables([
+        ["--width", "周转箱宽度", parameters.width],
+        ["--depth", "周转箱深度", parameters.depth],
+        ["--height", "周转箱高度", parameters.height],
+      ]),
+    },
+  };
+}
+
+export function normalizeWarehouseCartParameters(
+  input: Partial<WarehouseCartParameters> = {},
+): WarehouseCartParameters {
+  const deckHeight = clamp(input.deckHeight ?? defaultWarehouseCartParameters.deckHeight, 240, 460);
+  return {
+    width: clamp(input.width ?? defaultWarehouseCartParameters.width, 650, 1_100),
+    depth: clamp(input.depth ?? defaultWarehouseCartParameters.depth, 900, 1_500),
+    deckHeight,
+    handleHeight: clamp(input.handleHeight ?? defaultWarehouseCartParameters.handleHeight, deckHeight + 480, 1_400),
+  };
+}
+
+export function createWarehouseCart(
+  input: Partial<WarehouseCartParameters> = {},
+): CreateModelInput {
+  const parameters = normalizeWarehouseCartParameters(input);
+  const wheelRadius = 82;
+  const deckThickness = 72;
+  const handleZ = -parameters.depth / 2 + 42;
+  const postHeight = parameters.handleHeight - parameters.deckHeight;
+  const frame: ModelFeature[] = [
+    box("warehouse-cart-main-deck", "推车主承载台", [parameters.width, deckThickness, parameters.depth], [0, parameters.deckHeight, 0], cartDeckAppearance, 18),
+    box("warehouse-cart-lower-deck", "推车下层承载台", [parameters.width * 0.88, 48, parameters.depth * 0.78], [0, 145, 30], cartAppearance, 12),
+    box("warehouse-cart-left-handle-post", "推车左把手立柱", [46, postHeight, 46], [-parameters.width * 0.4, parameters.deckHeight + postHeight / 2, handleZ], cartAppearance, 8),
+    box("warehouse-cart-right-handle-post", "推车右把手立柱", [46, postHeight, 46], [parameters.width * 0.4, parameters.deckHeight + postHeight / 2, handleZ], cartAppearance, 8),
+    box("warehouse-cart-handle-bar", "推车横向把手", [parameters.width * 0.86, 54, 54], [0, parameters.handleHeight, handleZ], cartAppearance, 14),
+  ];
+  const wheels: ModelFeature[] = [];
+  for (const xSign of [-1, 1]) {
+    for (const zSign of [-1, 1]) {
+      wheels.push(cylinder(
+        `warehouse-cart-wheel-${xSign < 0 ? "left" : "right"}-${zSign < 0 ? "rear" : "front"}`,
+        `${xSign < 0 ? "左" : "右"}${zSign < 0 ? "后" : "前"}轮`,
+        wheelRadius,
+        48,
+        [xSign * (parameters.width / 2 - 88), wheelRadius, zSign * (parameters.depth / 2 - 130)],
+        rubberAppearance,
+        [0, 0, 90],
+      ));
+    }
+  }
+  return {
+    name: "参数化仓储推车",
+    description: "带双层承载台、推行把手和四轮的内部物流推车。",
+    unit: "mm",
+    featureGraph: {
+      version: 1,
+      features: [...frame, ...wheels],
+      groups: [
+        group(warehouseGroupIds.cartFrame, "推车车架", frame),
+        group(warehouseGroupIds.cartWheels, "推车车轮", wheels),
+      ],
+      variables: variables([
+        ["--width", "推车宽度", parameters.width],
+        ["--depth", "推车深度", parameters.depth],
+        ["--deck-height", "承载台高度", parameters.deckHeight],
+        ["--handle-height", "把手高度", parameters.handleHeight],
+      ]),
+    },
+  };
+}

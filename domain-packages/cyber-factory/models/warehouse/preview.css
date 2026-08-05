@@ -1,0 +1,106 @@
+:root {
+  color: #e8f3f3;
+  background: #091114;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, main, #preview {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+#preview { display: block; }
+
+.panel {
+  position: fixed;
+  z-index: 2;
+  top: 20px;
+  left: 20px;
+  width: min(390px, calc(100vw - 40px));
+  padding: 18px;
+  border: 1px solid rgb(141 190 191 / 25%);
+  border-radius: 16px;
+  background: rgb(10 22 26 / 88%);
+  box-shadow: 0 20px 70px rgb(0 0 0 / 40%);
+  backdrop-filter: blur(14px);
+}
+
+.eyebrow {
+  margin: 0 0 7px;
+  color: #66d8c8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.summary {
+  margin: 9px 0 0;
+  color: #a9bdc0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.assets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.assets span {
+  padding: 6px 9px;
+  border: 1px solid rgb(105 199 186 / 24%);
+  border-radius: 999px;
+  color: #d9efec;
+  background: rgb(62 121 115 / 22%);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.metrics {
+  margin: 13px 0 0;
+  color: #7f999e;
+  font-size: 12px;
+}
+
+.legend {
+  position: fixed;
+  z-index: 2;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 13px;
+  padding: 10px 13px;
+  border: 1px solid rgb(141 190 191 / 22%);
+  border-radius: 12px;
+  color: #bdcecf;
+  background: rgb(10 22 26 / 84%);
+  font-size: 11px;
+  backdrop-filter: blur(12px);
+}
+
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 9px currentColor; }
+.legend .slot { color: #54d5c4; background: #54d5c4; }
+.legend .pick { color: #f2c45f; background: #f2c45f; }
+.legend .restock { color: #ee855e; background: #ee855e; }
+.legend .transport { color: #9f8cff; background: #9f8cff; }
+
+@media (max-width: 560px) {
+  .panel { top: 12px; left: 12px; width: calc(100vw - 24px); padding: 14px; }
+  h1 { font-size: 19px; }
+  .summary { display: none; }
+  .assets { margin-top: 10px; }
+  .legend { right: 12px; bottom: 12px; max-width: calc(100vw - 24px); gap: 9px; }
+}
