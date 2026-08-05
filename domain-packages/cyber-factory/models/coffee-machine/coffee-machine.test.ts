@@ -57,6 +57,24 @@ describe("parameterized coffee machine asset", () => {
     expect(compactBody.appearance?.color).not.toBe(largeBody.appearance?.color);
   });
 
+  it("keeps the industrial silhouette angular with only small safety bevels", () => {
+    const graph = coffeeMachineDefinition.createModel().featureGraph!;
+    const roundedBoxes = graph.features.filter((feature) => (
+      feature.type === "box" && feature.parameters.cornerRadius !== undefined
+    ));
+    const body = roundedBoxes.find((feature) => feature.id === coffeeMachineFeatureIds.body);
+    const brewHead = roundedBoxes.find((feature) => feature.id === coffeeMachineFeatureIds.brewHead);
+
+    expect(body?.type).toBe("box");
+    expect(brewHead?.type).toBe("box");
+    if (body?.type !== "box" || brewHead?.type !== "box") return;
+    expect(body.parameters.cornerRadius).toBeLessThanOrEqual(8);
+    expect(brewHead.parameters.cornerRadius).toBeLessThanOrEqual(4);
+    expect(roundedBoxes.every((feature) => (
+      feature.type === "box" && feature.parameters.cornerAlgorithm === "circular"
+    ))).toBe(true);
+  });
+
   it("places action anchors outside the body and the cup socket beneath the spout", () => {
     const bodyFront = defaultCoffeeMachineParameters.depth / 2;
     const actionAnchors = coffeeMachineManifest.anchors.filter((anchor) => (
