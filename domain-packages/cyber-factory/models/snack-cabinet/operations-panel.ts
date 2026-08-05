@@ -12,6 +12,10 @@ import { materialIcon, type MaterialIconName } from "./material-icons.js";
 
 type OperationKind = "deposit" | "exchange" | "hack" | "withdraw";
 
+export interface SnackCabinetOperationsPanelContext {
+  nearServicePort?: boolean;
+}
+
 function button(label: string, action: OperationKind, icon: MaterialIconName, disabled = false) {
   return `<button type="button" data-operation="${action}"${disabled ? " disabled" : ""}>${materialIcon(icon)}<span>${label}</span></button>`;
 }
@@ -30,13 +34,16 @@ export class SnackCabinetOperationsPanel {
   private state: SnackCabinetOperationsState = createSnackCabinetOperationsState();
   private selectedExternalId = "external-seaweed";
   private selectedMachineId = "machine-oat";
+  private nearServicePort: boolean;
+  private sessionOpen = true;
   private useMaintenanceKey = true;
-  private status = "选择两侧实体，可存入、取出或原子交换。";
+  private status = "选择两侧物品，可放入、取出或交换。";
   private statusTone: "danger" | "neutral" | "success" = "neutral";
   private readonly refreshTimer: number;
 
-  constructor(root: HTMLElement) {
+  constructor(root: HTMLElement, context: SnackCabinetOperationsPanelContext = {}) {
     this.root = root;
+    this.nearServicePort = context.nearServicePort ?? true;
     this.root.addEventListener("click", this.onClick);
     this.refreshTimer = window.setInterval(() => this.render(), 1_000);
     this.render();
@@ -47,27 +54,62 @@ export class SnackCabinetOperationsPanel {
     this.root.removeEventListener("click", this.onClick);
   }
 
+  setInteractionContext(context: SnackCabinetOperationsPanelContext) {
+    if (context.nearServicePort !== undefined) this.nearServicePort = context.nearServicePort;
+    this.render();
+  }
+
   private nextActionId(prefix: string) {
     this.actionSequence += 1;
     return `preview-${prefix}-${this.actionSequence}`;
   }
 
+  private ownsMaintenanceKey() {
+    return this.state.world.entities[snackCabinetOperationIds.maintenanceKey]?.ownerId === snackCabinetOperationIds.actor;
+  }
+
   private credentials() {
-    return this.useMaintenanceKey ? [snackCabinetOperationIds.maintenanceKey] : [];
+    return this.sessionOpen && this.useMaintenanceKey && this.ownsMaintenanceKey()
+      ? [snackCabinetOperationIds.maintenanceKey]
+      : [];
+  }
+
+  private hasManagementSession(now: number) {
+    return this.sessionOpen && hasSnackCabinetManagementAccess(this.state, {
+      now,
+      credentialEntityIds: this.credentials(),
+    });
+  }
+
+  private isTerminalDiscoverable(now: number) {
+    const hasActiveGrant = Object.values(this.state.world.grants).some((grant) => grant.expiresAt > now);
+    return this.nearServicePort || this.ownsMaintenanceKey() || hasActiveGrant;
   }
 
   private accessState(now: number): { icon: MaterialIconName; label: string; tone: string } {
-    if (this.useMaintenanceKey && hasSnackCabinetManagementAccess(this.state, {
-      now,
-      credentialEntityIds: this.credentials(),
-    })) return { icon: "key", label: "维修钥匙", tone: "credential" };
+    if (!this.hasManagementSession(now)) return { icon: "lock", label: "需要验证", tone: "locked" };
+    if (this.useMaintenanceKey) return { icon: "key", label: "管理模式", tone: "credential" };
     const grant = Object.values(this.state.world.grants).find((candidate) => candidate.expiresAt > now);
-    if (!grant) return { icon: "lock", label: "未授权", tone: "locked" };
+    if (!grant) return { icon: "lock", label: "需要验证", tone: "locked" };
     return {
       icon: "schedule",
-      label: `临时授权 · ${Math.max(1, Math.ceil((grant.expiresAt - now) / 1_000))} 秒`,
+      label: `临时权限 · ${Math.max(1, Math.ceil((grant.expiresAt - now) / 1_000))} 秒`,
       tone: "temporary",
     };
+  }
+
+  private terminalRail() {
+    return `
+      <div class="terminal-rail" aria-hidden="true">
+        <span class="terminal-identity"><i class="terminal-pulse"></i>设备终端 · SNK-01</span>
+        <span class="terminal-signal">在线</span>
+      </div>
+    `;
+  }
+
+  private statusMarkup() {
+    const statusIcon = this.statusTone === "success" ? "check_circle" : this.statusTone === "danger" ? "error" : "info";
+    return `<p class="operation-status ${this.statusTone}" role="status">${materialIcon(statusIcon)}<span>${escapeHtml(this.status)}</span></p>`;
   }
 
   private entityList(containerId: string, selectedId: string, side: "external" | "machine") {
@@ -76,7 +118,7 @@ export class SnackCabinetOperationsPanel {
     const selectable = container.entityIds
       .map((entityId) => this.state.world.entities[entityId])
       .filter((entity) => entity && entity.tags.includes("stock"));
-    if (selectable.length === 0) return '<p class="inventory-empty">暂无可交换实体</p>';
+    if (selectable.length === 0) return '<p class="inventory-empty">这里暂时没有物品</p>';
     return selectable.map((entity) => `
       <button
         class="entity-row${entity!.id === selectedId ? " is-selected" : ""}"
@@ -85,53 +127,86 @@ export class SnackCabinetOperationsPanel {
         data-entity-id="${escapeHtml(entity!.id)}"
       >
         <span class="entity-icon" aria-hidden="true">${materialIcon("inventory_2")}</span>
-        <span class="entity-copy"><strong>${escapeHtml(entity!.label)}</strong><small>${side === "machine" ? "设备所有" : "外部所有"}</small></span>
+        <span class="entity-copy"><strong>${escapeHtml(entity!.label)}</strong><small>${side === "machine" ? "柜内" : "待放入"}</small></span>
         ${entity!.id === selectedId ? materialIcon("check_circle", "entity-selected-icon") : ""}
       </button>
     `).join("");
   }
 
+  private renderAccessGate(access: ReturnType<SnackCabinetOperationsPanel["accessState"]>) {
+    const canUseCredential = this.ownsMaintenanceKey();
+    this.root.dataset.mode = "locked";
+    this.root.innerHTML = `
+      ${this.terminalRail()}
+      <header class="operations-header">
+        <div class="operations-title">
+          <span class="operations-title-icon">${materialIcon("warehouse")}</span>
+          <div><h2>库存终端</h2><p>管理售货机中的商品</p></div>
+        </div>
+        <span class="access-badge ${access.tone}">${materialIcon(access.icon)}<span>${escapeHtml(access.label)}</span></span>
+      </header>
+      <section class="access-gate">
+        <span class="access-gate-icon">${materialIcon("security")}</span>
+        <div><h3>库存管理受限</h3><p>请在后侧维护区操作，或使用持有的维护凭证。</p></div>
+        <div class="access-gate-actions">
+          ${canUseCredential ? `<button type="button" data-activate-key>${materialIcon("key")}<span>使用维护凭证</span></button>` : ""}
+          ${button("尝试接入", "hack", "security")}
+        </div>
+      </section>
+      ${this.statusMarkup()}
+    `;
+  }
+
   private render() {
     const now = Date.now();
+    if (!this.isTerminalDiscoverable(now)) {
+      this.root.hidden = true;
+      this.root.innerHTML = "";
+      return;
+    }
+
+    this.root.hidden = false;
+    const access = this.accessState(now);
+    if (!this.hasManagementSession(now)) {
+      this.renderAccessGate(access);
+      return;
+    }
+
+    this.root.dataset.mode = "active";
     const external = this.state.world.containers[snackCabinetOperationIds.externalContainer];
     const machine = this.state.world.containers[snackCabinetOperationIds.machineContainer];
     const hasExternal = Boolean(external?.entityIds.some((id) => this.state.world.entities[id]?.tags.includes("stock")));
     const hasMachine = Boolean(machine?.entityIds.some((id) => this.state.world.entities[id]?.tags.includes("stock")));
-    const keyOwner = this.state.world.entities[snackCabinetOperationIds.maintenanceKey]?.ownerId;
-    const access = this.accessState(now);
-    const statusIcon = this.statusTone === "success" ? "check_circle" : this.statusTone === "danger" ? "error" : "info";
 
     this.root.innerHTML = `
+      ${this.terminalRail()}
       <header class="operations-header">
         <div class="operations-title">
-          <span class="operations-title-icon">${materialIcon("swap_horiz")}</span>
-          <div><h2>实体交换</h2><p>所有权与容器归属同步提交</p></div>
+          <span class="operations-title-icon">${materialIcon("warehouse")}</span>
+          <div><h2>库存终端</h2><p>管理售货机中的商品</p></div>
         </div>
         <span class="access-badge ${access.tone}">${materialIcon(access.icon)}<span>${escapeHtml(access.label)}</span></span>
       </header>
-      <div class="credential-row">
-        <span class="credential-copy"><span class="credential-icon">${materialIcon("key")}</span><span><strong>维修钥匙</strong><small>凭证实体 · ${keyOwner === snackCabinetOperationIds.actor ? "外部所有" : "其他所有"}</small></span></span>
-        <button type="button" class="key-toggle" data-toggle-key aria-pressed="${this.useMaintenanceKey}">
-          ${materialIcon(this.useMaintenanceKey ? "lock_open" : "lock")}<span>${this.useMaintenanceKey ? "使用中" : "未使用"}</span>
-        </button>
+      <div class="session-strip">
+        <span>${materialIcon("lock_open")}<span>已建立管理会话</span></span>
+        <button type="button" data-end-session>${materialIcon("logout")}<span>结束</span></button>
       </div>
       <div class="inventory-columns">
-        <section aria-label="外部实体">
-          <div class="inventory-heading"><h3>${materialIcon("inventory_2")}<span>外部实体</span></h3><span>${external?.entityIds.length ?? 0}</span></div>
+        <section aria-label="待处理物品">
+          <div class="inventory-heading"><h3>${materialIcon("inventory_2")}<span>待处理物品</span></h3><span>${external?.entityIds.length ?? 0}</span></div>
           <div class="entity-list">${this.entityList(snackCabinetOperationIds.externalContainer, this.selectedExternalId, "external")}</div>
         </section>
-        <section aria-label="设备库存">
-          <div class="inventory-heading"><h3>${materialIcon("warehouse")}<span>设备库存</span></h3><span>${machine?.entityIds.length ?? 0}/${machine?.capacity ?? 0}</span></div>
+        <section aria-label="售货机库存">
+          <div class="inventory-heading"><h3>${materialIcon("warehouse")}<span>售货机内</span></h3><span>${machine?.entityIds.length ?? 0}/${machine?.capacity ?? 0}</span></div>
           <div class="entity-list">${this.entityList(snackCabinetOperationIds.machineContainer, this.selectedMachineId, "machine")}</div>
         </section>
       </div>
       <div class="operation-actions">
-        ${button("存入", "deposit", "login", !hasExternal)}
+        ${button("放入", "deposit", "login", !hasExternal)}
         ${button("取出", "withdraw", "logout", !hasMachine)}
         ${button("交换", "exchange", "swap_horiz", !hasExternal || !hasMachine)}
-        ${button("破解", "hack", "security")}
       </div>
-      <p class="operation-status ${this.statusTone}" role="status">${materialIcon(statusIcon)}<span>${escapeHtml(this.status)}</span></p>
+      ${this.statusMarkup()}
     `;
   }
 
@@ -152,7 +227,7 @@ export class SnackCabinetOperationsPanel {
       return;
     }
     this.state = result.state;
-    this.status = `${label}完成，实体所有权已原子提交。`;
+    this.status = `${label}完成，库存已更新。`;
     this.statusTone = "success";
     this.ensureSelections();
     this.render();
@@ -171,7 +246,7 @@ export class SnackCabinetOperationsPanel {
     const now = Date.now();
     const common = { now, credentialEntityIds: this.credentials() };
     if (operation === "deposit") {
-      this.applyTransaction("存入", depositSnackCabinetEntity(this.state, {
+      this.applyTransaction("放入", depositSnackCabinetEntity(this.state, {
         ...common,
         actionId: this.nextActionId("deposit"),
         entityId: this.selectedExternalId,
@@ -204,11 +279,12 @@ export class SnackCabinetOperationsPanel {
     });
     this.state = hacked.state;
     if (hacked.ok) {
+      this.sessionOpen = true;
       this.useMaintenanceKey = false;
-      this.status = "破解成功，已签发 45 秒临时库存管理授权。";
+      this.status = "接入成功，已获得 45 秒临时管理权限。";
       this.statusTone = "success";
     } else {
-      this.status = hacked.reason === "cooldown" ? "安全模块冷却中，请稍后重试。" : "破解失败，设备进入短暂冷却。";
+      this.status = hacked.reason === "cooldown" ? "安全模块冷却中，请稍后重试。" : "接入失败，设备进入短暂冷却。";
       this.statusTone = "danger";
     }
     this.render();
@@ -224,10 +300,21 @@ export class SnackCabinetOperationsPanel {
       if ((side === "external" || side === "machine") && entityId) this.selectEntity(side, entityId);
       return;
     }
-    if (target.closest("[data-toggle-key]")) {
-      this.useMaintenanceKey = !this.useMaintenanceKey;
-      this.status = this.useMaintenanceKey ? "维修钥匙已作为权限凭证提交。" : "已停止提交维修钥匙，可改用临时授权。";
+    if (target.closest("[data-end-session]")) {
+      this.sessionOpen = false;
+      this.useMaintenanceKey = false;
+      this.status = "管理会话已结束。";
       this.statusTone = "neutral";
+      this.render();
+      return;
+    }
+    if (target.closest("[data-activate-key]")) {
+      if (this.ownsMaintenanceKey()) {
+        this.sessionOpen = true;
+        this.useMaintenanceKey = true;
+        this.status = "维护凭证验证通过，库存管理已解锁。";
+        this.statusTone = "success";
+      }
       this.render();
       return;
     }
