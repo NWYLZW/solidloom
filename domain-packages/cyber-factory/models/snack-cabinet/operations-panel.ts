@@ -8,11 +8,12 @@ import {
   withdrawSnackCabinetEntity,
   type SnackCabinetOperationsState,
 } from "./operations.js";
+import { materialIcon, type MaterialIconName } from "./material-icons.js";
 
 type OperationKind = "deposit" | "exchange" | "hack" | "withdraw";
 
-function button(label: string, action: OperationKind, disabled = false) {
-  return `<button type="button" data-operation="${action}"${disabled ? " disabled" : ""}>${label}</button>`;
+function button(label: string, action: OperationKind, icon: MaterialIconName, disabled = false) {
+  return `<button type="button" data-operation="${action}"${disabled ? " disabled" : ""}>${materialIcon(icon)}<span>${label}</span></button>`;
 }
 
 function escapeHtml(value: string) {
@@ -55,14 +56,18 @@ export class SnackCabinetOperationsPanel {
     return this.useMaintenanceKey ? [snackCabinetOperationIds.maintenanceKey] : [];
   }
 
-  private accessLabel(now: number) {
+  private accessState(now: number): { icon: MaterialIconName; label: string; tone: string } {
     if (this.useMaintenanceKey && hasSnackCabinetManagementAccess(this.state, {
       now,
       credentialEntityIds: this.credentials(),
-    })) return "维修钥匙";
+    })) return { icon: "key", label: "维修钥匙", tone: "credential" };
     const grant = Object.values(this.state.world.grants).find((candidate) => candidate.expiresAt > now);
-    if (!grant) return "未授权";
-    return `临时授权 · ${Math.max(1, Math.ceil((grant.expiresAt - now) / 1_000))} 秒`;
+    if (!grant) return { icon: "lock", label: "未授权", tone: "locked" };
+    return {
+      icon: "schedule",
+      label: `临时授权 · ${Math.max(1, Math.ceil((grant.expiresAt - now) / 1_000))} 秒`,
+      tone: "temporary",
+    };
   }
 
   private entityList(containerId: string, selectedId: string, side: "external" | "machine") {
@@ -79,8 +84,9 @@ export class SnackCabinetOperationsPanel {
         data-select-side="${side}"
         data-entity-id="${escapeHtml(entity!.id)}"
       >
-        <span class="entity-icon" aria-hidden="true"></span>
+        <span class="entity-icon" aria-hidden="true">${materialIcon("inventory_2")}</span>
         <span class="entity-copy"><strong>${escapeHtml(entity!.label)}</strong><small>${side === "machine" ? "设备所有" : "外部所有"}</small></span>
+        ${entity!.id === selectedId ? materialIcon("check_circle", "entity-selected-icon") : ""}
       </button>
     `).join("");
   }
@@ -92,35 +98,40 @@ export class SnackCabinetOperationsPanel {
     const hasExternal = Boolean(external?.entityIds.some((id) => this.state.world.entities[id]?.tags.includes("stock")));
     const hasMachine = Boolean(machine?.entityIds.some((id) => this.state.world.entities[id]?.tags.includes("stock")));
     const keyOwner = this.state.world.entities[snackCabinetOperationIds.maintenanceKey]?.ownerId;
+    const access = this.accessState(now);
+    const statusIcon = this.statusTone === "success" ? "check_circle" : this.statusTone === "danger" ? "error" : "info";
 
     this.root.innerHTML = `
       <header class="operations-header">
-        <div><h2>实体交换</h2><p>所有权与容器归属同步提交</p></div>
-        <span class="access-badge">${escapeHtml(this.accessLabel(now))}</span>
+        <div class="operations-title">
+          <span class="operations-title-icon">${materialIcon("swap_horiz")}</span>
+          <div><h2>实体交换</h2><p>所有权与容器归属同步提交</p></div>
+        </div>
+        <span class="access-badge ${access.tone}">${materialIcon(access.icon)}<span>${escapeHtml(access.label)}</span></span>
       </header>
       <div class="credential-row">
-        <span><strong>维修钥匙</strong><small>凭证实体 · ${keyOwner === snackCabinetOperationIds.actor ? "外部所有" : "其他所有"}</small></span>
+        <span class="credential-copy"><span class="credential-icon">${materialIcon("key")}</span><span><strong>维修钥匙</strong><small>凭证实体 · ${keyOwner === snackCabinetOperationIds.actor ? "外部所有" : "其他所有"}</small></span></span>
         <button type="button" class="key-toggle" data-toggle-key aria-pressed="${this.useMaintenanceKey}">
-          ${this.useMaintenanceKey ? "使用中" : "未使用"}
+          ${materialIcon(this.useMaintenanceKey ? "lock_open" : "lock")}<span>${this.useMaintenanceKey ? "使用中" : "未使用"}</span>
         </button>
       </div>
       <div class="inventory-columns">
         <section aria-label="外部实体">
-          <div class="inventory-heading"><h3>外部实体</h3><span>${external?.entityIds.length ?? 0}</span></div>
+          <div class="inventory-heading"><h3>${materialIcon("inventory_2")}<span>外部实体</span></h3><span>${external?.entityIds.length ?? 0}</span></div>
           <div class="entity-list">${this.entityList(snackCabinetOperationIds.externalContainer, this.selectedExternalId, "external")}</div>
         </section>
         <section aria-label="设备库存">
-          <div class="inventory-heading"><h3>设备库存</h3><span>${machine?.entityIds.length ?? 0}/${machine?.capacity ?? 0}</span></div>
+          <div class="inventory-heading"><h3>${materialIcon("warehouse")}<span>设备库存</span></h3><span>${machine?.entityIds.length ?? 0}/${machine?.capacity ?? 0}</span></div>
           <div class="entity-list">${this.entityList(snackCabinetOperationIds.machineContainer, this.selectedMachineId, "machine")}</div>
         </section>
       </div>
       <div class="operation-actions">
-        ${button("存入 →", "deposit", !hasExternal)}
-        ${button("← 取出", "withdraw", !hasMachine)}
-        ${button("交换", "exchange", !hasExternal || !hasMachine)}
-        ${button("尝试破解", "hack")}
+        ${button("存入", "deposit", "login", !hasExternal)}
+        ${button("取出", "withdraw", "logout", !hasMachine)}
+        ${button("交换", "exchange", "swap_horiz", !hasExternal || !hasMachine)}
+        ${button("破解", "hack", "security")}
       </div>
-      <p class="operation-status ${this.statusTone}" role="status">${escapeHtml(this.status)}</p>
+      <p class="operation-status ${this.statusTone}" role="status">${materialIcon(statusIcon)}<span>${escapeHtml(this.status)}</span></p>
     `;
   }
 

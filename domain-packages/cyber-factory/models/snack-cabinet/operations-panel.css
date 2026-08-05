@@ -21,6 +21,39 @@
   gap: 10px;
 }
 
+.material-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  fill: currentColor;
+}
+
+.operations-title,
+.credential-copy,
+.inventory-heading h3,
+.operation-actions button,
+.key-toggle,
+.access-badge,
+.operation-status {
+  display: flex;
+  align-items: center;
+}
+
+.operations-title { min-width: 0; gap: 8px; }
+.operations-title > div { min-width: 0; }
+.operations-title-icon,
+.credential-icon,
+.entity-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--accent);
+  background: rgba(184, 241, 60, 0.1);
+}
+.operations-title-icon { width: 30px; height: 30px; border-radius: 8px; }
+.operations-title-icon .material-icon { width: 18px; height: 18px; }
+
 .operations-header h2,
 .inventory-heading h3 { margin: 0; }
 .operations-header h2 { font-size: 14px; }
@@ -35,14 +68,20 @@
   color: var(--accent);
   padding: 5px 8px;
   font-size: 10px;
+  gap: 4px;
 }
+.access-badge.locked { color: #ff9d8f; background: rgba(255, 92, 70, 0.1); }
+.access-badge.temporary { color: #7cd7ff; background: rgba(68, 178, 231, 0.12); }
+.access-badge .material-icon { width: 13px; height: 13px; }
 
 .credential-row {
   margin-top: 10px;
   border-block: 1px solid var(--line);
   padding-block: 9px;
 }
-.credential-row > span { display: grid; min-width: 0; gap: 2px; }
+.credential-copy { min-width: 0; gap: 7px; }
+.credential-copy > span:last-child { display: grid; min-width: 0; gap: 2px; }
+.credential-icon { width: 26px; height: 26px; border-radius: 7px; }
 .credential-row strong { font-size: 11px; }
 .credential-row .key-toggle {
   width: auto;
@@ -50,16 +89,19 @@
   margin: 0;
   padding: 5px 9px;
   font-size: 10px;
+  gap: 4px;
 }
+.key-toggle .material-icon { width: 14px; height: 14px; }
 
 .inventory-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
 .inventory-columns > section { min-width: 0; }
-.inventory-heading h3 { font-size: 11px; }
+.inventory-heading h3 { min-width: 0; gap: 5px; font-size: 11px; }
+.inventory-heading h3 .material-icon { width: 14px; height: 14px; color: var(--muted); }
 .inventory-heading span { color: var(--muted); font-size: 10px; }
 .entity-list { display: grid; gap: 5px; margin-top: 6px; }
 .entity-row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: 22px minmax(0, 1fr) 14px;
   align-items: center;
   gap: 7px;
   min-height: 38px;
@@ -68,7 +110,9 @@
   text-align: left;
 }
 .entity-row.is-selected { border-color: var(--accent); background: rgba(117, 153, 43, 0.18); }
-.entity-icon { width: 16px; height: 22px; border-radius: 4px; background: linear-gradient(145deg, #81d7c7, #486e72); }
+.entity-icon { width: 22px; height: 22px; border-radius: 6px; color: #81d7c7; background: rgba(72, 110, 114, 0.36); }
+.entity-icon .material-icon { width: 14px; height: 14px; }
+.entity-selected-icon { width: 14px; height: 14px; color: var(--accent); }
 .entity-copy { display: grid; min-width: 0; gap: 2px; }
 .entity-copy strong,
 .entity-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -76,9 +120,11 @@
 .inventory-empty { margin: 10px 0 0; color: var(--muted); font-size: 10px; }
 
 .operation-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
-.operation-actions button { min-height: 32px; margin: 0; padding: 5px 7px; font-size: 10px; }
+.operation-actions button { justify-content: center; min-height: 32px; margin: 0; padding: 5px 7px; gap: 4px; font-size: 10px; }
+.operation-actions button .material-icon { width: 15px; height: 15px; }
 .operation-actions button:disabled { cursor: not-allowed; opacity: 0.42; }
-.operation-status { min-height: 16px; margin: 8px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.operation-status { min-height: 16px; margin: 8px 0 0; gap: 5px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.operation-status .material-icon { width: 14px; height: 14px; }
 .operation-status.success { color: var(--accent); }
 .operation-status.danger { color: #ff9d8f; }
 
