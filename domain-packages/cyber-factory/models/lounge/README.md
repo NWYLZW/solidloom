@@ -1,0 +1,52 @@
+# 现代休息区资产套件
+
+该目录独立交付赛博工厂休息区模型，不修改公共模型注册表、共享协议或示例入口。资产模块保持 `planned`，等待领域包注册流程统一接入。
+
+## 交付内容
+
+- `model.ts`：三人沙发、左右单椅、茶几、地毯、落地灯和绿植七组独立组件；支持围合、并列和紧凑三种布局，以及深青、陶土和暖沙三套织物配色。
+- `manifest.ts`：稳定 ID、织物/木材/金属/玻璃/陶质材质槽、零地面基准、六组独立碰撞体、五个坐下锚点、茶几与落地灯交互锚点，以及桌面和手机 LOD。
+- `preview.html` / `preview.ts`：不依赖公共 registry 的独立 Three.js 预览，可调整沙发、座面、茶几和地毯尺寸，切换布局、配色、预览层级、落地灯和座位锚点。
+- `lounge.test.ts`：共享场景契约、稳定 ID、组件分组、参数边界、地面基准、座位位置与朝向、碰撞体、灯光状态和移动 LOD 测试。
+- `tsconfig.json`：独立覆盖模型、manifest、测试和预览代码的严格类型检查。
+
+## 组件与交互
+
+套件中的每组家具都拥有独立 `FeatureGroup`，可以按组引用、显隐或重新组合：
+
+- 三人沙发：三个独立坐下锚点。
+- 左右单椅：各自拥有一个坐下锚点，锚点朝向随布局旋转。
+- 茶几：独立碰撞体与放置/取物交互锚点。
+- 落地灯：独立碰撞体与电源交互锚点，预览中提供可见灯光反馈。
+- 地毯和绿植：保持独立分组；绿植拥有简化碰撞体。
+
+所有地毯、家具支脚、灯座和花盆都以 `y = 0` 为地面基准。移动端近景层级会省略支脚、抱枕和部分叶片，保留沙发、单椅、茶几、灯具、地毯和绿植的主要轮廓。
+
+## 独立预览
+
+从仓库根目录运行：
+
+```bash
+apps/web/node_modules/.bin/vite --host 127.0.0.1
+```
+
+打开 `/domain-packages/cyber-factory/models/lounge/preview.html`。窄屏自动切换手机 LOD，也可以通过“预览层级”显式切换。
+
+> 资产模块仍为 `planned`。当前交付模型、manifest 和独立预览；公共 registry、运行时坐下动作与场景挂接不在本任务范围内。
+
+局部验证：
+
+```bash
+npx tsc -p domain-packages/cyber-factory/models/lounge/tsconfig.json
+npx vitest run domain-packages/cyber-factory/models/lounge/lounge.test.ts
+```
+
+## 验收截图
+
+桌面端 1280 × 720：
+
+![休息区桌面端独立预览](screenshots/desktop.jpg)
+
+手机端 390 × 844：
+
+![休息区手机端简化预览](screenshots/mobile.jpg)
