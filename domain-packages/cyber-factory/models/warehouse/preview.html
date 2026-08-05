@@ -12,14 +12,27 @@
       <section class="panel" aria-label="资产信息">
         <p class="eyebrow">赛博工厂 · 仓储资产</p>
         <h1 id="asset-title">仓储与内部物流套件</h1>
-        <p id="asset-summary" class="summary">四项资产可独立引用，也可通过货位与搬运锚点组合。</p>
+        <p id="asset-summary" class="summary">五项资产可独立引用，也可通过货位与搬运锚点组合。</p>
         <nav class="asset-tabs" aria-label="预览模型">
           <button type="button" data-asset="overview" aria-pressed="true">场景总览</button>
           <button type="button" data-asset="rack" aria-pressed="false">货架</button>
           <button type="button" data-asset="pallet" aria-pressed="false">托盘</button>
           <button type="button" data-asset="tote" aria-pressed="false">周转箱</button>
           <button type="button" data-asset="cart" aria-pressed="false">推车</button>
+          <button type="button" data-asset="stacker" aria-pressed="false">堆垛机</button>
         </nav>
+        <section id="stacker-task-panel" class="stacker-task-panel" aria-label="自动取货演示" hidden>
+          <div class="parameter-heading">
+            <h2>自动取货演示</h2>
+            <span class="planned-badge">规划能力</span>
+          </div>
+          <label class="stacker-slot-control" for="stacker-slot-id">
+            <span>目标格口 ID</span>
+            <input id="stacker-slot-id" type="text" value="warehouse-rack-slot-b03-l04" spellcheck="false" />
+          </label>
+          <button id="run-stacker-demo" class="run-demo-button" type="button">执行取货演示</button>
+          <p id="stacker-task-status" class="stacker-task-status" aria-live="polite">输入稳定格口 ID 后生成动作计划。</p>
+        </section>
         <section id="parameter-panel" class="parameter-panel" aria-label="模型参数" hidden>
           <div class="parameter-heading">
             <h2>模型参数</h2>

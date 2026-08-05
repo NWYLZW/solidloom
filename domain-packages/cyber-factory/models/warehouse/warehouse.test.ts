@@ -4,23 +4,29 @@ import {
   createWarehouseCartDefinition,
   createWarehousePalletDefinition,
   createWarehouseRackDefinition,
+  createWarehouseStackerCraneDefinition,
   createWarehouseToteDefinition,
   defaultWarehouseRackParameters,
+  defaultWarehouseStackerCraneParameters,
+  planWarehouseRetrieval,
   warehouseAssetDefinitions,
   warehouseAssetModules,
   warehouseGroupIds,
+  warehouseRackBayX,
+  warehouseRackShelfY,
 } from "./index.js";
 
 describe("warehouse and internal logistics asset kit", () => {
-  it("publishes four independent planned assets that satisfy the shared contract", () => {
+  it("publishes five independent planned assets that satisfy the shared contract", () => {
     expect(warehouseAssetDefinitions.map(({ manifest }) => manifest.id)).toEqual([
       "cyber-factory-warehouse-rack",
       "cyber-factory-warehouse-pallet",
       "cyber-factory-warehouse-tote",
       "cyber-factory-warehouse-cart",
+      "cyber-factory-warehouse-stacker-crane",
     ]);
     expect(warehouseAssetDefinitions.map(validateModelAssetDefinition)).toEqual(
-      Array.from({ length: 4 }, () => ({ valid: true, issues: [] })),
+      Array.from({ length: 5 }, () => ({ valid: true, issues: [] })),
     );
     expect(warehouseAssetModules.every(({ status }) => status === "planned")).toBe(true);
   });
@@ -76,6 +82,73 @@ describe("warehouse and internal logistics asset kit", () => {
       featureId: "warehouse-cart-handle-bar",
       tags: ["warehouse", "push", "transport"],
     });
+  });
+
+  it("builds an independent stacker crane with stable motion groups and planned anchors", () => {
+    const definition = createWarehouseStackerCraneDefinition({ railLength: 18_000, mastHeight: 5_200 });
+    const graph = definition.createModel().featureGraph!;
+
+    expect(graph.groups?.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      warehouseGroupIds.stackerRails,
+      warehouseGroupIds.stackerTravelFrame,
+      warehouseGroupIds.stackerCarriage,
+      warehouseGroupIds.stackerForks,
+    ]));
+    expect(graph.features.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      "warehouse-stacker-travel-base",
+      "warehouse-stacker-carriage-deck",
+      "warehouse-stacker-left-fork",
+      "warehouse-stacker-right-fork",
+    ]));
+    expect(definition.manifest.anchors.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      "warehouse-stacker-fork-load-socket",
+      "warehouse-stacker-control-panel",
+      "warehouse-stacker-outbound-socket",
+    ]));
+    expect(definition.manifest.joints).toEqual([]);
+    expect(definition.manifest.tags).toContain("planned");
+  });
+
+  it("turns a stable rack slot id into a deterministic planned retrieval sequence", () => {
+    const rack = { ...defaultWarehouseRackParameters, bayCount: 12, levelCount: 8 };
+    const plan = planWarehouseRetrieval(
+      "warehouse-rack-slot-b03-l04",
+      rack,
+      defaultWarehouseStackerCraneParameters,
+    );
+    expect(plan.valid).toBe(true);
+    if (!plan.valid) return;
+
+    expect(plan.targetPose.travelX).toBe(warehouseRackBayX(rack, 2));
+    expect(plan.targetPose.liftY).toBe(warehouseRackShelfY(rack, 3) + 74);
+    expect(plan.steps.map(({ id }) => id)).toEqual([
+      "reserve",
+      "travel",
+      "lift",
+      "extend",
+      "capture",
+      "retract",
+      "lower",
+      "deliver",
+      "release",
+    ]);
+    expect(plan.steps.find(({ id }) => id === "capture")?.plannedActions).toEqual(["attach-cargo"]);
+    expect(plan.steps.find(({ id }) => id === "release")?.plannedActions).toEqual(["detach-cargo", "release-slot"]);
+  });
+
+  it("rejects malformed, missing and unreachable stacker targets without inventing availability", () => {
+    expect(planWarehouseRetrieval("b03-l04")).toMatchObject({ valid: false, code: "invalid-slot-id" });
+    expect(planWarehouseRetrieval("warehouse-rack-slot-b99-l04")).toMatchObject({ valid: false, code: "slot-out-of-range" });
+    expect(planWarehouseRetrieval(
+      "warehouse-rack-slot-b08-l02",
+      { bayCount: 8 },
+      { railLength: 6_000 },
+    )).toMatchObject({ valid: false, code: "insufficient-rail-travel" });
+    expect(planWarehouseRetrieval(
+      "warehouse-rack-slot-b01-l01",
+      { depth: 1_200 },
+      { forkReach: 800 },
+    )).toMatchObject({ valid: false, code: "insufficient-fork-reach" });
   });
 
   it("uses a zero ground baseline without sealing the tote interior", () => {

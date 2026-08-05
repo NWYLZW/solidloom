@@ -71,7 +71,8 @@ h2 {
 }
 
 .asset-tabs button,
-.reset-button {
+.reset-button,
+.run-demo-button {
   min-height: 34px;
   padding: var(--control-padding-y) var(--control-padding-x);
   border: 1px solid rgb(105 199 186 / 24%);
@@ -86,7 +87,9 @@ h2 {
 .asset-tabs button:hover,
 .asset-tabs button:focus-visible,
 .reset-button:hover,
-.reset-button:focus-visible {
+.reset-button:focus-visible,
+.run-demo-button:hover,
+.run-demo-button:focus-visible {
   border-color: rgb(102 216 200 / 68%);
   outline: none;
   background: rgb(48 91 89 / 82%);
@@ -103,6 +106,61 @@ h2 {
   padding-top: 13px;
   border-top: 1px solid rgb(141 190 191 / 18%);
 }
+
+.stacker-task-panel {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid rgb(141 190 191 / 18%);
+}
+
+.planned-badge {
+  flex: 0 0 auto;
+  color: #f2c45f;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.stacker-slot-control {
+  display: grid;
+  gap: 7px;
+  margin-top: 11px;
+  color: #bdd0d1;
+  font-size: 11px;
+}
+
+.stacker-slot-control input {
+  width: 100%;
+  min-width: 0;
+  padding: var(--control-padding-y) var(--control-padding-x);
+  border: 1px solid rgb(105 199 186 / 32%);
+  border-radius: 8px;
+  color: #e8f3f3;
+  background: rgb(15 33 36 / 88%);
+  font: inherit;
+}
+
+.stacker-slot-control input:focus-visible {
+  border-color: #66d8c8;
+  outline: 2px solid rgb(102 216 200 / 24%);
+  outline-offset: 1px;
+}
+
+.run-demo-button {
+  width: 100%;
+  margin-top: 10px;
+  border-color: rgb(102 216 200 / 58%);
+  color: #071616;
+  background: #66d8c8;
+}
+
+.stacker-task-status {
+  margin: 9px 0 0;
+  color: #93aaad;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.stacker-task-status[data-error="true"] { color: #f29b82; }
 
 .parameter-heading {
   display: flex;

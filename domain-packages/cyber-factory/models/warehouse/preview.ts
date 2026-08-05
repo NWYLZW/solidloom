@@ -6,22 +6,30 @@ import {
   defaultWarehouseCartParameters,
   defaultWarehousePalletParameters,
   defaultWarehouseRackParameters,
+  defaultWarehouseStackerCraneParameters,
+  defaultWarehouseStackerCranePose,
   defaultWarehouseToteParameters,
+  createWarehouseStackerCrane,
+  planWarehouseRetrieval,
   warehouseRackBayX,
   warehouseRackShelfY,
   type WarehouseCartParameters,
   type WarehousePalletParameters,
   type WarehouseRackParameters,
+  type WarehouseRetrievalPlan,
+  type WarehouseStackerCraneParameters,
+  type WarehouseStackerCranePose,
   type WarehouseToteParameters,
 } from "./model.js";
 import {
   createWarehouseCartDefinition,
   createWarehousePalletDefinition,
   createWarehouseRackDefinition,
+  createWarehouseStackerCraneDefinition,
   createWarehouseToteDefinition,
 } from "./manifest.js";
 
-type AssetKey = "rack" | "pallet" | "tote" | "cart";
+type AssetKey = "rack" | "pallet" | "tote" | "cart" | "stacker";
 type PreviewMode = "overview" | AssetKey;
 
 interface ParameterControl {
@@ -119,6 +127,23 @@ const assetConfigs: Record<AssetKey, AssetPreviewConfig> = {
     minimumDistance: 1_200,
     maximumDistance: 7_000,
   },
+  stacker: {
+    title: "参数化巷道堆垛机",
+    summary: "独立自动化取放设备；轨道横移、载货台升降和货叉伸缩由确定性格口动作计划驱动。",
+    defaults: valuesOf(defaultWarehouseStackerCraneParameters),
+    parameters: [
+      { key: "railLength", label: "轨道长度", minimum: 6_000, maximum: 30_000, step: 500, unit: "毫米" },
+      { key: "mastHeight", label: "立柱高度", minimum: 2_400, maximum: 8_000, step: 100, unit: "毫米" },
+      { key: "carriageWidth", label: "载货台宽度", minimum: 800, maximum: 1_600, step: 50, unit: "毫米" },
+      { key: "carriageDepth", label: "载货台深度", minimum: 700, maximum: 1_400, step: 50, unit: "毫米" },
+      { key: "forkReach", label: "货叉行程", minimum: 800, maximum: 2_400, step: 50, unit: "毫米" },
+    ],
+    createDefinition: (parameters) => createWarehouseStackerCraneDefinition(parameters as Partial<WarehouseStackerCraneParameters>),
+    cameraPosition: [9_500, 5_800, 9_500],
+    cameraTarget: [0, 1_850, 700],
+    minimumDistance: 5_000,
+    maximumDistance: 26_000,
+  },
 };
 
 const parameterValues = Object.fromEntries(
@@ -131,6 +156,10 @@ const assetSummary = requiredElement<HTMLElement>("#asset-summary");
 const parameterPanel = requiredElement<HTMLElement>("#parameter-panel");
 const parameterControls = requiredElement<HTMLElement>("#parameter-controls");
 const resetParameters = requiredElement<HTMLButtonElement>("#reset-parameters");
+const stackerTaskPanel = requiredElement<HTMLElement>("#stacker-task-panel");
+const stackerSlotId = requiredElement<HTMLInputElement>("#stacker-slot-id");
+const runStackerDemo = requiredElement<HTMLButtonElement>("#run-stacker-demo");
+const stackerTaskStatus = requiredElement<HTMLElement>("#stacker-task-status");
 const metrics = requiredElement<HTMLElement>("#metrics");
 const assetTabs = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-asset]"));
 
@@ -308,6 +337,13 @@ function renderOverview() {
   const pallet = createWarehousePalletDefinition(defaultWarehousePalletParameters);
   const tote = createWarehouseToteDefinition(defaultWarehouseToteParameters);
   const cart = createWarehouseCartDefinition(defaultWarehouseCartParameters);
+  const stacker = createWarehouseStackerCraneDefinition({
+    railLength: 6_000,
+    mastHeight: 3_000,
+    carriageWidth: 900,
+    carriageDepth: 700,
+    forkReach: 1_200,
+  });
   const rackPosition: Vector3Tuple = [-500, 0, -180];
   let drawUnits = buildAsset(rack, rackPosition);
   drawUnits += buildAsset(pallet, [
@@ -328,13 +364,129 @@ function renderOverview() {
   const cartPosition: Vector3Tuple = quality === "mobile" ? [1_450, 0, 260] : [2_300, 0, 420];
   drawUnits += buildAsset(cart, cartPosition);
   if (quality === "desktop") drawUnits += buildAsset(pallet, [2_150, 0, -1_050]);
+  drawUnits += buildAsset(stacker, [-450, 0, -1_750]);
   placeRepresentativeAnchors(cart, cartPosition);
-  setCamera([5_300, 3_700, 6_500], [180, 1_150, 0], 3_600, 18_000);
+  setCamera([7_000, 4_600, 8_000], [0, 1_300, 100], 4_200, 20_000);
   return drawUnits;
 }
 
 function formatValue(value: number, unit?: string) {
   return `${new Intl.NumberFormat("zh-CN").format(value)}${unit ? ` ${unit}` : ""}`;
+}
+
+type ValidWarehouseRetrievalPlan = Extract<WarehouseRetrievalPlan, { valid: true }>;
+type StackerCargoMode = "rack" | "fork" | "outbound";
+
+interface StackerAnimationState {
+  plan: ValidWarehouseRetrievalPlan;
+  stepIndex: number;
+  stepStartedAt: number;
+  fromPose: WarehouseStackerCranePose;
+  lastRenderedAt: number;
+}
+
+const stackerRackPosition: Vector3Tuple = [0, 0, 2_200];
+let stackerPose: WarehouseStackerCranePose = { ...defaultWarehouseStackerCranePose };
+let stackerPlan: ValidWarehouseRetrievalPlan | null = null;
+let stackerAnimation: StackerAnimationState | null = null;
+
+function stackerDefinitionAtPose(pose: WarehouseStackerCranePose): ModelAssetDefinition {
+  const parameters = parameterValues.stacker as unknown as WarehouseStackerCraneParameters;
+  const definition = createWarehouseStackerCraneDefinition(parameters);
+  return {
+    manifest: definition.manifest,
+    createModel: () => createWarehouseStackerCrane(parameters, pose),
+  };
+}
+
+function activeStackerPlan() {
+  if (stackerPlan) return stackerPlan;
+  const plan = planWarehouseRetrieval(
+    "warehouse-rack-slot-b03-l04",
+    parameterValues.rack as unknown as WarehouseRackParameters,
+    parameterValues.stacker as unknown as WarehouseStackerCraneParameters,
+  );
+  return plan.valid ? plan : null;
+}
+
+function renderStackerScene(
+  pose: WarehouseStackerCranePose,
+  cargoMode: StackerCargoMode,
+  phaseLabel: string,
+  resetCamera = false,
+) {
+  clearLayer(assetLayer);
+  clearLayer(markerLayer);
+  const rackParameters = parameterValues.rack as unknown as WarehouseRackParameters;
+  const stackerParameters = parameterValues.stacker as unknown as WarehouseStackerCraneParameters;
+  const rack = createWarehouseRackDefinition(rackParameters);
+  const stacker = stackerDefinitionAtPose(pose);
+  const pallet = createWarehousePalletDefinition(defaultWarehousePalletParameters);
+  const plan = activeStackerPlan();
+  let drawUnits = buildAsset(rack, stackerRackPosition);
+  drawUnits += buildAsset(stacker, [0, 0, 0]);
+  if (plan) {
+    const shelfY = warehouseRackShelfY(rackParameters, plan.levelIndex) + 22;
+    let cargoPosition: Vector3Tuple;
+    if (cargoMode === "rack") {
+      cargoPosition = [plan.targetPose.travelX, shelfY, stackerRackPosition[2]];
+    } else if (cargoMode === "fork") {
+      cargoPosition = [pose.travelX, pose.liftY + 32, stackerParameters.carriageDepth / 2 + pose.forkExtension];
+    } else {
+      cargoPosition = [0, defaultWarehouseStackerCranePose.liftY + 32, -stackerParameters.carriageDepth];
+    }
+    drawUnits += buildAsset(pallet, cargoPosition);
+    marker("#54D5C4", [
+      plan.targetPose.travelX,
+      shelfY + 120,
+      stackerRackPosition[2] - rackParameters.depth / 2 - 180,
+    ], 42);
+  }
+  if (resetCamera) {
+    const railLength = stackerParameters.railLength;
+    const distance = Math.max(9_500, railLength * 0.72, stackerParameters.mastHeight * 2.2);
+    setCamera(
+      [distance * 0.8, Math.max(5_200, stackerParameters.mastHeight * 1.45), distance],
+      [0, stackerParameters.mastHeight * 0.48, 700],
+      5_000,
+      Math.max(26_000, railLength * 2.5),
+    );
+  }
+  metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · ${phaseLabel}`;
+}
+
+function interpolatePose(from: WarehouseStackerCranePose, to: WarehouseStackerCranePose, progress: number) {
+  const eased = progress * progress * (3 - 2 * progress);
+  return {
+    travelX: THREE.MathUtils.lerp(from.travelX, to.travelX, eased),
+    liftY: THREE.MathUtils.lerp(from.liftY, to.liftY, eased),
+    forkExtension: THREE.MathUtils.lerp(from.forkExtension, to.forkExtension, eased),
+  };
+}
+
+function updateStackerAnimation(timestamp: number) {
+  if (!stackerAnimation || currentMode !== "stacker") return;
+  const step = stackerAnimation.plan.steps[stackerAnimation.stepIndex]!;
+  const progress = Math.min(1, (timestamp - stackerAnimation.stepStartedAt) / step.durationMs);
+  stackerPose = interpolatePose(stackerAnimation.fromPose, step.pose, progress);
+  const cargoMode: StackerCargoMode = stackerAnimation.stepIndex < 4
+    ? "rack"
+    : stackerAnimation.stepIndex < 8 ? "fork" : "outbound";
+  if (timestamp - stackerAnimation.lastRenderedAt >= 34 || progress === 1) {
+    renderStackerScene(stackerPose, cargoMode, `当前步骤：${step.label}`);
+    stackerTaskStatus.textContent = `${stackerAnimation.stepIndex + 1}/${stackerAnimation.plan.steps.length} · ${step.label}`;
+    stackerAnimation.lastRenderedAt = timestamp;
+  }
+  if (progress < 1) return;
+  if (stackerAnimation.stepIndex === stackerAnimation.plan.steps.length - 1) {
+    stackerTaskStatus.textContent = `演示完成：${stackerAnimation.plan.slotId} 已运送到默认出库位。`;
+    renderStackerScene(step.pose, "outbound", "取货演示完成");
+    stackerAnimation = null;
+    return;
+  }
+  stackerAnimation.fromPose = { ...step.pose };
+  stackerAnimation.stepIndex += 1;
+  stackerAnimation.stepStartedAt = timestamp;
 }
 
 let currentMode: PreviewMode = "overview";
@@ -345,12 +497,18 @@ function renderCurrentMode() {
   if (currentMode === "overview") {
     const drawUnits = renderOverview();
     assetTitle.textContent = "仓储与内部物流套件";
-    assetSummary.textContent = "四项资产可独立引用，也可通过货位与搬运锚点组合。";
-    metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · 4 项独立资产`;
+    assetSummary.textContent = "五项资产可独立引用，也可通过货位与搬运锚点组合。";
+    metrics.textContent = `${quality === "mobile" ? "手机" : "桌面"}层级 · ${drawUnits} 个绘制单元 · 5 项独立资产`;
     return;
   }
 
   const config = assetConfigs[currentMode];
+  if (currentMode === "stacker") {
+    assetTitle.textContent = config.title;
+    assetSummary.textContent = config.summary;
+    renderStackerScene(stackerPose, "rack", "等待格口取货指令", true);
+    return;
+  }
   const definition = config.createDefinition(parameterValues[currentMode]);
   const drawUnits = buildAsset(definition, [0, 0, 0]);
   placeRepresentativeAnchors(definition);
@@ -401,6 +559,12 @@ function renderParameterControls(asset: AssetKey) {
       if (!Number.isFinite(nextValue) || nextValue < parameter.minimum) return;
       parameterValues[asset][parameter.key] = hasMaximum ? nextValue : Math.round(nextValue);
       if (hasMaximum) value.textContent = formatValue(parameterValues[asset][parameter.key]!, parameter.unit);
+      if (asset === "stacker") {
+        stackerAnimation = null;
+        stackerPlan = null;
+        stackerPose = { ...defaultWarehouseStackerCranePose };
+        stackerTaskStatus.textContent = "参数已更新，请重新执行取货演示。";
+      }
       renderCurrentMode();
     });
     row.append(label, input, value);
@@ -409,13 +573,21 @@ function renderParameterControls(asset: AssetKey) {
 }
 
 function isPreviewMode(value: string | undefined): value is PreviewMode {
-  return value === "overview" || value === "rack" || value === "pallet" || value === "tote" || value === "cart";
+  return value === "overview" || value === "rack" || value === "pallet" || value === "tote" || value === "cart" || value === "stacker";
 }
 
 function selectMode(mode: PreviewMode) {
   currentMode = mode;
   for (const tab of assetTabs) tab.setAttribute("aria-pressed", String(tab.dataset.asset === mode));
   parameterPanel.hidden = mode === "overview";
+  stackerTaskPanel.hidden = mode !== "stacker";
+  stackerAnimation = null;
+  if (mode === "stacker") {
+    stackerPose = { ...defaultWarehouseStackerCranePose };
+    stackerPlan = null;
+    stackerTaskStatus.removeAttribute("data-error");
+    stackerTaskStatus.textContent = "输入稳定格口 ID 后生成动作计划。";
+  }
   if (mode !== "overview") renderParameterControls(mode);
   renderCurrentMode();
 }
@@ -429,8 +601,52 @@ for (const tab of assetTabs) {
 resetParameters.addEventListener("click", () => {
   if (currentMode === "overview") return;
   parameterValues[currentMode] = { ...assetConfigs[currentMode].defaults };
+  if (currentMode === "stacker") {
+    stackerAnimation = null;
+    stackerPlan = null;
+    stackerPose = { ...defaultWarehouseStackerCranePose };
+    stackerTaskStatus.textContent = "参数已恢复，请重新执行取货演示。";
+  }
   renderParameterControls(currentMode);
   renderCurrentMode();
+});
+
+function normalizedSlotId(value: string) {
+  const trimmed = value.trim().toLowerCase();
+  return /^b0*[1-9][0-9]*-l0*[1-9][0-9]*$/.test(trimmed)
+    ? `warehouse-rack-slot-${trimmed}`
+    : trimmed;
+}
+
+runStackerDemo.addEventListener("click", () => {
+  const slotId = normalizedSlotId(stackerSlotId.value);
+  stackerSlotId.value = slotId;
+  const plan = planWarehouseRetrieval(
+    slotId,
+    parameterValues.rack as unknown as WarehouseRackParameters,
+    parameterValues.stacker as unknown as WarehouseStackerCraneParameters,
+  );
+  if (!plan.valid) {
+    stackerAnimation = null;
+    stackerPlan = null;
+    stackerPose = { ...defaultWarehouseStackerCranePose };
+    stackerTaskStatus.dataset.error = "true";
+    stackerTaskStatus.textContent = plan.message;
+    renderStackerScene(stackerPose, "rack", "格口校验失败");
+    return;
+  }
+  stackerTaskStatus.removeAttribute("data-error");
+  stackerPlan = plan;
+  stackerPose = { ...defaultWarehouseStackerCranePose };
+  stackerAnimation = {
+    plan,
+    stepIndex: 0,
+    stepStartedAt: performance.now(),
+    fromPose: { ...stackerPose },
+    lastRenderedAt: 0,
+  };
+  stackerTaskStatus.textContent = `已生成 ${plan.steps.length} 步动作计划，准备取出 ${plan.slotId}。`;
+  renderStackerScene(stackerPose, "rack", "取货计划已生成");
 });
 
 function resize() {
@@ -441,7 +657,8 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 
-function render() {
+function render(timestamp = 0) {
+  updateStackerAnimation(timestamp);
   controls.update();
   renderer.render(scene, camera);
   window.requestAnimationFrame(render);

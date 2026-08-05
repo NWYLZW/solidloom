@@ -8,8 +8,15 @@
 - `cyber-factory-warehouse-pallet`：带顶部装载 socket 和前后货叉入口的木质托盘。
 - `cyber-factory-warehouse-tote`：带真实开放内腔、内容 socket 和双侧搬运锚点的塑料周转箱。
 - `cyber-factory-warehouse-cart`：带装载 socket、推行锚点、双层台面和四轮的物流推车。
+- `cyber-factory-warehouse-stacker-crane`：沿轨道横移、升降载货台并伸缩货叉的巷道堆垛机；输入稳定格口 ID 后可生成确定性的九步取货计划。
 
-所有模型使用毫米、`+y` 向上、`+z` 朝正面，底面基准为 `y = 0`。资产可独立引用，也可在预览中组合成仓储场景。预览提供“场景总览”和四项独立资产标签页；进入单项资产后，可使用参数滑杆实时重建模型并恢复默认值。货架使用立柱、横梁和每层货板的分体碰撞体，不用整块碰撞体封死货位；移动 LOD 省略斜撑、握边或次要承载层。
+所有模型使用毫米、`+y` 向上、`+z` 朝正面，底面基准为 `y = 0`。资产可独立引用，也可在预览中组合成仓储场景。预览提供“场景总览”和五项独立资产标签页；进入单项资产后，可使用参数控件实时重建模型并恢复默认值。货架使用立柱、横梁和每层货板的分体碰撞体，不用整块碰撞体封死货位；移动 LOD 省略斜撑、握边或次要承载层。
+
+## 堆垛机取货计划
+
+`planWarehouseRetrieval(slotId, rackParameters, craneParameters)` 接受形如 `warehouse-rack-slot-b03-l04` 的稳定格口 ID，校验货架范围、轨道横移行程和货叉伸出行程，然后生成预占、横移、升降、伸叉、挂接、收叉、下降、出库和释放九个确定性步骤。每一步都包含横移、升降和货叉伸出姿态，预览会按这些姿态演示完整取货过程。
+
+公共 `FeatureGraph` 当前没有直线关节，库存占用与 model-reference 挂接 API 也尚未交付，因此 manifest 不伪造可用 joints，动作计划中的预占、挂接和释放继续明确标记为 `planned`。本目录只负责稳定几何、运动分组、锚点和纯函数计划；正式运行时需要公共契约后续接入。
 
 ## 验证
 
@@ -24,4 +31,4 @@ npx vite domain-packages/cyber-factory/models/warehouse --host 127.0.0.1 --port 
 - 桌面：`http://127.0.0.1:4313/preview.html?quality=desktop`
 - 移动：`http://127.0.0.1:4313/preview.html?quality=mobile`
 
-视觉验收截图位于 `screenshots/desktop.png` 与 `screenshots/mobile.png`。
+视觉验收截图位于 `screenshots/desktop.png`、`screenshots/mobile.png`、`screenshots/stacker-desktop.png` 与 `screenshots/stacker-mobile.png`。

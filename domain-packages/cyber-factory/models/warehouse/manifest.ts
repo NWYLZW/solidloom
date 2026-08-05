@@ -8,14 +8,18 @@ import {
   createWarehouseCart,
   createWarehousePallet,
   createWarehouseRack,
+  createWarehouseStackerCrane,
   createWarehouseTote,
   defaultWarehouseCartParameters,
   defaultWarehousePalletParameters,
   defaultWarehouseRackParameters,
+  defaultWarehouseStackerCraneParameters,
+  defaultWarehouseStackerCranePose,
   defaultWarehouseToteParameters,
   normalizeWarehouseCartParameters,
   normalizeWarehousePalletParameters,
   normalizeWarehouseRackParameters,
+  normalizeWarehouseStackerCraneParameters,
   normalizeWarehouseToteParameters,
   warehouseGroupIds,
   warehouseRackBayX,
@@ -23,6 +27,7 @@ import {
   type WarehouseCartParameters,
   type WarehousePalletParameters,
   type WarehouseRackParameters,
+  type WarehouseStackerCraneParameters,
   type WarehouseToteParameters,
 } from "./model.js";
 
@@ -331,6 +336,74 @@ export function createWarehouseCartManifest(
   };
 }
 
+export function createWarehouseStackerCraneManifest(
+  input: Partial<WarehouseStackerCraneParameters> = {},
+): ModelAssetManifest {
+  const parameters = normalizeWarehouseStackerCraneParameters(input);
+  const model = createWarehouseStackerCrane(parameters, defaultWarehouseStackerCranePose);
+  const features = model.featureGraph!.features;
+  const allIds = featureIds(features);
+  const railIds = allIds.filter((id) => id.includes("rail") || id.includes("end-stop"));
+  const forkIds = allIds.filter((id) => id.includes("fork"));
+  const wheelIds = allIds.filter((id) => id.includes("wheel"));
+  const carriageIds = allIds.filter((id) => id.includes("carriage"));
+  const frameIds = allIds.filter((id) => !railIds.includes(id) && !forkIds.includes(id) && !wheelIds.includes(id) && !carriageIds.includes(id));
+  const mobileIds = allIds.filter((id) => !wheelIds.includes(id) && id !== "warehouse-stacker-control-cabinet");
+  const colliders = boxFeatures(features)
+    .filter((feature) => !feature.id.includes("guard"))
+    .map((feature) => ({
+      id: `${feature.id}-collider`,
+      label: `${feature.name}碰撞体`,
+      shape: "box" as const,
+      position: feature.position,
+      rotation: feature.rotation,
+      size: [feature.parameters.width, feature.parameters.height, feature.parameters.depth] as [number, number, number],
+      featureId: feature.id,
+      dynamic: !railIds.includes(feature.id),
+    }));
+  return {
+    schemaVersion: 1,
+    id: "cyber-factory-warehouse-stacker-crane",
+    displayName: "参数化巷道堆垛机",
+    description: "可沿轨道横移、升降载货台并伸缩货叉的自动化仓储取放设备。",
+    version: "1.0.0",
+    kind: "asset",
+    modelUnit: "mm",
+    parameters: [
+      { id: "rail-length", label: "轨道长度", type: "number", defaultValue: parameters.railLength, unit: "mm", minimum: 6_000, maximum: 30_000, step: 500 },
+      { id: "mast-height", label: "立柱高度", type: "number", defaultValue: parameters.mastHeight, unit: "mm", minimum: 2_400, maximum: 8_000, step: 100 },
+      { id: "carriage-width", label: "载货台宽度", type: "number", defaultValue: parameters.carriageWidth, unit: "mm", minimum: 800, maximum: 1_600, step: 50 },
+      { id: "carriage-depth", label: "载货台深度", type: "number", defaultValue: parameters.carriageDepth, unit: "mm", minimum: 700, maximum: 1_400, step: 50 },
+      { id: "fork-reach", label: "货叉行程", type: "number", defaultValue: parameters.forkReach, unit: "mm", minimum: 800, maximum: 2_400, step: 50 },
+    ],
+    materials: [
+      { id: "stacker-rails", label: "堆垛机轨道", material: "metal", color: "#71858E", featureIds: railIds },
+      { id: "stacker-frame", label: "堆垛机机架", material: "metal", color: "#E3A62F", featureIds: frameIds },
+      { id: "stacker-carriage", label: "堆垛机载货台", material: "metal", color: "#D6E0E2", featureIds: carriageIds },
+      { id: "stacker-forks", label: "堆垛机货叉", material: "metal", color: "#5BC6B5", featureIds: forkIds },
+      { id: "stacker-wheels", label: "堆垛机行走轮", material: "rubber", color: "#20282C", featureIds: wheelIds },
+    ],
+    placement: fixedPlacement(),
+    colliders,
+    anchors: [
+      { id: "warehouse-stacker-fork-load-socket", label: "货叉装载位", kind: "socket", position: [0, defaultWarehouseStackerCranePose.liftY + 34, parameters.carriageDepth / 2], rotation: [0, 0, 0], range: 620, groupId: warehouseGroupIds.stackerForks, tags: ["warehouse", "cargo", "planned-attachment"] },
+      { id: "warehouse-stacker-control-panel", label: "堆垛机控制面板", kind: "interaction", position: [-parameters.carriageWidth * 0.36, 720, -parameters.carriageDepth * 0.72], rotation: [0, 0, 0], range: 780, featureId: "warehouse-stacker-control-cabinet", tags: ["warehouse", "automation", "planned-control"] },
+      { id: "warehouse-stacker-outbound-socket", label: "默认出库位", kind: "placement", position: [0, defaultWarehouseStackerCranePose.liftY, -parameters.carriageDepth], rotation: [0, 180, 0], range: 820, groupId: warehouseGroupIds.stackerCarriage, tags: ["warehouse", "outbound", "planned-attachment"] },
+      { id: "warehouse-stacker-maintenance-approach", label: "堆垛机维护接近位", kind: "approach", position: [0, 0, -parameters.carriageDepth * 1.45], rotation: [0, 0, 0], range: 1_100, groupId: warehouseGroupIds.stackerTravelFrame, tags: ["warehouse", "maintenance", "navigation"] },
+    ],
+    joints: [],
+    lod: [
+      { device: "desktop", levels: [{ id: "stacker-desktop-full", maximumDistance: 18_000, featureIds: allIds, triangleBudget: Math.max(1_800, allIds.length * 24) }] },
+      { device: "mobile", levels: [{ id: "stacker-mobile-core", maximumDistance: 22_000, featureIds: mobileIds, triangleBudget: Math.max(1_100, mobileIds.length * 16) }] },
+    ],
+    previews: [
+      { device: "desktop", cameraPosition: [9_500, 5_800, 9_500], cameraTarget: [0, 1_850, 0], background: "dark" },
+      { device: "mobile", cameraPosition: [12_500, 7_200, 13_000], cameraTarget: [0, 1_800, 0], background: "dark" },
+    ],
+    tags: ["cyber-factory", "warehouse", "stacker-crane", "automated-storage", "retrieval", "planned"],
+  };
+}
+
 export function createWarehouseRackDefinition(input: Partial<WarehouseRackParameters> = {}): ModelAssetDefinition {
   const parameters = normalizeWarehouseRackParameters(input);
   return { manifest: createWarehouseRackManifest(parameters), createModel: () => createWarehouseRack(parameters) };
@@ -351,13 +424,20 @@ export function createWarehouseCartDefinition(input: Partial<WarehouseCartParame
   return { manifest: createWarehouseCartManifest(parameters), createModel: () => createWarehouseCart(parameters) };
 }
 
+export function createWarehouseStackerCraneDefinition(input: Partial<WarehouseStackerCraneParameters> = {}): ModelAssetDefinition {
+  const parameters = normalizeWarehouseStackerCraneParameters(input);
+  return { manifest: createWarehouseStackerCraneManifest(parameters), createModel: () => createWarehouseStackerCrane(parameters) };
+}
+
 export const warehouseRackDefinition = createWarehouseRackDefinition(defaultWarehouseRackParameters);
 export const warehousePalletDefinition = createWarehousePalletDefinition(defaultWarehousePalletParameters);
 export const warehouseToteDefinition = createWarehouseToteDefinition(defaultWarehouseToteParameters);
 export const warehouseCartDefinition = createWarehouseCartDefinition(defaultWarehouseCartParameters);
+export const warehouseStackerCraneDefinition = createWarehouseStackerCraneDefinition(defaultWarehouseStackerCraneParameters);
 export const warehouseAssetDefinitions = [
   warehouseRackDefinition,
   warehousePalletDefinition,
   warehouseToteDefinition,
   warehouseCartDefinition,
+  warehouseStackerCraneDefinition,
 ] as const;
