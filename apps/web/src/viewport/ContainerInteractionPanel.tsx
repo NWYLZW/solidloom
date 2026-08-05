@@ -27,6 +27,7 @@ export function ContainerInteractionPanel({
         </div>
         <button
           aria-label={labels.containerClose}
+          autoFocus
           className="interaction-container-close"
           type="button"
           onClick={() => onOperation(state.interactionId, "close")}

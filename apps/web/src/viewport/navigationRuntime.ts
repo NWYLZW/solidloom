@@ -91,7 +91,7 @@ export interface NavigationRuntime extends RuntimeDisposable {
   getActiveInteractionId: () => string | null;
   needsContinuousRendering: (keyboardNavigationKeys: ReadonlySet<string>) => boolean;
   performContainerOperation: (interactionId: string, operation: NavigationContainerOperation) => void;
-  performInteraction: (interactionId: string) => void;
+  performInteraction: (interactionId: string) => boolean;
   setDestination: (event: { clientX: number; clientY: number }) => boolean;
   update: (input: NavigationFrameInput) => NavigationFrameResult;
 }
@@ -502,14 +502,14 @@ export function createNavigationRuntime({
     return true;
   };
   const performInteraction = (interactionId: string) => {
-    if (!navigationMode || !navigation || !navigationAgent) return;
+    if (!navigationMode || !navigation || !navigationAgent) return false;
     const interaction = navigationInteractionRuntimes.find((candidate) => candidate.id === interactionId);
-    if (!interaction) return;
+    if (!interaction) return false;
     if (interaction.kind === "seat") {
       if (seatedInteractionId === interaction.id) {
-        if (!standFromNavigationSeat(interaction)) return;
+        if (!standFromNavigationSeat(interaction)) return false;
       } else {
-        if (!interaction.dynamicBody) return;
+        if (!interaction.dynamicBody) return false;
         const previousSeat = navigationInteractionRuntimes.find((candidate) => candidate.id === seatedInteractionId);
         if (previousSeat) previousSeat.active = false;
         seatedInteractionId = interaction.id;
@@ -533,6 +533,7 @@ export function createNavigationRuntime({
     }
     lastNavigationInteractionPromptKey = "";
     requestRender();
+    return interaction.kind === "container" && interaction.active;
   };
   const performContainerOperation = (
     interactionId: string,

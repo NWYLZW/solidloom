@@ -18,6 +18,7 @@ interface CreateViewportPointerRuntimeOptions {
 
 export interface ViewportPointerRuntime {
   dispose: () => void;
+  setMouseLookSuspended: (suspended: boolean) => void;
 }
 
 export function createViewportPointerRuntime({
@@ -77,9 +78,17 @@ export function createViewportPointerRuntime({
   let fallbackMouseLookActive = false;
   let fallbackMouseX = 0;
   let fallbackMouseY = 0;
+  let mouseLookSuspended = false;
   const deactivateMouseLook = () => {
     fallbackMouseLookActive = false;
     container.classList.remove("pointer-locked", "pointer-lock-fallback");
+  };
+  const setMouseLookSuspended = (suspended: boolean) => {
+    mouseLookSuspended = suspended;
+    if (!suspended) return;
+    viewportPointerGesture = null;
+    if (document.pointerLockElement === domElement) document.exitPointerLock();
+    deactivateMouseLook();
   };
   const activateFallbackMouseLook = (clientX: number, clientY: number) => {
     fallbackMouseLookActive = true;
@@ -88,7 +97,7 @@ export function createViewportPointerRuntime({
     container.classList.add("pointer-locked", "pointer-lock-fallback");
   };
   const requestMouseLook = (event: MouseEvent) => {
-    if (!navigationMode || cameraMode === "god") return;
+    if (mouseLookSuspended || !navigationMode || cameraMode === "god") return;
     fallbackMouseX = event.clientX;
     fallbackMouseY = event.clientY;
     const requestPointerLock = domElement.requestPointerLock;
@@ -157,6 +166,7 @@ export function createViewportPointerRuntime({
     domElement.classList.remove("object-hovered");
   };
   const handleMouseLookMouseMove = (event: MouseEvent) => {
+    if (mouseLookSuspended) return;
     const nativePointerLocked = document.pointerLockElement === domElement;
     if ((!nativePointerLocked && !fallbackMouseLookActive) || !navigationMode || cameraMode === "god") return;
     const fallbackMovementX = event.clientX - fallbackMouseX;
@@ -205,6 +215,7 @@ export function createViewportPointerRuntime({
   document.addEventListener("keydown", handleMouseLookKeyDown, true);
 
   return {
+    setMouseLookSuspended,
     dispose: () => {
       window.cancelAnimationFrame(hoverHitTestFrame);
       domElement.removeEventListener("pointerdown", handleViewportPointerDown);

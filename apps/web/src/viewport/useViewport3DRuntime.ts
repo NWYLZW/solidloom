@@ -21,7 +21,10 @@ import type {
   TransformMode,
   Viewport3DProps,
 } from "./types";
-import { createViewportPointerRuntime } from "./viewportPointerRuntime";
+import {
+  createViewportPointerRuntime,
+  type ViewportPointerRuntime,
+} from "./viewportPointerRuntime";
 import {
   createViewportRenderLoopRuntime,
   type ViewportRenderLoopRuntime,
@@ -66,7 +69,8 @@ export function useViewport3DRuntime({
   const updateTransformRef = useRef<((mode: TransformMode, featureIds: string[], groupId: string | null) => void) | null>(null);
   const updateCutPlaneRef = useRef<((plane: Viewport3DProps["cutPlane"], featureIds: string[], groupId: string | null) => void) | null>(null);
   const playJointAnimationRef = useRef<((request: JointAnimationRequest | null) => void) | null>(null);
-  const performNavigationInteractionRef = useRef<((interactionId: string) => void) | null>(null);
+  const performNavigationInteractionRef = useRef<((interactionId: string) => boolean) | null>(null);
+  const viewportPointerRuntimeRef = useRef<ViewportPointerRuntime | null>(null);
   const performNavigationContainerOperationRef = useRef<((
     interactionId: string,
     operation: NavigationContainerOperation,
@@ -257,7 +261,7 @@ export function useViewport3DRuntime({
       viewCubeRuntime,
       viewDirection,
     }));
-    lifecycle.add(createViewportPointerRuntime({
+    const viewportPointerRuntime = lifecycle.add(createViewportPointerRuntime({
       adjustNavigationCamera: navigationRuntime.adjustCamera,
       camera,
       cameraMode: navigationCameraMode,
@@ -271,6 +275,7 @@ export function useViewport3DRuntime({
       requestRender,
       setNavigationDestination: navigationRuntime.setDestination,
     }));
+    viewportPointerRuntimeRef.current = viewportPointerRuntime;
     const featureLodRuntime = createFeatureLodRuntime({
       camera,
       container,
@@ -343,6 +348,7 @@ export function useViewport3DRuntime({
       if (performNavigationContainerOperationRef.current === navigationRuntime.performContainerOperation) {
         performNavigationContainerOperationRef.current = null;
       }
+      if (viewportPointerRuntimeRef.current === viewportPointerRuntime) viewportPointerRuntimeRef.current = null;
       savedNavigationStateRef.current = navigationRuntime.captureState();
       if (!navigationMode || navigationCameraMode === "god") {
         savedViewRef.current = {
@@ -387,8 +393,14 @@ export function useViewport3DRuntime({
     updateCutPlaneRef.current?.(cutPlane, selectedFeatureIds, selectedGroupId);
   }, [cutPlane, selectedFeatureIds, selectedGroupId]);
 
+  useEffect(() => {
+    viewportPointerRuntimeRef.current?.setMouseLookSuspended(navigationContainerPanel !== null);
+  }, [navigationContainerPanel]);
+
   const performNavigationInteraction = (interactionId: string) => {
-    performNavigationInteractionRef.current?.(interactionId);
+    const panelOpened = performNavigationInteractionRef.current?.(interactionId) ?? false;
+    viewportPointerRuntimeRef.current?.setMouseLookSuspended(panelOpened);
+    if (panelOpened) return;
     containerRef.current
       ?.querySelector<HTMLCanvasElement>("canvas[data-testid='model-canvas']")
       ?.focus({ preventScroll: true });
