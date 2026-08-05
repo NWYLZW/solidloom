@@ -421,6 +421,19 @@ export const featureGraphSchema = {
       items: modelFeatureSchema,
       maxItems: 256,
     },
+    generator: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "version"],
+      properties: {
+        id: { type: "string", minLength: 1, maxLength: 160 },
+        version: { const: 1 },
+        options: {
+          type: "object",
+          additionalProperties: true,
+        },
+      },
+    },
     groups: {
       type: "array",
       items: featureGroupSchema,

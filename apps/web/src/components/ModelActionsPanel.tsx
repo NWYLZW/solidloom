@@ -5,6 +5,7 @@ import type {
   ArticulationPosePreset,
 } from "@solidloom/shared";
 import type { LocomotionState } from "../articulation/locomotion";
+import { jointPresetValues } from "../articulation/jointPresets";
 import "./ModelActionsPanel.css";
 
 interface ModelActionsPanelProps {
@@ -34,6 +35,7 @@ interface ModelActionsPanelProps {
     revolute: string;
   };
   onJointValueChange: (joint: ArticulationJoint, value: number) => void;
+  onJointPresetSelect: (joint: ArticulationJoint, value: number) => void;
   onAnimationSelect: (animation: ArticulationAnimationClip) => void;
   onLocomotionProfileChange: (key: "walkReferenceSpeed" | "runReferenceSpeed" | "transitionStartSpeed" | "transitionEndSpeed", value: number) => void;
   onLocomotionSpeedChange: (speed: number) => void;
@@ -46,7 +48,7 @@ interface ModelActionsPanelProps {
   poses: ArticulationPosePreset[];
 }
 
-export function ModelActionsPanel({ activeAnimationId, animations, joints, labels, locomotion, locomotionBlend, locomotionCycleDurationMs, locomotionSpeed, locomotionState, onAnimationSelect, onJointValueChange, onLocomotionProfileChange, onLocomotionSpeedChange, onPoseSelect, poses }: ModelActionsPanelProps) {
+export function ModelActionsPanel({ activeAnimationId, animations, joints, labels, locomotion, locomotionBlend, locomotionCycleDurationMs, locomotionSpeed, locomotionState, onAnimationSelect, onJointPresetSelect, onJointValueChange, onLocomotionProfileChange, onLocomotionSpeedChange, onPoseSelect, poses }: ModelActionsPanelProps) {
   const locomotionStateLabel = {
     idle: labels.locomotionIdle,
     walk: labels.locomotionWalk,
@@ -105,21 +107,24 @@ export function ModelActionsPanel({ activeAnimationId, animations, joints, label
           </div>
         </>
       )}
-      {joints.map((joint) => (
-        <div className="model-actions-joint" key={joint.id}>
-          <label>
-            <span className="model-actions-joint-name"><strong>{joint.name}</strong><small>{labels.revolute}</small></span>
-            <span><input aria-label={`${joint.name} ${labels.angle}`} type="number" step="1" min={joint.min} max={joint.max} value={joint.value} onChange={(event) => onJointValueChange(joint, Number(event.target.value))} /> °</span>
-          </label>
-          <input className="model-actions-range" aria-label={`${joint.name} ${labels.angle}`} type="range" step="1" min={joint.min} max={joint.max} value={joint.value} onChange={(event) => onJointValueChange(joint, Number(event.target.value))} />
-          <small>{labels.range} · {joint.min}°–{joint.max}°</small>
-          <div className="model-actions-joint-buttons">
-            <button type="button" onClick={() => onJointValueChange(joint, joint.min)}>{labels.closed}</button>
-            <button type="button" onClick={() => onJointValueChange(joint, (joint.min + joint.restValue) / 2)}>{labels.half}</button>
-            <button type="button" onClick={() => onJointValueChange(joint, joint.restValue)}>{labels.expanded}</button>
+      {joints.map((joint) => {
+        const presets = jointPresetValues(joint);
+        return (
+          <div className="model-actions-joint" key={joint.id}>
+            <label>
+              <span className="model-actions-joint-name"><strong>{joint.name}</strong><small>{labels.revolute}</small></span>
+              <span><input aria-label={`${joint.name} ${labels.angle}`} type="number" step="1" min={joint.min} max={joint.max} value={joint.value} onChange={(event) => onJointValueChange(joint, Number(event.target.value))} /> °</span>
+            </label>
+            <input className="model-actions-range" aria-label={`${joint.name} ${labels.angle}`} type="range" step="1" min={joint.min} max={joint.max} value={joint.value} onChange={(event) => onJointValueChange(joint, Number(event.target.value))} />
+            <small>{labels.range} · {joint.min}°–{joint.max}°</small>
+            <div className="model-actions-joint-buttons">
+              <button type="button" onClick={() => onJointPresetSelect(joint, presets.closed)}>{labels.closed}</button>
+              <button type="button" onClick={() => onJointPresetSelect(joint, presets.half)}>{labels.half}</button>
+              <button type="button" onClick={() => onJointPresetSelect(joint, presets.expanded)}>{labels.expanded}</button>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

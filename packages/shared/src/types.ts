@@ -46,6 +46,12 @@ export interface ModelVariable {
   unit?: Unit;
 }
 
+export interface FeatureGraphGenerator {
+  id: string;
+  version: 1;
+  options?: Record<string, unknown>;
+}
+
 export interface BoxFeature extends FeatureBase {
   type: "box";
   parameters: {
@@ -227,6 +233,7 @@ export interface ModelReferenceInstance {
 export interface FeatureGraph {
   version: 1;
   features: ModelFeature[];
+  generator?: FeatureGraphGenerator;
   groups?: FeatureGroup[];
   joints?: ArticulationJoint[];
   poses?: ArticulationPosePreset[];

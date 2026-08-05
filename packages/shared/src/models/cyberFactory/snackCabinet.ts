@@ -63,6 +63,13 @@ export const snackCabinetFeatureIds = {
 } as const;
 
 export const snackCabinetProductFeaturePrefix = "snack-cabinet-product-";
+export const snackCabinetGeneratorId = "cyber-factory.snack-cabinet";
+
+export const snackCabinetVariableIds = {
+  width: "--snack-cabinet-width",
+  height: "--snack-cabinet-height",
+  depth: "--snack-cabinet-depth",
+} as const;
 
 const defaultProductWidth = 76;
 const defaultProductDepth = 88;
@@ -410,6 +417,14 @@ export function createSnackCabinet(
     featureGraph: {
       version: 1,
       features,
+      generator: {
+        id: snackCabinetGeneratorId,
+        version: 1,
+        options: {
+          finish: parameters.finish,
+          inventory: structuredClone(inventory),
+        },
+      },
       groups,
       joints: [{
         id: snackCabinetJointIds.pickupFlap,
@@ -424,9 +439,9 @@ export function createSnackCabinet(
         max: 55,
       }],
       variables: [
-        { id: "--snack-cabinet-width", label: "柜体宽度", value: width, unit: "mm" },
-        { id: "--snack-cabinet-height", label: "柜体高度", value: height, unit: "mm" },
-        { id: "--snack-cabinet-depth", label: "柜体深度", value: depth, unit: "mm" },
+        { id: snackCabinetVariableIds.width, label: "柜体宽度", value: width, unit: "mm" },
+        { id: snackCabinetVariableIds.height, label: "柜体高度", value: height, unit: "mm" },
+        { id: snackCabinetVariableIds.depth, label: "柜体深度", value: depth, unit: "mm" },
       ],
     },
   };

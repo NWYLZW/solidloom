@@ -1,5 +1,6 @@
 import {
   applyFeatureGraphExpressions,
+  regenerateGeneratedFeatureGraph,
   regenerateProceduralMeshFeature,
   synchronizeRoomAssemblyFeatures,
   type FeatureGraph,
@@ -30,7 +31,8 @@ export function meshDimensions(feature: Extract<ModelFeature, { type: "mesh" }>)
 }
 
 export function rebuildParameterizedFeatureGraph(featureGraph: FeatureGraph) {
-  const firstPass = applyFeatureGraphExpressions(featureGraph);
+  const generatedGraph = regenerateGeneratedFeatureGraph(featureGraph);
+  const firstPass = applyFeatureGraphExpressions(generatedGraph);
   let roomSource: RoomShellSource | null = null;
   const regeneratedFeatures = firstPass.featureGraph.features.map((feature) => {
     if (feature.type !== "mesh" || !feature.parameters.source) return feature;
