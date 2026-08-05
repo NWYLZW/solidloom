@@ -374,7 +374,7 @@ export function createWarehouseStackerCraneManifest(
       { id: "mast-height", label: "立柱高度", type: "number", defaultValue: parameters.mastHeight, unit: "mm", minimum: 2_400, maximum: 8_000, step: 100 },
       { id: "carriage-width", label: "载货台宽度", type: "number", defaultValue: parameters.carriageWidth, unit: "mm", minimum: 700, maximum: 1_600, step: 50 },
       { id: "carriage-depth", label: "载货台深度", type: "number", defaultValue: parameters.carriageDepth, unit: "mm", minimum: 600, maximum: 1_400, step: 50 },
-      { id: "fork-reach", label: "货叉行程", type: "number", defaultValue: parameters.forkReach, unit: "mm", minimum: 900, maximum: 2_400, step: 50 },
+      { id: "fork-reach", label: "货叉行程", type: "number", defaultValue: parameters.forkReach, unit: "mm", minimum: 400, maximum: 2_400, step: 50 },
     ],
     materials: [
       { id: "stacker-rails", label: "堆垛机轨道", material: "metal", color: "#71858E", featureIds: railIds },

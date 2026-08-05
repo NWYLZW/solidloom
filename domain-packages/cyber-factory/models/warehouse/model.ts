@@ -104,7 +104,7 @@ export const defaultWarehouseStackerCraneParameters: WarehouseStackerCraneParame
   mastHeight: defaultWarehouseRackParameters.height,
   carriageWidth: 900,
   carriageDepth: 700,
-  forkReach: 1_200,
+  forkReach: 700,
 };
 
 export const defaultWarehouseStackerCranePose: WarehouseStackerCranePose = {
@@ -138,6 +138,7 @@ const rubberAppearance: FeatureAppearance = { material: "rubber", color: "#20282
 const stackerFrameAppearance: FeatureAppearance = { material: "metal", color: "#E3A62F" };
 const stackerCarriageAppearance: FeatureAppearance = { material: "metal", color: "#D6E0E2" };
 const stackerForkAppearance: FeatureAppearance = { material: "metal", color: "#5BC6B5" };
+const warehouseStackerTravelBaseDepthScale = 1.18;
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
@@ -478,8 +479,17 @@ export function normalizeWarehouseStackerCraneParameters(
     mastHeight: clamp(input.mastHeight ?? defaultWarehouseStackerCraneParameters.mastHeight, 2_400, 8_000),
     carriageWidth: clamp(input.carriageWidth ?? defaultWarehouseStackerCraneParameters.carriageWidth, 700, 1_600),
     carriageDepth: clamp(input.carriageDepth ?? defaultWarehouseStackerCraneParameters.carriageDepth, 600, 1_400),
-    forkReach: clamp(input.forkReach ?? defaultWarehouseStackerCraneParameters.forkReach, 900, 2_400),
+    forkReach: clamp(input.forkReach ?? defaultWarehouseStackerCraneParameters.forkReach, 400, 2_400),
   };
+}
+
+export function warehouseStackerRackAssemblyZ(
+  rackInput: Partial<WarehouseRackParameters> = {},
+  craneInput: Partial<WarehouseStackerCraneParameters> = {},
+) {
+  const rack = normalizeWarehouseRackParameters(rackInput);
+  const crane = normalizeWarehouseStackerCraneParameters(craneInput);
+  return -(rack.depth / 2 + crane.carriageDepth * warehouseStackerTravelBaseDepthScale / 2);
 }
 
 export function normalizeWarehouseStackerCranePose(
@@ -506,11 +516,11 @@ export function createWarehouseStackerCrane(
   const railFeatures: ModelFeature[] = [
     box("warehouse-stacker-left-rail", "堆垛机左轨", [parameters.railLength, 72, 96], [0, 36, -railOffsetZ], metalAppearance, 12),
     box("warehouse-stacker-right-rail", "堆垛机右轨", [parameters.railLength, 72, 96], [0, 36, railOffsetZ], metalAppearance, 12),
-    box("warehouse-stacker-left-end-stop", "左端限位器", [120, 190, parameters.carriageDepth * 1.18], [-parameters.railLength / 2 + 60, 95, 0], stackerFrameAppearance, 18),
-    box("warehouse-stacker-right-end-stop", "右端限位器", [120, 190, parameters.carriageDepth * 1.18], [parameters.railLength / 2 - 60, 95, 0], stackerFrameAppearance, 18),
+    box("warehouse-stacker-left-end-stop", "左端限位器", [120, 190, parameters.carriageDepth * warehouseStackerTravelBaseDepthScale], [-parameters.railLength / 2 + 60, 95, 0], stackerFrameAppearance, 18),
+    box("warehouse-stacker-right-end-stop", "右端限位器", [120, 190, parameters.carriageDepth * warehouseStackerTravelBaseDepthScale], [parameters.railLength / 2 - 60, 95, 0], stackerFrameAppearance, 18),
   ];
   const travelFeatures: ModelFeature[] = [
-    box("warehouse-stacker-travel-base", "紧凑型行走底座", [parameters.carriageWidth + 160, 150, parameters.carriageDepth * 1.18], [pose.travelX, 140, 0], stackerFrameAppearance, 24),
+    box("warehouse-stacker-travel-base", "紧凑型行走底座", [parameters.carriageWidth + 160, 150, parameters.carriageDepth * warehouseStackerTravelBaseDepthScale], [pose.travelX, 140, 0], stackerFrameAppearance, 24),
     box("warehouse-stacker-single-mast", "堆垛机单立柱", [150, parameters.mastHeight, 180], [pose.travelX, mastBottom + parameters.mastHeight / 2, mastZ], stackerFrameAppearance, 14),
     box("warehouse-stacker-mast-guide", "单立柱升降导轨", [58, parameters.mastHeight - 220, 34], [pose.travelX, mastBottom + parameters.mastHeight / 2 - 40, mastZ + 107], metalAppearance, 10),
     box("warehouse-stacker-mast-cap", "单立柱顶帽", [280, 100, 210], [pose.travelX, mastBottom + parameters.mastHeight, mastZ], stackerFrameAppearance, 14),
@@ -587,7 +597,8 @@ export function planWarehouseRetrieval(
   if (slot.bayIndex >= rack.bayCount || slot.levelIndex >= rack.levelCount) {
     return { valid: false, slotId, code: "slot-out-of-range", message: "目标格口不在当前货架参数范围内。" };
   }
-  const requiredForkExtension = rack.depth / 2 + 600;
+  const rackAssemblyZ = warehouseStackerRackAssemblyZ(rack, crane);
+  const requiredForkExtension = Math.abs(rackAssemblyZ) - crane.carriageDepth / 2;
   if (requiredForkExtension > crane.forkReach) {
     return { valid: false, slotId, code: "insufficient-fork-reach", message: "货叉行程不足，无法到达目标货位。" };
   }

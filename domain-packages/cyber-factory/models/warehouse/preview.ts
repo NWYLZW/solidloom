@@ -13,6 +13,7 @@ import {
   planWarehouseRetrieval,
   warehouseRackBayX,
   warehouseRackShelfY,
+  warehouseStackerRackAssemblyZ,
   type WarehouseCartParameters,
   type WarehousePalletParameters,
   type WarehouseRackParameters,
@@ -129,14 +130,14 @@ const assetConfigs: Record<AssetKey, AssetPreviewConfig> = {
   },
   stacker: {
     title: "参数化巷道堆垛机",
-    summary: "轨道与立柱默认对齐三跨货架；跨度、高度、载货台和货叉仍可独立配置。",
+    summary: "独立模型默认与货架拣选面贴合组合；跨度、高度、载货台和货叉仍可独立配置。",
     defaults: valuesOf(defaultWarehouseStackerCraneParameters),
     parameters: [
       { key: "railLength", label: "轨道长度", minimum: 3_500, maximum: 30_000, step: 500, unit: "毫米" },
       { key: "mastHeight", label: "立柱高度", minimum: 2_400, maximum: 8_000, step: 100, unit: "毫米" },
       { key: "carriageWidth", label: "载货台宽度", minimum: 700, maximum: 1_600, step: 50, unit: "毫米" },
       { key: "carriageDepth", label: "载货台深度", minimum: 600, maximum: 1_400, step: 50, unit: "毫米" },
-      { key: "forkReach", label: "货叉行程", minimum: 900, maximum: 2_400, step: 50, unit: "毫米" },
+      { key: "forkReach", label: "货叉行程", minimum: 400, maximum: 2_400, step: 50, unit: "毫米" },
     ],
     createDefinition: (parameters) => createWarehouseStackerCraneDefinition(parameters as Partial<WarehouseStackerCraneParameters>),
     cameraPosition: [4_600, 4_300, -5_800],
@@ -340,6 +341,14 @@ function renderOverview() {
   const cart = createWarehouseCartDefinition(defaultWarehouseCartParameters);
   const stacker = createWarehouseStackerCraneDefinition(defaultWarehouseStackerCraneParameters);
   const rackPosition: Vector3Tuple = [-500, 0, -180];
+  const stackerPosition: Vector3Tuple = [
+    rackPosition[0],
+    0,
+    rackPosition[2] - warehouseStackerRackAssemblyZ(
+      defaultWarehouseRackParameters,
+      defaultWarehouseStackerCraneParameters,
+    ),
+  ];
   let drawUnits = buildAsset(rack, rackPosition);
   drawUnits += buildAsset(pallet, [
     rackPosition[0] + warehouseRackBayX(defaultWarehouseRackParameters, 0),
@@ -359,7 +368,7 @@ function renderOverview() {
   const cartPosition: Vector3Tuple = quality === "mobile" ? [1_450, 0, 260] : [2_300, 0, 420];
   drawUnits += buildAsset(cart, cartPosition);
   if (quality === "desktop") drawUnits += buildAsset(pallet, [2_150, 0, -1_050]);
-  drawUnits += buildAsset(stacker, [-450, 0, -1_750]);
+  drawUnits += buildAsset(stacker, stackerPosition, true);
   placeRepresentativeAnchors(cart, cartPosition);
   setCamera([7_000, 4_600, 8_000], [0, 1_300, 100], 4_200, 20_000);
   return drawUnits;
@@ -380,7 +389,6 @@ interface StackerAnimationState {
   lastRenderedAt: number;
 }
 
-const stackerRackPosition: Vector3Tuple = [0, 0, -1_500];
 let stackerPose: WarehouseStackerCranePose = { ...defaultWarehouseStackerCranePose };
 let stackerPlan: ValidWarehouseRetrievalPlan | null = null;
 let stackerAnimation: StackerAnimationState | null = null;
@@ -418,13 +426,18 @@ function renderStackerScene(
   const stacker = stackerDefinitionAtPose(pose);
   const pallet = createWarehousePalletDefinition(defaultWarehousePalletParameters);
   const plan = activeStackerPlan();
-  let drawUnits = buildAsset(rack, stackerRackPosition);
+  const rackPosition: Vector3Tuple = [
+    0,
+    0,
+    warehouseStackerRackAssemblyZ(rackParameters, stackerParameters),
+  ];
+  let drawUnits = buildAsset(rack, rackPosition);
   drawUnits += buildAsset(stacker, [0, 0, 0], true);
   if (plan) {
     const shelfY = warehouseRackShelfY(rackParameters, plan.levelIndex) + 22;
     let cargoPosition: Vector3Tuple;
     if (cargoMode === "rack") {
-      cargoPosition = [plan.targetPose.travelX, shelfY, stackerRackPosition[2]];
+      cargoPosition = [plan.targetPose.travelX, shelfY, rackPosition[2]];
     } else if (cargoMode === "fork") {
       cargoPosition = [pose.travelX, pose.liftY + 32, -stackerParameters.carriageDepth / 2 - pose.forkExtension];
     } else {
@@ -434,7 +447,7 @@ function renderStackerScene(
     marker("#54D5C4", [
       plan.targetPose.travelX,
       shelfY + 120,
-      stackerRackPosition[2] + rackParameters.depth / 2 + 180,
+      rackPosition[2] + rackParameters.depth / 2 + 180,
     ], 42);
   }
   if (resetCamera) {

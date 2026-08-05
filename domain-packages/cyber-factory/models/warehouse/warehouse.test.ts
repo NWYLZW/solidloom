@@ -15,6 +15,7 @@ import {
   warehouseGroupIds,
   warehouseRackBayX,
   warehouseRackShelfY,
+  warehouseStackerRackAssemblyZ,
 } from "./index.js";
 
 describe("warehouse and internal logistics asset kit", () => {
@@ -135,7 +136,7 @@ describe("warehouse and internal logistics asset kit", () => {
       mastHeight: 2_600,
       carriageWidth: 900,
       carriageDepth: 700,
-      forkReach: 1_200,
+      forkReach: 700,
     });
     const graph = createWarehouseStackerCraneDefinition().createModel().featureGraph!;
     expect(graph.features.some(({ id }) => id === "warehouse-stacker-single-mast")).toBe(true);
@@ -148,12 +149,20 @@ describe("warehouse and internal logistics asset kit", () => {
     expect(outerTopPlan).toMatchObject({ valid: true });
     if (outerTopPlan.valid) {
       expect(outerTopPlan.targetPose.liftY).toBe(warehouseRackShelfY(defaultWarehouseRackParameters, 3) + 74);
+      expect(outerTopPlan.targetPose.forkExtension).toBeCloseTo(513);
     }
+    const rackZ = warehouseStackerRackAssemblyZ(
+      defaultWarehouseRackParameters,
+      defaultWarehouseStackerCraneParameters,
+    );
+    expect(rackZ + defaultWarehouseRackParameters.depth / 2).toBeCloseTo(
+      -defaultWarehouseStackerCraneParameters.carriageDepth * 1.18 / 2,
+    );
   });
 
   it("keeps retracted forks inside the carriage and extends only toward the rack", () => {
     const retracted = createWarehouseStackerCrane(defaultWarehouseStackerCraneParameters, { forkExtension: 0 });
-    const extended = createWarehouseStackerCrane(defaultWarehouseStackerCraneParameters, { forkExtension: 900 });
+    const extended = createWarehouseStackerCrane(defaultWarehouseStackerCraneParameters, { forkExtension: 600 });
     const retractedFork = retracted.featureGraph!.features.find(({ id }) => id === "warehouse-stacker-left-fork");
     const extendedFork = extended.featureGraph!.features.find(({ id }) => id === "warehouse-stacker-left-fork");
     expect(retractedFork?.type).toBe("box");
@@ -167,7 +176,7 @@ describe("warehouse and internal logistics asset kit", () => {
       -defaultWarehouseStackerCraneParameters.carriageDepth / 2,
     );
     expect(extendedFork.position[2] + extendedFork.parameters.depth / 2).toBe(
-      defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 900,
+      defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 600,
     );
   });
 
@@ -215,7 +224,7 @@ describe("warehouse and internal logistics asset kit", () => {
     expect(planWarehouseRetrieval(
       "warehouse-rack-slot-b01-l01",
       { depth: 1_200 },
-      { forkReach: 800 },
+      { forkReach: 400 },
     )).toMatchObject({ valid: false, code: "insufficient-fork-reach" });
   });
 
