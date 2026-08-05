@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>参数化咖啡机 · 独立预览</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+        --ink: #eef6f4;
+        --muted: #8fa7a4;
+        --line: rgba(151, 190, 184, 0.2);
+        --surface: rgba(14, 22, 26, 0.82);
+        --accent: #58d7c5;
+      }
+
+      * { box-sizing: border-box; }
+      html, body, #preview-root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+      body {
+        background:
+          radial-gradient(circle at 58% 35%, rgba(50, 103, 105, 0.28), transparent 42%),
+          linear-gradient(145deg, #0a1013 0%, #101b20 48%, #080d10 100%);
+        color: var(--ink);
+      }
+
+      #preview-root { position: relative; }
+      #preview-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+      .brand {
+        position: absolute;
+        top: 22px;
+        left: 24px;
+        max-width: min(390px, calc(100% - 48px));
+        pointer-events: none;
+      }
+      .eyebrow {
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+      }
+      h1 { margin: 8px 0 7px; font-size: clamp(24px, 3vw, 42px); line-height: 1.05; }
+      .subtitle { color: var(--muted); font-size: 13px; line-height: 1.6; }
+      .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+      .badge {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(12, 19, 23, 0.64);
+        color: #c7d8d5;
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+
+      .controls {
+        position: absolute;
+        top: 22px;
+        right: 24px;
+        width: 290px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+        backdrop-filter: blur(18px);
+        padding: 16px;
+      }
+      .controls h2 { margin: 0 0 4px; font-size: 14px; }
+      .control-note { margin: 0 0 14px; color: var(--muted); font-size: 11px; }
+      .control-row { display: grid; grid-template-columns: 62px 1fr 52px; gap: 9px; align-items: center; margin-top: 10px; }
+      .control-row label { color: #c6d6d3; font-size: 12px; }
+      .control-row output { color: var(--accent); font-size: 11px; text-align: right; }
+      input[type="range"] { width: 100%; accent-color: var(--accent); }
+      select, button {
+        width: 100%;
+        min-height: 36px;
+        border: 1px solid rgba(126, 170, 164, 0.28);
+        border-radius: 9px;
+        background: rgba(24, 36, 41, 0.9);
+        color: var(--ink);
+        padding: 7px 9px;
+        font: inherit;
+      }
+      .select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
+      .select-row label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
+      button { margin-top: 10px; cursor: pointer; }
+      button[aria-pressed="true"] { border-color: var(--accent); background: rgba(53, 132, 124, 0.3); }
+
+      .legend {
+        position: absolute;
+        left: 24px;
+        bottom: 22px;
+        display: flex;
+        gap: 16px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(9, 16, 19, 0.72);
+        padding: 10px 12px;
+        color: #aec1bd;
+        font-size: 11px;
+        backdrop-filter: blur(12px);
+        pointer-events: none;
+      }
+      .legend span { display: flex; gap: 6px; align-items: center; }
+      .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px currentColor; }
+      .dot.take { background: #f1ae62; }
+      .dot.socket { background: #88aef0; }
+
+      @media (max-width: 640px) {
+        .brand { top: 16px; left: 16px; max-width: calc(100% - 32px); }
+        .eyebrow { font-size: 10px; }
+        h1 { margin-top: 5px; font-size: 25px; }
+        .subtitle { display: none; }
+        .badges { margin-top: 8px; gap: 6px; }
+        .badge { padding: 5px 8px; font-size: 10px; }
+        .controls {
+          top: auto;
+          right: 12px;
+          bottom: 12px;
+          left: 12px;
+          width: auto;
+          border-radius: 14px;
+          padding: 12px;
+        }
+        .controls h2 { font-size: 13px; }
+        .control-note { display: none; }
+        .control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+        .control-row { grid-template-columns: 42px 1fr; margin-top: 7px; }
+        .control-row output { display: none; }
+        .select-row { margin-top: 9px; }
+        select, button { min-height: 32px; padding: 5px 7px; font-size: 11px; }
+        button { margin-top: 8px; }
+        .legend { left: 16px; bottom: 242px; gap: 10px; padding: 7px 9px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="preview-root">
+      <canvas id="preview-canvas" aria-label="参数化咖啡机三维预览"></canvas>
+      <section class="brand" aria-label="资产信息">
+        <div class="eyebrow">赛博工厂 · 茶水区资产</div>
+        <h1>参数化咖啡机</h1>
+        <div class="subtitle">紧凑机身、透明水箱、制作与取杯锚点，以及适配窄屏的简化层级。</div>
+        <div class="badges">
+          <span class="badge" id="device-badge">桌面层级</span>
+          <span class="badge" id="dimension-badge">380 × 520 × 440 mm</span>
+          <span class="badge">状态：规划中</span>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="预览参数">
+        <h2>模型参数</h2>
+        <p class="control-note">拖动视口旋转，滚轮或双指缩放。</p>
+        <div class="control-grid">
+          <div class="control-row">
+            <label for="width">宽度</label>
+            <input id="width" type="range" min="320" max="520" step="10" value="380" />
+            <output id="width-output">380 mm</output>
+          </div>
+          <div class="control-row">
+            <label for="height">高度</label>
+            <input id="height" type="range" min="460" max="680" step="10" value="520" />
+            <output id="height-output">520 mm</output>
+          </div>
+          <div class="control-row">
+            <label for="depth">深度</label>
+            <input id="depth" type="range" min="360" max="560" step="10" value="440" />
+            <output id="depth-output">440 mm</output>
+          </div>
+        </div>
+        <div class="select-row">
+          <label>机身配色
+            <select id="finish">
+              <option value="graphite">石墨黑</option>
+              <option value="porcelain">瓷白</option>
+              <option value="cobalt">钴蓝</option>
+            </select>
+          </label>
+          <label>预览层级
+            <select id="device">
+              <option value="auto">跟随屏幕</option>
+              <option value="desktop">桌面</option>
+              <option value="mobile">手机</option>
+            </select>
+          </label>
+        </div>
+        <button id="lid-toggle" type="button" aria-pressed="false">打开水箱翻盖</button>
+      </section>
+
+      <aside class="legend" aria-label="锚点图例">
+        <span><i class="dot"></i>制作</span>
+        <span><i class="dot take"></i>取杯</span>
+        <span><i class="dot socket"></i>杯位</span>
+      </aside>
+    </main>
+    <script type="module" src="./preview.ts"></script>
+  </body>
+</html>
