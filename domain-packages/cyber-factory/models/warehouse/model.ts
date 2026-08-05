@@ -465,15 +465,37 @@ export function createWarehouseCart(
   const parameters = normalizeWarehouseCartParameters(input);
   const wheelRadius = 82;
   const deckThickness = 72;
+  const lowerDeckCenterY = 145;
+  const lowerDeckThickness = 48;
+  const lowerDeckTop = lowerDeckCenterY + lowerDeckThickness / 2;
+  const mainDeckBottom = parameters.deckHeight - deckThickness / 2;
+  const supportHeight = mainDeckBottom - lowerDeckTop;
+  const supportY = lowerDeckTop + supportHeight / 2;
   const handleZ = -parameters.depth / 2 + 42;
   const postHeight = parameters.handleHeight - parameters.deckHeight;
   const frame: ModelFeature[] = [
     box("warehouse-cart-main-deck", "推车主承载台", [parameters.width, deckThickness, parameters.depth], [0, parameters.deckHeight, 0], cartDeckAppearance, 18),
-    box("warehouse-cart-lower-deck", "推车下层承载台", [parameters.width * 0.88, 48, parameters.depth * 0.78], [0, 145, 30], cartAppearance, 12),
+    box("warehouse-cart-lower-deck", "推车下层承载台", [parameters.width * 0.88, lowerDeckThickness, parameters.depth * 0.78], [0, lowerDeckCenterY, 30], cartAppearance, 12),
     box("warehouse-cart-left-handle-post", "推车左把手立柱", [46, postHeight, 46], [-parameters.width * 0.4, parameters.deckHeight + postHeight / 2, handleZ], cartAppearance, 8),
     box("warehouse-cart-right-handle-post", "推车右把手立柱", [46, postHeight, 46], [parameters.width * 0.4, parameters.deckHeight + postHeight / 2, handleZ], cartAppearance, 8),
     box("warehouse-cart-handle-bar", "推车横向把手", [parameters.width * 0.86, 54, 54], [0, parameters.handleHeight, handleZ], cartAppearance, 14),
   ];
+  for (const xSign of [-1, 1]) {
+    for (const zSign of [-1, 1]) {
+      frame.push(box(
+        `warehouse-cart-support-${xSign < 0 ? "left" : "right"}-${zSign < 0 ? "rear" : "front"}`,
+        `${xSign < 0 ? "左" : "右"}${zSign < 0 ? "后" : "前"}承重支架`,
+        [42, supportHeight, 42],
+        [
+          xSign * (parameters.width * 0.44 - 60),
+          supportY,
+          30 + zSign * (parameters.depth * 0.39 - 60),
+        ],
+        cartAppearance,
+        6,
+      ));
+    }
+  }
   const wheels: ModelFeature[] = [];
   for (const xSign of [-1, 1]) {
     for (const zSign of [-1, 1]) {

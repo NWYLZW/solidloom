@@ -276,6 +276,34 @@ describe("warehouse and internal logistics asset kit", () => {
     expect(plan.steps.at(-1)?.pose).toEqual(plan.steps[0]?.pose);
   });
 
+  it("grounds every cart wheel and visibly supports the main deck", () => {
+    const features = createWarehouseCartDefinition().createModel().featureGraph!.features;
+    const wheels = features.filter(({ id }) => id.startsWith("warehouse-cart-wheel-"));
+    const supports = features.filter(({ id }) => id.startsWith("warehouse-cart-support-"));
+    const mainDeck = features.find(({ id }) => id === "warehouse-cart-main-deck");
+    const lowerDeck = features.find(({ id }) => id === "warehouse-cart-lower-deck");
+
+    expect(wheels).toHaveLength(4);
+    for (const wheel of wheels) {
+      expect(wheel.type).toBe("cylinder");
+      if (wheel.type === "cylinder") expect(wheel.position[1] - wheel.parameters.radius).toBe(0);
+    }
+    expect(supports).toHaveLength(4);
+    expect(mainDeck?.type).toBe("box");
+    expect(lowerDeck?.type).toBe("box");
+    if (mainDeck?.type !== "box" || lowerDeck?.type !== "box") return;
+    for (const support of supports) {
+      expect(support.type).toBe("box");
+      if (support.type !== "box") continue;
+      expect(support.position[1] - support.parameters.height / 2).toBe(
+        lowerDeck.position[1] + lowerDeck.parameters.height / 2,
+      );
+      expect(support.position[1] + support.parameters.height / 2).toBe(
+        mainDeck.position[1] - mainDeck.parameters.height / 2,
+      );
+    }
+  });
+
   it("rejects malformed, missing and unreachable stacker targets without inventing availability", () => {
     expect(planWarehouseRetrieval("b03-l04")).toMatchObject({ valid: false, code: "invalid-slot-id" });
     expect(planWarehouseRestock("b03-l04")).toMatchObject({ valid: false, code: "invalid-slot-id" });
