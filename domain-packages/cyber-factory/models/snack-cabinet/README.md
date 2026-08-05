@@ -12,6 +12,8 @@
 - 固定整面玻璃展示窗、内部货道、取物内腔、支付屏和后侧补货门。
 - 正面接近、选择、取物、库存挂接与后侧补货语义锚点。
 - 取物挡板旋转关节与柜体、玻璃窗碰撞体。
+- 通用实体输入端口、所有权与容器归属分离、原子存入/取出/交换，以及修订冲突和幂等提交。
+- 维修钥匙作为可转移凭证实体参与权限校验；破解成功后签发有作用域和过期时间的临时授权。
 - 桌面和手机两套 LOD 与独立响应式预览。
 
 ## 本地预览
@@ -20,10 +22,10 @@
 
 `/domain-packages/cyber-factory/models/snack-cabinet/preview.html`
 
-预览页可实时调整尺寸和配色、切换桌面或手机层级，并打开取物挡板验证出货交互。
+预览页可实时调整尺寸和配色、切换桌面或手机层级，打开取物挡板，并实际执行外部实体与设备库存之间的存入、取出、交换和临时破解授权。
 
 ## 工作台验证
 
 执行 `npm run seed:cyber-factory` 后，项目树会显示“参数化零食售货机”。注册验证截图位于 `screenshots/workbench.png`，四层独立商品的实际工作台截图位于 `screenshots/workbench-inventory.png`。工作台收窄与扩宽后的参数重建结果分别位于 `screenshots/workbench-parameters-compact.png` 和 `screenshots/workbench-parameters-expanded.png`，取物挡板展开到 55° 的动作结果位于 `screenshots/workbench-action-expanded.png`，模型级改色并再次修改尺寸后的结果位于 `screenshots/workbench-model-colors.png`。
 
-库存服务和运营规则绑定仍由后续领域任务负责；当前 `available` 表示模型资产、外部库存布局、参数、锚点、碰撞体、关节与工作台编辑能力已经可用。
+当前 `available` 包含模型资产、外部库存布局、参数、锚点、碰撞体、关节、工作台编辑与领域包内实体交换。桌面和手机实体交换验证截图分别位于 `screenshots/entity-ownership-transfer.png` 与 `screenshots/entity-ownership-transfer-mobile.png`。跨进程持久化、HTTP 动作 API 和完整场景运营规则仍由通用运行时后续任务负责，不能从本预览推断为已完成。
