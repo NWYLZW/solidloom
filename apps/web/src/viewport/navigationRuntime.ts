@@ -10,6 +10,11 @@ import {
 } from "../navigation";
 import { createNavigationAvatar, type NavigationAvatar, type NavigationAvatarSkin } from "../navigationAvatar";
 import {
+  moveNavigationVelocityToward,
+  resolveNavigationMotionProfile,
+  resolveNavigationPathSpeed,
+} from "../navigationMotion";
+import {
   createNavigationInteractionRuntimes,
   type NavigationDynamicBodyRuntime,
   type NavigationInteractionRuntime,
@@ -172,6 +177,9 @@ export function createNavigationRuntime({
   let navigationCameraPitch = 0;
   let navigationCameraYaw = 0;
   const navigationVelocity = new THREE.Vector3();
+  const navigationMotionProfile = navigation
+    ? resolveNavigationMotionProfile(navigation.agentHeight)
+    : null;
   const navigationGround = navigation
     ? new THREE.Plane(new THREE.Vector3(0, 1, 0), -navigation.floorY)
     : null;
@@ -326,7 +334,7 @@ export function createNavigationRuntime({
   const destinationRaycaster = new THREE.Raycaster();
   const destinationPointer = new THREE.Vector2();
   const setDestination = (event: { clientX: number; clientY: number }) => {
-    if (!navigationMode || !navigation || !navigationAgent || !navigationGround) return false;
+    if (!navigationMode || !navigation || !navigationAgent || !navigationGround || seatedInteractionId) return false;
     const canvasBounds = domElement.getBoundingClientRect();
     destinationPointer.set(
       ((event.clientX - canvasBounds.left) / canvasBounds.width) * 2 - 1,
@@ -347,7 +355,6 @@ export function createNavigationRuntime({
   const keyboardRight = new THREE.Vector3();
   const keyboardMovement = new THREE.Vector3();
   const navigationDesiredVelocity = new THREE.Vector3();
-  const navigationVelocityDelta = new THREE.Vector3();
   const navigationDisplacement = new THREE.Vector3();
   const navigationPushDirection = new THREE.Vector3();
   const navigationBodyBounds = new THREE.Box3();
@@ -374,15 +381,6 @@ export function createNavigationRuntime({
       Math.cos(targetRotationY - navigationAgent.rotation.y),
     );
     navigationAgent.rotation.y += rotationDelta * (1 - Math.exp(-12 * deltaSeconds));
-  };
-  const moveNavigationVelocityToward = (target: THREE.Vector3, maxDelta: number) => {
-    navigationVelocityDelta.copy(target).sub(navigationVelocity);
-    const distance = navigationVelocityDelta.length();
-    if (distance <= maxDelta || distance < 0.0001) {
-      navigationVelocity.copy(target);
-      return;
-    }
-    navigationVelocity.addScaledVector(navigationVelocityDelta, maxDelta / distance);
   };
   const updateDynamicBodyObstacle = (body: NavigationDynamicBodyRuntime) => {
     body.object.updateWorldMatrix(true, true);
@@ -828,25 +826,35 @@ export function createNavigationRuntime({
     return moved;
   };
   const updateNavigationAgent = (deltaSeconds: number) => {
-    if (!navigation || !navigationAgent || seatedInteractionId
+    if (!navigation || !navigationAgent || !navigationMotionProfile || seatedInteractionId
       || navigationPathIndex <= 0 || navigationPathIndex >= navigationPath.length) return;
-    navigationVelocity.set(0, 0, 0);
     const target = navigationPath[navigationPathIndex]!;
     navigationAgentPoint.set(target[0], navigationAgent.position.y, target[1]);
     navigationCandidatePoint.copy(navigationAgentPoint).sub(navigationAgent.position);
     const remainingDistance = navigationCandidatePoint.length();
-    const movementDistance = Math.max(720, navigation.agentRadius * 3.2) * deltaSeconds;
+    navigationCandidatePoint.normalize();
+    const currentSpeed = Math.max(0, navigationVelocity.dot(navigationCandidatePoint));
+    const finalSegment = navigationPathIndex === navigationPath.length - 1;
+    const movementSpeed = resolveNavigationPathSpeed(
+      navigationMotionProfile,
+      currentSpeed,
+      remainingDistance,
+      finalSegment,
+      deltaSeconds,
+    );
+    navigationVelocity.copy(navigationCandidatePoint).multiplyScalar(movementSpeed);
+    const movementDistance = movementSpeed * deltaSeconds;
     if (remainingDistance <= movementDistance) {
       navigationAgent.position.copy(navigationAgentPoint);
       navigationPathIndex += 1;
       if (navigationPathIndex >= navigationPath.length) {
         navigationPath = [];
         navigationPathIndex = 0;
+        navigationVelocity.set(0, 0, 0);
         replaceNavigationPathLine();
       }
       return;
     }
-    navigationCandidatePoint.normalize();
     navigationAgent.position.addScaledVector(navigationCandidatePoint, movementDistance);
     smoothlyRotateNavigationAgent(
       Math.atan2(navigationCandidatePoint.x, navigationCandidatePoint.z),
@@ -866,7 +874,7 @@ export function createNavigationRuntime({
     const fast = keyboardNavigationKeys.has("ShiftLeft") || keyboardNavigationKeys.has("ShiftRight");
     const precise = keyboardNavigationKeys.has("AltLeft") || keyboardNavigationKeys.has("AltRight");
 
-    if (navigationMode && navigation && navigationAgent) {
+    if (navigationMode && navigation && navigationAgent && navigationMotionProfile) {
       const seatedInteraction = seatedInteractionId
         ? navigationInteractionRuntimes.find((interaction) => interaction.id === seatedInteractionId) ?? null
         : null;
@@ -885,50 +893,61 @@ export function createNavigationRuntime({
         .addScaledVector(keyboardRight, rightInput);
       if (keyboardMovement.lengthSq() > 1) keyboardMovement.normalize();
 
-      const walkSpeed = seatedInteraction
-        ? Math.max(560, navigation.agentRadius * 2.25)
-        : Math.max(820, navigation.agentRadius * 3.2);
-      const directionMultiplier = forwardInput < 0 ? 0.74 : 1;
-      const speedMultiplier = (fast ? 1.75 : 1) * (precise ? 0.42 : 1) * directionMultiplier;
-      navigationDesiredVelocity.copy(keyboardMovement).multiplyScalar(walkSpeed * speedMultiplier);
-      const response = hasHorizontalInput ? walkSpeed * 7.5 : walkSpeed * 9.5;
-      moveNavigationVelocityToward(navigationDesiredVelocity, response * deltaSeconds);
-
       if (hasHorizontalInput) {
         navigationPath = [];
         navigationPathIndex = 0;
         replaceNavigationPathLine();
       }
-      navigationDisplacement.copy(navigationVelocity).multiplyScalar(deltaSeconds);
-      let moved = false;
-      if (seatedInteraction?.dynamicBody && navigationDisplacement.lengthSq() > 0.0001) {
-        const pushChain = collectDynamicBodyPushChain(
-          [seatedInteraction.dynamicBody],
-          navigationDisplacement.x,
-          navigationDisplacement.z,
+      if (hasHorizontalInput || navigationPathIndex <= 0) {
+        const movementSpeed = seatedInteraction
+          ? navigationMotionProfile.seatedSpeed * (fast ? 1.55 : 1)
+          : fast ? navigationMotionProfile.runSpeed : navigationMotionProfile.walkSpeed;
+        const directionMultiplier = forwardInput < 0 ? 0.74 : 1;
+        const speedMultiplier = (precise ? 0.42 : 1) * directionMultiplier;
+        navigationDesiredVelocity.copy(keyboardMovement).multiplyScalar(movementSpeed * speedMultiplier);
+        const changingDirection = hasHorizontalInput
+          && navigationVelocity.lengthSq() > 1
+          && navigationVelocity.dot(navigationDesiredVelocity) < 0;
+        const response = hasHorizontalInput && !changingDirection
+          ? navigationMotionProfile.acceleration
+          : navigationMotionProfile.braking;
+        moveNavigationVelocityToward(
+          navigationVelocity,
+          navigationDesiredVelocity,
+          response * deltaSeconds,
         );
-        if (pushChain) {
-          const totalMass = pushChain.reduce((sum, body) => sum + body.mass, 0);
-          const movementScale = Math.max(0.32, 72 / (72 + totalMass));
-          const deltaX = navigationDisplacement.x * movementScale;
-          const deltaZ = navigationDisplacement.z * movementScale;
-          for (const body of pushChain) {
-            translateDynamicBody(body, deltaX, deltaZ);
-            body.velocity.copy(navigationVelocity).multiplyScalar(0.16 * movementScale);
+
+        navigationDisplacement.copy(navigationVelocity).multiplyScalar(deltaSeconds);
+        let moved = false;
+        if (seatedInteraction?.dynamicBody && navigationDisplacement.lengthSq() > 0.0001) {
+          const pushChain = collectDynamicBodyPushChain(
+            [seatedInteraction.dynamicBody],
+            navigationDisplacement.x,
+            navigationDisplacement.z,
+          );
+          if (pushChain) {
+            const totalMass = pushChain.reduce((sum, body) => sum + body.mass, 0);
+            const movementScale = Math.max(0.32, 72 / (72 + totalMass));
+            const deltaX = navigationDisplacement.x * movementScale;
+            const deltaZ = navigationDisplacement.z * movementScale;
+            for (const body of pushChain) {
+              translateDynamicBody(body, deltaX, deltaZ);
+              body.velocity.copy(navigationVelocity).multiplyScalar(0.16 * movementScale);
+            }
+            syncSeatedNavigationAgent();
+            moved = true;
+          } else {
+            navigationVelocity.set(0, 0, 0);
           }
-          syncSeatedNavigationAgent();
-          moved = true;
         } else {
-          navigationVelocity.set(0, 0, 0);
+          moved = applyNavigationDisplacement(navigationDisplacement);
         }
-      } else {
-        moved = applyNavigationDisplacement(navigationDisplacement);
-      }
-      if (!seatedInteraction && moved && navigationVelocity.lengthSq() > 400) {
-        smoothlyRotateNavigationAgent(
-          Math.atan2(navigationVelocity.x, navigationVelocity.z),
-          deltaSeconds,
-        );
+        if (!seatedInteraction && moved && navigationVelocity.lengthSq() > 400) {
+          smoothlyRotateNavigationAgent(
+            Math.atan2(navigationVelocity.x, navigationVelocity.z),
+            deltaSeconds,
+          );
+        }
       }
     } else if (forwardInput !== 0 || rightInput !== 0 || verticalInput !== 0) {
       camera.getWorldDirection(keyboardForward);
