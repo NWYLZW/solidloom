@@ -220,8 +220,10 @@ export interface ModelReferencePhysics {
 
 export interface ModelReferenceInteraction {
   id: string;
-  kind: "power" | "seat" | "door" | "articulation" | "container";
+  kind: "power" | "seat" | "door" | "articulation" | "container" | "device";
   label?: string;
+  activateLabel?: string;
+  deactivateLabel?: string;
   anchorPosition?: Vector3Tuple;
   range?: number;
   targetFeatureIds?: string[];
@@ -242,6 +244,17 @@ export interface ModelReferenceInteraction {
     name: string;
     productId?: string;
   }>;
+  operationGroups?: Array<{
+    id: string;
+    label: string;
+    options: Array<{
+      description?: string;
+      id: string;
+      label: string;
+    }>;
+  }>;
+  operationExecuteLabel?: string;
+  operationCompleteLabel?: string;
 }
 
 export interface ModelReferenceInstance {

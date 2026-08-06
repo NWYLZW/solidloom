@@ -1,0 +1,174 @@
+.play-settings-root {
+  position: absolute;
+  z-index: 20;
+  top: var(--panel-edge-inset);
+  right: var(--panel-edge-inset);
+}
+
+.play-settings-dismiss {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.play-settings-panel {
+  position: absolute;
+  z-index: 21;
+  top: 46px;
+  right: 0;
+  width: min(430px, calc(100vw - 28px));
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-panel) 97%, transparent);
+  box-shadow: 0 18px 48px rgba(18, 21, 17, 0.24);
+  backdrop-filter: blur(16px);
+}
+
+.play-settings-header {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--control-padding-y);
+  padding: 0 var(--panel-edge-inset);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.play-settings-header strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.play-settings-close {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--color-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.play-settings-close:hover,
+.play-settings-close:focus-visible {
+  border-color: var(--color-border);
+  color: var(--color-text);
+  background: var(--color-control);
+  outline: none;
+}
+
+.play-settings-layout {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  min-height: 190px;
+}
+
+.play-settings-categories {
+  padding: var(--panel-edge-inset) 0;
+  border-right: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-control) 48%, transparent);
+}
+
+.play-settings-categories button {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 var(--panel-edge-inset);
+  border: 0;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  cursor: pointer;
+}
+
+.play-settings-content {
+  min-width: 0;
+  padding: var(--panel-edge-inset);
+}
+
+.play-settings-section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.play-settings-section-heading > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--color-muted);
+}
+
+.play-settings-section-heading div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.play-settings-section-heading strong {
+  font-size: 12px;
+}
+
+.play-settings-section-heading span {
+  color: var(--color-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.play-camera-options {
+  display: grid;
+  gap: 7px;
+  margin-top: var(--panel-edge-inset);
+}
+
+.play-camera-options button {
+  min-height: 36px;
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-text);
+  background: var(--color-control);
+  text-align: left;
+  cursor: pointer;
+}
+
+.play-camera-options button:hover,
+.play-camera-options button:focus-visible {
+  border-color: var(--color-muted);
+  outline: none;
+}
+
+.play-camera-options button.active {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-control));
+}
+
+@media (max-width: 520px) {
+  .play-settings-panel {
+    position: fixed;
+    top: auto;
+    right: var(--panel-edge-inset);
+    bottom: var(--panel-edge-inset);
+    left: var(--panel-edge-inset);
+    width: auto;
+  }
+
+  .play-settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .play-settings-categories {
+    padding: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+}

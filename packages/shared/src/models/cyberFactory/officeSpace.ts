@@ -73,6 +73,8 @@ export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): Crea
           interactions: [{
             id: "display-power",
             kind: "power",
+            activateLabel: "开启显示器",
+            deactivateLabel: "关闭显示器",
             range: 1350,
             targetFeatureIds: ["cyber-monitor-panel", "cyber-monitor-light-left", "cyber-monitor-light-right"],
           }],
@@ -102,6 +104,8 @@ export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): Crea
           interactions: [{
             id: "computer-power",
             kind: "articulation",
+            activateLabel: "打开笔记本",
+            deactivateLabel: "合上笔记本",
             range: 1050,
             targetFeatureIds: [
               "cyber-laptop-screen-shell",
@@ -134,6 +138,8 @@ export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): Crea
           interactions: [{
             id: "seat",
             kind: "seat",
+            activateLabel: "坐到座椅",
+            deactivateLabel: "离开座椅",
             range: 680,
             targetFeatureIds: ["cyber-chair-seat"],
           }],
@@ -152,6 +158,8 @@ export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): Crea
     interactions: [{
       id: "door",
       kind: "door",
+      activateLabel: "打开房门",
+      deactivateLabel: "关闭房门",
       range: 920,
       targetFeatureIds: ["cyber-room-door", "cyber-room-door-handle"],
       openAngle: 88,

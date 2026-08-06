@@ -18,6 +18,8 @@ import { createSelectionTransformRuntime } from "./selectionTransformRuntime";
 import type {
   NavigationContainerOperation,
   NavigationContainerPanelState,
+  NavigationDeviceOperation,
+  NavigationDevicePanelState,
   TransformMode,
   Viewport3DProps,
 } from "./types";
@@ -76,6 +78,10 @@ export function useViewport3DRuntime({
     interactionId: string,
     operation: NavigationContainerOperation,
   ) => void) | null>(null);
+  const performNavigationDeviceOperationRef = useRef<((
+    interactionId: string,
+    operation: NavigationDeviceOperation,
+  ) => void) | null>(null);
   const savedViewRef = useRef<{
     modelId: string;
     position: THREE.Vector3;
@@ -85,6 +91,7 @@ export function useViewport3DRuntime({
   const savedNavigationStateRef = useRef<SavedNavigationRuntimeState | null>(null);
   const [navigationInteractionPrompts, setNavigationInteractionPrompts] = useState<Array<{ id: string; label: string }>>([]);
   const [navigationContainerPanel, setNavigationContainerPanel] = useState<NavigationContainerPanelState | null>(null);
+  const [navigationDevicePanel, setNavigationDevicePanel] = useState<NavigationDevicePanelState | null>(null);
   const [navigationAimTargetVisible, setNavigationAimTargetVisible] = useState(false);
   const [rendererFailed, setRendererFailed] = useState(false);
 
@@ -190,6 +197,7 @@ export function useViewport3DRuntime({
       navigationMode,
       onAimTargetVisibleChange: setNavigationAimTargetVisible,
       onContainerPanelChange: setNavigationContainerPanel,
+      onDevicePanelChange: setNavigationDevicePanel,
       onPromptsChange: setNavigationInteractionPrompts,
       requestRender,
       savedState: savedNavigationStateRef.current,
@@ -197,6 +205,7 @@ export function useViewport3DRuntime({
     }));
     performNavigationInteractionRef.current = navigationRuntime.performInteraction;
     performNavigationContainerOperationRef.current = navigationRuntime.performContainerOperation;
+    performNavigationDeviceOperationRef.current = navigationRuntime.performDeviceOperation;
 
     const roomSurfaceVisibilityRuntime = createRoomSurfaceVisibilityRuntime({
       camera,
@@ -350,6 +359,9 @@ export function useViewport3DRuntime({
       if (performNavigationContainerOperationRef.current === navigationRuntime.performContainerOperation) {
         performNavigationContainerOperationRef.current = null;
       }
+      if (performNavigationDeviceOperationRef.current === navigationRuntime.performDeviceOperation) {
+        performNavigationDeviceOperationRef.current = null;
+      }
       if (viewportPointerRuntimeRef.current === viewportPointerRuntime) viewportPointerRuntimeRef.current = null;
       savedNavigationStateRef.current = navigationRuntime.captureState();
       if (!navigationMode || navigationCameraMode === "god") {
@@ -397,8 +409,10 @@ export function useViewport3DRuntime({
   }, [cutPlane, selectedFeatureIds, selectedGroupId]);
 
   useEffect(() => {
-    viewportPointerRuntimeRef.current?.setMouseLookSuspended(navigationContainerPanel !== null);
-  }, [navigationContainerPanel]);
+    viewportPointerRuntimeRef.current?.setMouseLookSuspended(
+      navigationContainerPanel !== null || navigationDevicePanel !== null,
+    );
+  }, [navigationContainerPanel, navigationDevicePanel]);
 
   const performNavigationInteraction = (interactionId: string) => {
     const panelOpened = performNavigationInteractionRef.current?.(interactionId) ?? false;
@@ -414,6 +428,12 @@ export function useViewport3DRuntime({
   ) => {
     performNavigationContainerOperationRef.current?.(interactionId, operation);
   };
+  const performNavigationDeviceOperation = (
+    interactionId: string,
+    operation: NavigationDeviceOperation,
+  ) => {
+    performNavigationDeviceOperationRef.current?.(interactionId, operation);
+  };
 
   return {
     annotationOverlayRef,
@@ -421,8 +441,10 @@ export function useViewport3DRuntime({
     containerRef,
     navigationAimTargetVisible,
     navigationContainerPanel,
+    navigationDevicePanel,
     navigationInteractionPrompts,
     performNavigationContainerOperation,
+    performNavigationDeviceOperation,
     performNavigationInteraction,
     rendererFailed,
   };

@@ -9,6 +9,7 @@ export function createPlayInteractionUI(
   return createInteractionUI({
     presentations: {
       container: presentation,
+      device: presentation,
     },
     theme: {
       id: "play-workspace",

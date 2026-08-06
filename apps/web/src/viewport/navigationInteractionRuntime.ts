@@ -24,6 +24,8 @@ export interface NavigationInteractionRuntime extends NavigationInteractionDescr
   articulationTargetValue: number;
   containerItems: NavigationContainerItem[];
   containerProducts: ContainerProductDefinition[];
+  deviceSelections: Record<string, string>;
+  deviceStatus: string | null;
   doorPivot: THREE.Group | null;
   dynamicBody: NavigationDynamicBodyRuntime | null;
   powerMaterials: Array<{
@@ -49,6 +51,8 @@ interface CreateNavigationInteractionRuntimesOptions {
     products?: ContainerProductDefinition[];
   }> | undefined;
   savedContainerItems: Map<string, NavigationContainerItem[]> | undefined;
+  savedDeviceSelections: Map<string, Record<string, string>> | undefined;
+  savedDeviceStatuses: Map<string, string | null> | undefined;
   savedStates: Map<string, boolean> | undefined;
 }
 
@@ -58,6 +62,8 @@ export function createNavigationInteractionRuntimes({
   interactions,
   savedContainerConfigurations,
   savedContainerItems,
+  savedDeviceSelections,
+  savedDeviceStatuses,
   savedStates,
 }: CreateNavigationInteractionRuntimesOptions): NavigationInteractionRuntime[] {
   return interactions.flatMap((interaction) => {
@@ -166,6 +172,10 @@ export function createNavigationInteractionRuntimes({
       containerProducts: savedContainerConfiguration?.products?.map((product) => ({ ...product }))
         ?? interaction.containerProducts?.map((product) => ({ ...product }))
         ?? [],
+      deviceSelections: savedDeviceSelections?.get(interaction.id) ?? Object.fromEntries(
+        (interaction.operationGroups ?? []).map((group) => [group.id, group.options[0]?.id ?? ""]),
+      ),
+      deviceStatus: savedDeviceStatuses?.get(interaction.id) ?? null,
       doorPivot,
       dynamicBody: null,
       powerMaterials,

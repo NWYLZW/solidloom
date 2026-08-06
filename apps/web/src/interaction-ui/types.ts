@@ -33,6 +33,32 @@ export type NavigationContainerOperation =
   | { type: "close" }
   | { configuration: NavigationContainerConfiguration; type: "configure" };
 
+export interface NavigationDeviceOption {
+  description?: string;
+  id: string;
+  label: string;
+}
+
+export interface NavigationDeviceOperationGroup {
+  id: string;
+  label: string;
+  options: NavigationDeviceOption[];
+  selectedOptionId: string;
+}
+
+export interface NavigationDevicePanelState {
+  executeLabel: string;
+  groups: NavigationDeviceOperationGroup[];
+  interactionId: string;
+  status: string | null;
+  title: string;
+}
+
+export type NavigationDeviceOperation =
+  | { groupId: string; optionId: string; type: "select" }
+  | { type: "close" }
+  | { type: "execute" };
+
 export interface NavigationInteractionLabels {
   articulationClose: string;
   articulationOpen: string;
@@ -57,6 +83,10 @@ export interface NavigationInteractionLabels {
   containerUnavailable: string;
   doorClose: string;
   doorOpen: string;
+  deviceClose: string;
+  deviceExecute: string;
+  deviceOpen: string;
+  deviceReady: string;
   keyHint: string;
   powerOff: string;
   powerOn: string;
@@ -105,8 +135,22 @@ export interface ContainerInteractionRendererProps {
   slots: ContainerInteractionSlots;
 }
 
+export interface DeviceInteractionController {
+  close: () => void;
+  execute: () => void;
+  labels: NavigationInteractionLabels;
+  select: (groupId: string, optionId: string) => void;
+  state: NavigationDevicePanelState;
+}
+
+export interface DeviceInteractionRendererProps {
+  controller: DeviceInteractionController;
+  presentation: ResolvedInteractionPresentation;
+}
+
 export interface InteractionRendererRegistry {
   container: ComponentType<ContainerInteractionRendererProps>;
+  device: ComponentType<DeviceInteractionRendererProps>;
 }
 
 export interface InteractionSlotRegistry {
@@ -136,9 +180,14 @@ export interface InteractionUIProviderProps {
 export interface InteractionSurfaceProps {
   config?: InteractionUIConfig | undefined;
   container: NavigationContainerPanelState | null;
+  device: NavigationDevicePanelState | null;
   labels: NavigationInteractionLabels;
   onContainerOperation: (
     interactionId: string,
     operation: NavigationContainerOperation,
+  ) => void;
+  onDeviceOperation: (
+    interactionId: string,
+    operation: NavigationDeviceOperation,
   ) => void;
 }

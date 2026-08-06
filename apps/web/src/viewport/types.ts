@@ -17,6 +17,8 @@ export type {
   NavigationContainerItem,
   NavigationContainerOperation,
   NavigationContainerPanelState,
+  NavigationDeviceOperation,
+  NavigationDevicePanelState,
   NavigationInteractionLabels,
 } from "../interaction-ui/types";
 
@@ -32,6 +34,7 @@ export interface TransformCommit {
 }
 
 export interface NavigationInteractionDescriptor {
+  activateLabel?: string;
   anchorPosition?: Vector3Tuple;
   containerCapacity?: number;
   containerCanConfigure?: boolean;
@@ -42,10 +45,11 @@ export interface NavigationInteractionDescriptor {
     name: string;
     unitPrice: number;
   }>;
+  deactivateLabel?: string;
   entityLabel: string;
   groupId: string;
   id: string;
-  kind: "power" | "seat" | "door" | "articulation" | "container";
+  kind: "power" | "seat" | "door" | "articulation" | "container" | "device";
   label?: string;
   jointAxis?: Vector3Tuple;
   jointClosedValue?: number;
@@ -53,6 +57,17 @@ export interface NavigationInteractionDescriptor {
   jointOpenValue?: number;
   jointPivot?: Vector3Tuple;
   openAngle?: number;
+  operationCompleteLabel?: string;
+  operationExecuteLabel?: string;
+  operationGroups?: Array<{
+    id: string;
+    label: string;
+    options: Array<{
+      description?: string;
+      id: string;
+      label: string;
+    }>;
+  }>;
   range?: number;
   targetFeatureIds: string[];
 }
@@ -91,6 +106,7 @@ export interface Viewport3DProps {
   navigationAvatarSkin: NavigationAvatarSkin | null;
   navigationCameraLabels: Record<NavigationCameraMode, string>;
   navigationCameraMode: NavigationCameraMode;
+  navigationCameraControlsVisible: boolean;
   navigationCanConfigureInteractions: boolean;
   navigationMode: boolean;
   navigationModeLabel: string;

@@ -10,6 +10,7 @@ import { copyByLocale, type EditorLocale } from "../editor/editorCopy";
 import { playCopyByLocale } from "./playCopy";
 import { usePlayScene } from "./usePlayScene";
 import { createPlayInteractionUI } from "./playInteractionUI";
+import { PlaySettingsPanel } from "./PlaySettingsPanel";
 import "./PlayWorkspace.css";
 
 interface PlayWorkspaceProps {
@@ -22,6 +23,7 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
   const playCopy = playCopyByLocale[locale];
   const { error, loading, runtimeModel, scene } = usePlayScene(sceneId);
   const [cameraMode, setCameraMode] = useState<NavigationCameraMode>("third-person");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const theme = window.localStorage.getItem("solidloom.theme");
   const interactionPresentation = useMemo<InteractionPresentation>(() => {
     const requested = new URLSearchParams(window.location.search).get("interaction-ui");
@@ -67,6 +69,10 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
     containerUnavailable: copy.interactionContainerUnavailable,
     doorClose: copy.interactionDoorClose,
     doorOpen: copy.interactionDoorOpen,
+    deviceClose: copy.interactionDeviceClose,
+    deviceExecute: copy.interactionDeviceExecute,
+    deviceOpen: copy.interactionDeviceOpen,
+    deviceReady: copy.interactionDeviceReady,
     keyHint: copy.interactionKeyHint,
     powerOff: copy.interactionPowerOff,
     powerOn: copy.interactionPowerOn,
@@ -110,6 +116,7 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
             "third-person": copy.navigationThirdPerson,
           }}
           navigationCameraMode={cameraMode}
+          navigationCameraControlsVisible={false}
           navigationCanConfigureInteractions={false}
           navigationDynamicBodies={runtimeModel.dynamicBodies}
           navigationInteractionLabels={interactionLabels}
@@ -139,16 +146,29 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
         </div>
       )}
 
-      <header className="play-workspace-header">
-        <button type="button" onClick={() => window.location.assign("/")}>
+      <nav className="play-workspace-controls" aria-label={playCopy.runtime}>
+        <button
+          aria-label={playCopy.back}
+          className="play-icon-button play-workspace-back"
+          title={playCopy.back}
+          type="button"
+          onClick={() => window.location.assign("/")}
+        >
           <ArrowLeft aria-hidden="true" size={17} />
-          <span>{playCopy.back}</span>
         </button>
-        <div>
-          <strong>{scene?.name ?? playCopy.runtime}</strong>
-          <span>{playCopy.runtime}</span>
-        </div>
-      </header>
+      </nav>
+      <PlaySettingsPanel
+        cameraLabels={{
+          god: copy.navigationGodCamera,
+          "first-person": copy.navigationFirstPerson,
+          "third-person": copy.navigationThirdPerson,
+        }}
+        cameraMode={cameraMode}
+        locale={locale}
+        open={settingsOpen}
+        onCameraModeChange={setCameraMode}
+        onOpenChange={setSettingsOpen}
+      />
     </main>
   );
 }

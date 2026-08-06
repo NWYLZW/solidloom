@@ -307,6 +307,10 @@ export function EditorWorkspace() {
     containerUnavailable: copy.interactionContainerUnavailable,
     doorClose: copy.interactionDoorClose,
     doorOpen: copy.interactionDoorOpen,
+    deviceClose: copy.interactionDeviceClose,
+    deviceExecute: copy.interactionDeviceExecute,
+    deviceOpen: copy.interactionDeviceOpen,
+    deviceReady: copy.interactionDeviceReady,
     keyHint: copy.interactionKeyHint,
     powerOff: copy.interactionPowerOff,
     powerOn: copy.interactionPowerOn,
@@ -1993,6 +1997,7 @@ export function EditorWorkspace() {
               "third-person": copy.navigationThirdPerson,
             }}
             navigationCameraMode={navigationCameraMode}
+            navigationCameraControlsVisible
             navigationCanConfigureInteractions
             navigationDynamicBodies={navigationDynamicBodies}
             navigationInteractions={navigationInteractions}

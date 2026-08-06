@@ -30,7 +30,46 @@ describe("cyber factory examples", () => {
           kind: "door",
           anchorPosition: [-4740, 1210, -650],
         }),
-        expect.objectContaining({ kind: "power" }),
+        expect.objectContaining({
+          activateLabel: "使用咖啡机",
+          kind: "device",
+          label: "咖啡机",
+          operationExecuteLabel: "开始制作",
+          operationGroups: [expect.objectContaining({
+            id: "recipe",
+            options: expect.arrayContaining([
+              expect.objectContaining({ id: "espresso", label: "浓缩咖啡" }),
+              expect.objectContaining({ id: "latte", label: "拿铁咖啡" }),
+            ]),
+          })],
+        }),
+        expect.objectContaining({
+          activateLabel: "使用饮水机",
+          kind: "device",
+          label: "饮水机",
+          operationExecuteLabel: "开始接水",
+          operationGroups: expect.arrayContaining([
+            expect.objectContaining({
+              id: "temperature",
+              options: expect.arrayContaining([
+                expect.objectContaining({ id: "hot", label: "热水" }),
+                expect.objectContaining({ id: "cold", label: "冷水" }),
+              ]),
+            }),
+            expect.objectContaining({
+              id: "volume",
+              options: expect.arrayContaining([
+                expect.objectContaining({ id: "small", label: "小杯" }),
+                expect.objectContaining({ id: "large", label: "大杯" }),
+              ]),
+            }),
+          ]),
+        }),
+        expect.objectContaining({
+          activateLabel: "打开落地灯",
+          deactivateLabel: "关闭落地灯",
+          kind: "power",
+        }),
         expect.objectContaining({ kind: "seat" }),
         expect.objectContaining({
           kind: "container",

@@ -24,6 +24,8 @@ import type {
   NavigationCameraMode,
   NavigationContainerOperation,
   NavigationContainerPanelState,
+  NavigationDeviceOperation,
+  NavigationDevicePanelState,
   NavigationInteractionDescriptor,
   NavigationPrompt,
   Viewport3DProps,
@@ -51,6 +53,8 @@ export interface SavedNavigationRuntimeState {
       products: ContainerProductDefinition[];
     }>;
     containerItems: Map<string, Array<{ id: string; name: string; productId?: string }>>;
+    deviceSelections: Map<string, Record<string, string>>;
+    deviceStatuses: Map<string, string | null>;
     modelId: string;
     seatedInteractionId: string | null;
     states: Map<string, boolean>;
@@ -93,6 +97,7 @@ interface CreateNavigationRuntimeOptions extends NavigationSystemContext {
   navigationMode: boolean;
   onAimTargetVisibleChange: (visible: boolean) => void;
   onContainerPanelChange: (state: NavigationContainerPanelState | null) => void;
+  onDevicePanelChange: (state: NavigationDevicePanelState | null) => void;
   onPromptsChange: (prompts: NavigationPrompt[]) => void;
   savedState: SavedNavigationRuntimeState | null;
 }
@@ -103,6 +108,7 @@ export interface NavigationRuntime extends RuntimeDisposable {
   getActiveInteractionId: () => string | null;
   needsContinuousRendering: (keyboardNavigationKeys: ReadonlySet<string>) => boolean;
   performContainerOperation: (interactionId: string, operation: NavigationContainerOperation) => void;
+  performDeviceOperation: (interactionId: string, operation: NavigationDeviceOperation) => void;
   performInteraction: (interactionId: string) => boolean;
   setDestination: (event: { clientX: number; clientY: number }) => boolean;
   update: (input: NavigationFrameInput) => NavigationFrameResult;
@@ -128,6 +134,7 @@ export function createNavigationRuntime({
   navigationMode,
   onAimTargetVisibleChange,
   onContainerPanelChange,
+  onDevicePanelChange,
   onPromptsChange,
   requestRender,
   savedState,
@@ -144,6 +151,8 @@ export function createNavigationRuntime({
     interactions: navigationInteractions,
     savedContainerConfigurations: savedInteractionState?.containerConfigurations,
     savedContainerItems: savedInteractionState?.containerItems,
+    savedDeviceSelections: savedInteractionState?.deviceSelections,
+    savedDeviceStatuses: savedInteractionState?.deviceStatuses,
     savedStates: savedInteractionState?.states,
   });
   const navigationSeatPoseResolver = createNavigationSeatPoseResolver();
@@ -401,6 +410,8 @@ export function createNavigationRuntime({
     obstacle.maxZ = navigationBodyBounds.max.z;
   };
   const interactionLabel = (interaction: NavigationInteractionRuntime) => {
+    const customLabel = interaction.active ? interaction.deactivateLabel : interaction.activateLabel;
+    if (customLabel) return customLabel;
     if (interaction.kind === "articulation") {
       return interaction.active
         ? navigationInteractionLabels.articulationClose
@@ -414,6 +425,9 @@ export function createNavigationRuntime({
     }
     if (interaction.kind === "container") {
       return interaction.active ? navigationInteractionLabels.containerClose : navigationInteractionLabels.containerOpen;
+    }
+    if (interaction.kind === "device") {
+      return interaction.active ? navigationInteractionLabels.deviceClose : navigationInteractionLabels.deviceOpen;
     }
     return seatedInteractionId === interaction.id
       ? navigationInteractionLabels.stand
@@ -478,6 +492,12 @@ export function createNavigationRuntime({
     containerItems: new Map(navigationInteractionRuntimes
       .filter((interaction) => interaction.kind === "container")
       .map((interaction) => [interaction.id, interaction.containerItems.map((item) => ({ ...item }))])),
+    deviceSelections: new Map(navigationInteractionRuntimes
+      .filter((interaction) => interaction.kind === "device")
+      .map((interaction) => [interaction.id, { ...interaction.deviceSelections }])),
+    deviceStatuses: new Map(navigationInteractionRuntimes
+      .filter((interaction) => interaction.kind === "device")
+      .map((interaction) => [interaction.id, interaction.deviceStatus])),
     modelId,
     seatedInteractionId,
     states: new Map(navigationInteractionRuntimes.map((interaction) => [interaction.id, interaction.active])),
@@ -498,6 +518,23 @@ export function createNavigationRuntime({
         interaction.containerProducts,
         interaction.containerItems,
       ),
+      title: interaction.label ?? interaction.entityLabel,
+    });
+  };
+  const publishDevicePanel = (interaction: NavigationInteractionRuntime | null) => {
+    if (!interaction || interaction.kind !== "device" || !interaction.active) {
+      onDevicePanelChange(null);
+      return;
+    }
+    onDevicePanelChange({
+      executeLabel: interaction.operationExecuteLabel ?? navigationInteractionLabels.deviceExecute,
+      groups: (interaction.operationGroups ?? []).map((group) => ({
+        ...group,
+        options: group.options.map((option) => ({ ...option })),
+        selectedOptionId: interaction.deviceSelections[group.id] ?? group.options[0]?.id ?? "",
+      })),
+      interactionId: interaction.id,
+      status: interaction.deviceStatus,
       title: interaction.label ?? interaction.entityLabel,
     });
   };
@@ -569,19 +606,28 @@ export function createNavigationRuntime({
         replaceNavigationPathLine();
         syncSeatedNavigationAgent();
       }
-    } else if (interaction.kind === "container") {
+    } else if (interaction.kind === "container" || interaction.kind === "device") {
       for (const candidate of navigationInteractionRuntimes) {
-        if (candidate.kind === "container" && candidate.id !== interaction.id) candidate.active = false;
+        if (
+          (candidate.kind === "container" || candidate.kind === "device")
+          && candidate.id !== interaction.id
+        ) candidate.active = false;
       }
+      publishContainerPanel(null);
+      publishDevicePanel(null);
       interaction.active = !interaction.active;
-      publishContainerPanel(interaction.active ? interaction : null);
+      if (interaction.kind === "container") {
+        publishContainerPanel(interaction.active ? interaction : null);
+      } else {
+        publishDevicePanel(interaction.active ? interaction : null);
+      }
     } else {
       interaction.active = !interaction.active;
       applyNavigationInteractionVisualState(interaction);
     }
     lastNavigationInteractionPromptKey = "";
     requestRender();
-    return interaction.kind === "container" && interaction.active;
+    return (interaction.kind === "container" || interaction.kind === "device") && interaction.active;
   };
   const performContainerOperation = (
     interactionId: string,
@@ -614,6 +660,37 @@ export function createNavigationRuntime({
       interaction.containerItems = reconciled.items;
       interaction.containerProducts = reconciled.products;
       publishContainerPanel(interaction);
+    }
+    lastNavigationInteractionPromptKey = "";
+    requestRender();
+  };
+  const performDeviceOperation = (
+    interactionId: string,
+    operation: NavigationDeviceOperation,
+  ) => {
+    const interaction = navigationInteractionRuntimes.find((candidate) => (
+      candidate.id === interactionId && candidate.kind === "device"
+    ));
+    if (!interaction) return;
+    if (operation.type === "close") {
+      interaction.active = false;
+      publishDevicePanel(null);
+    } else if (operation.type === "select") {
+      const group = interaction.operationGroups?.find((candidate) => candidate.id === operation.groupId);
+      if (!group?.options.some((option) => option.id === operation.optionId)) return;
+      interaction.deviceSelections = {
+        ...interaction.deviceSelections,
+        [operation.groupId]: operation.optionId,
+      };
+      interaction.deviceStatus = null;
+      publishDevicePanel(interaction);
+    } else if (operation.type === "execute") {
+      const selection = (interaction.operationGroups ?? []).map((group) => (
+        group.options.find((option) => option.id === interaction.deviceSelections[group.id])?.label
+      )).filter((label): label is string => Boolean(label)).join(" · ");
+      const completion = interaction.operationCompleteLabel ?? navigationInteractionLabels.deviceReady;
+      interaction.deviceStatus = completion.replace("{selection}", selection);
+      publishDevicePanel(interaction);
     }
     lastNavigationInteractionPromptKey = "";
     requestRender();
@@ -1148,6 +1225,7 @@ export function createNavigationRuntime({
     getActiveInteractionId: () => activeNavigationInteractionId,
     needsContinuousRendering,
     performContainerOperation,
+    performDeviceOperation,
     performInteraction,
     setDestination,
     update,
@@ -1155,6 +1233,7 @@ export function createNavigationRuntime({
       if (disposed) return;
       disposed = true;
       onContainerPanelChange(null);
+      onDevicePanelChange(null);
       navigationPathLine?.geometry.dispose();
       (navigationPathLine?.material as THREE.Material | undefined)?.dispose();
       navigationPathLine?.removeFromParent();

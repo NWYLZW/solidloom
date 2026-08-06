@@ -43,6 +43,7 @@ export function Viewport3D(props: Viewport3DProps) {
     interactionUI,
     modelName,
     navigation,
+    navigationCameraControlsVisible,
     navigationCameraLabels,
     navigationCameraMode,
     navigationInteractionLabels,
@@ -66,6 +67,7 @@ export function Viewport3D(props: Viewport3DProps) {
       <canvas className="axis-widget" ref={runtime.axisWidgetRef} aria-label={viewCubeLabel} />
       <NavigationOverlays
         aimTargetVisible={runtime.navigationAimTargetVisible}
+        cameraControlsVisible={navigationCameraControlsVisible}
         cameraLabels={navigationCameraLabels}
         cameraMode={navigationCameraMode}
         interactionKeyHint={navigationInteractionLabels.keyHint}
@@ -79,8 +81,10 @@ export function Viewport3D(props: Viewport3DProps) {
       <InteractionSurface
         config={interactionUI}
         container={runtime.navigationContainerPanel}
+        device={runtime.navigationDevicePanel}
         labels={navigationInteractionLabels}
         onContainerOperation={runtime.performNavigationContainerOperation}
+        onDeviceOperation={runtime.performNavigationDeviceOperation}
       />
       {runtime.rendererFailed && (
         <RendererFallback

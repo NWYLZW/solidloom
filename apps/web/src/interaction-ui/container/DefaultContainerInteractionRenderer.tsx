@@ -9,11 +9,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { type FormEvent, useEffect, useId, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type {
   ContainerInteractionRendererProps,
   NavigationContainerProduct,
 } from "../types";
+import { useInteractionDialogKeyboard } from "../dialog/useInteractionDialogKeyboard";
 import "./DefaultContainerInteractionRenderer.css";
 
 function formatPrice(amount: number, currency: string) {
@@ -39,6 +40,7 @@ export function DefaultContainerInteractionRenderer({
   presentation,
 }: ContainerInteractionRendererProps) {
   const titleId = useId();
+  const panelRef = useRef<HTMLElement>(null);
   const { close, configure, empty, labels, state, take } = controller;
   const [view, setView] = useState<"items" | "settings">("items");
   const [draftTitle, setDraftTitle] = useState(state.title);
@@ -46,6 +48,9 @@ export function DefaultContainerInteractionRenderer({
   const firstAvailableProduct = state.products.find((product) => product.stock > 0);
   const [selectedProductId, setSelectedProductId] = useState(firstAvailableProduct?.id ?? "");
   const selectedProduct = state.products.find((product) => product.id === selectedProductId);
+  const availableProductIds = useMemo(() => (
+    state.products.filter((product) => product.stock > 0).map((product) => product.id)
+  ), [state.products]);
 
   useEffect(() => {
     setDraftTitle(state.title);
@@ -56,6 +61,36 @@ export function DefaultContainerInteractionRenderer({
     if (selectedProduct?.stock) return;
     setSelectedProductId(firstAvailableProduct?.id ?? "");
   }, [firstAvailableProduct?.id, selectedProduct?.stock]);
+
+  const moveSelection = useCallback((direction: -1 | 1) => {
+    if (availableProductIds.length === 0) return;
+    const currentIndex = availableProductIds.indexOf(selectedProductId);
+    const nextIndex = currentIndex === -1
+      ? (direction === 1 ? 0 : availableProductIds.length - 1)
+      : (currentIndex + direction + availableProductIds.length) % availableProductIds.length;
+    setSelectedProductId(availableProductIds[nextIndex] ?? "");
+  }, [availableProductIds, selectedProductId]);
+
+  const selectBoundary = useCallback((boundary: "first" | "last") => {
+    const nextId = boundary === "first"
+      ? availableProductIds[0]
+      : availableProductIds[availableProductIds.length - 1];
+    setSelectedProductId(nextId ?? "");
+  }, [availableProductIds]);
+
+  const takeSelectedProduct = useCallback(() => {
+    if (selectedProduct && selectedProduct.stock > 0) take(selectedProduct.id);
+  }, [selectedProduct, take]);
+
+  const modalPresentation = presentation === "modal" || presentation === "sheet";
+  useInteractionDialogKeyboard({
+    dialogRef: panelRef,
+    enabled: modalPresentation,
+    onClose: close,
+    onMoveSelection: view === "items" ? moveSelection : undefined,
+    onPrimaryAction: view === "items" ? takeSelectedProduct : undefined,
+    onSelectBoundary: view === "items" ? selectBoundary : undefined,
+  });
 
   const submitConfiguration = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -85,10 +120,12 @@ export function DefaultContainerInteractionRenderer({
       <div className="interaction-container-backdrop" aria-hidden="true" />
       <section
         aria-labelledby={titleId}
-        aria-modal={presentation === "modal" || presentation === "sheet" ? true : undefined}
+        aria-modal={modalPresentation ? true : undefined}
         className="interaction-container-panel"
         data-container-view={view}
+        ref={panelRef}
         role="dialog"
+        tabIndex={-1}
       >
         <header className="interaction-container-header">
           <span className="interaction-container-kind-icon" aria-hidden="true">
@@ -114,7 +151,7 @@ export function DefaultContainerInteractionRenderer({
           )}
           <button
             aria-label={labels.containerClose}
-            autoFocus
+            aria-keyshortcuts="Escape"
             className="interaction-container-close"
             type="button"
             onClick={close}
@@ -127,6 +164,7 @@ export function DefaultContainerInteractionRenderer({
           <div className="interaction-container-body">
             <div
               aria-label={empty ? labels.containerEmpty : labels.containerContents}
+              aria-keyshortcuts="ArrowUp ArrowDown Home End"
               className="interaction-container-products"
               role="listbox"
             >
@@ -134,6 +172,8 @@ export function DefaultContainerInteractionRenderer({
                 <button
                   aria-selected={selectedProductId === product.id}
                   className="interaction-container-product"
+                  data-dialog-initial-focus={selectedProductId === product.id && product.stock > 0}
+                  data-dialog-selection
                   data-selected={selectedProductId === product.id}
                   disabled={product.stock <= 0}
                   key={product.id}
@@ -243,11 +283,13 @@ export function DefaultContainerInteractionRenderer({
           <footer className="interaction-container-footer">
             <button
               aria-label={labels.containerTakeSelected}
+              aria-keyshortcuts="Enter"
               className="interaction-container-take"
+              data-dialog-primary-action
               disabled={!selectedProduct || selectedProduct.stock <= 0}
               title={labels.containerTakeSelected}
               type="button"
-              onClick={() => selectedProduct && take(selectedProduct.id)}
+              onClick={takeSelectedProduct}
             >
               <ShoppingBag aria-hidden="true" size={15} />
               <span>{labels.containerTakeSelected}</span>

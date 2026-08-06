@@ -3,6 +3,7 @@ import type { NavigationCameraMode, NavigationPrompt } from "./types";
 
 interface NavigationOverlaysProps {
   aimTargetVisible: boolean;
+  cameraControlsVisible: boolean;
   cameraLabels: Record<NavigationCameraMode, string>;
   cameraMode: NavigationCameraMode;
   interactionKeyHint: string;
@@ -18,6 +19,7 @@ const CAMERA_MODES: NavigationCameraMode[] = ["god", "first-person", "third-pers
 
 export function NavigationOverlays({
   aimTargetVisible,
+  cameraControlsVisible,
   cameraLabels,
   cameraMode,
   interactionKeyHint,
@@ -32,7 +34,7 @@ export function NavigationOverlays({
 
   return (
     <>
-      {navigation?.enabled && (
+      {navigation?.enabled && cameraControlsVisible && (
         <div className="navigation-mode-banner">
           <div className="navigation-camera-modes" role="group" aria-label={modeLabel}>
             {CAMERA_MODES.map((mode) => (

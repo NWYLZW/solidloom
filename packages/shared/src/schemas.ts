@@ -392,8 +392,10 @@ export const modelReferenceInstanceSchema = {
         required: ["id", "kind"],
         properties: {
           id: { type: "string", minLength: 1, maxLength: 120 },
-          kind: { type: "string", enum: ["power", "seat", "door", "articulation", "container"] },
+          kind: { type: "string", enum: ["power", "seat", "door", "articulation", "container", "device"] },
           label: { type: "string", minLength: 1, maxLength: 120 },
+          activateLabel: { type: "string", minLength: 1, maxLength: 120 },
+          deactivateLabel: { type: "string", minLength: 1, maxLength: 120 },
           anchorPosition: vector3Schema,
           range: { type: "number", exclusiveMinimum: 0 },
           targetFeatureIds: {
@@ -437,6 +439,37 @@ export const modelReferenceInstanceSchema = {
               },
             },
           },
+          operationGroups: {
+            type: "array",
+            minItems: 1,
+            maxItems: 8,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["id", "label", "options"],
+              properties: {
+                id: { type: "string", minLength: 1, maxLength: 120 },
+                label: { type: "string", minLength: 1, maxLength: 120 },
+                options: {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: 16,
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["id", "label"],
+                    properties: {
+                      id: { type: "string", minLength: 1, maxLength: 120 },
+                      label: { type: "string", minLength: 1, maxLength: 120 },
+                      description: { type: "string", minLength: 1, maxLength: 240 },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          operationExecuteLabel: { type: "string", minLength: 1, maxLength: 120 },
+          operationCompleteLabel: { type: "string", minLength: 1, maxLength: 240 },
         },
       },
     },
