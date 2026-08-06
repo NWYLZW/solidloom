@@ -55,4 +55,27 @@ describe("navigation", () => {
       [12, 0],
     )).toBeNull();
   });
+
+  it("propagates long push chains across spatial buckets", () => {
+    const bodies = Array.from({ length: 12 }, (_, index) => ({
+      id: `chair-${index}`,
+      obstacle: {
+        minX: 100 + index * 50,
+        maxX: 150 + index * 50,
+        minZ: 200,
+        maxZ: 250,
+      },
+    }));
+
+    expect(collectNavigationPushChain(surface.bounds, [], bodies, ["chair-0"], [8, 0])).toEqual(
+      bodies.map((body) => body.id),
+    );
+    expect(collectNavigationPushChain(
+      surface.bounds,
+      [{ minX: 695, maxX: 760, minZ: 200, maxZ: 250 }],
+      bodies,
+      ["chair-0"],
+      [8, 0],
+    )).toBeNull();
+  });
 });

@@ -108,7 +108,9 @@ class ExpressionParser {
 }
 
 export function modelVariableValues(variables: ModelVariable[] = []): Record<string, number> {
-  return Object.fromEntries(variables.map((variable) => [variable.id, variable.value]));
+  return Object.fromEntries(variables.flatMap((variable) => (
+    typeof variable.value === "number" ? [[variable.id, variable.value]] : []
+  )));
 }
 
 export function evaluateParameterExpression(expression: string, variables: Record<string, number>): number {

@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>参数化咖啡机 · 独立预览</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+        --ink: #eef6f4;
+        --muted: #8fa7a4;
+        --line: rgba(151, 190, 184, 0.2);
+        --surface: rgba(14, 22, 26, 0.84);
+        --accent: #58d7c5;
+        --danger: #ef8c78;
+        --panel-edge-inset: 14px;
+        --panel-padding: var(--panel-edge-inset);
+        --control-padding-y: 8px;
+        --control-padding-x: 10px;
+      }
+
+      * { box-sizing: border-box; }
+      html, body, #preview-root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+      body {
+        background:
+          radial-gradient(circle at 58% 35%, rgba(50, 103, 105, 0.28), transparent 42%),
+          linear-gradient(145deg, #0a1013 0%, #101b20 48%, #080d10 100%);
+        color: var(--ink);
+      }
+
+      button, input, select { font: inherit; }
+      #preview-root { position: relative; }
+      #preview-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+      .brand {
+        position: absolute;
+        top: 22px;
+        left: 24px;
+        max-width: min(430px, calc(100% - 48px));
+        pointer-events: none;
+      }
+      .eyebrow {
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+      }
+      h1 { margin: 8px 0 7px; font-size: clamp(24px, 3vw, 42px); line-height: 1.05; }
+      .subtitle { color: var(--muted); font-size: 13px; line-height: 1.6; }
+      .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+      .badge {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(12, 19, 23, 0.68);
+        color: #c7d8d5;
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+      .badge[data-active="true"] { border-color: rgba(88, 215, 197, 0.7); color: var(--accent); }
+
+      .controls,
+      .virtual-menu {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+        backdrop-filter: blur(18px);
+      }
+
+      .controls {
+        position: absolute;
+        top: 22px;
+        right: 24px;
+        width: 304px;
+        border-radius: 16px;
+        padding: var(--panel-padding);
+      }
+      .controls h2 { margin: 0 0 4px; font-size: 14px; }
+      .control-note { margin: 0 0 14px; color: var(--muted); font-size: 11px; }
+      .control-row {
+        display: grid;
+        grid-template-columns: 62px 1fr 52px;
+        gap: 9px;
+        align-items: center;
+        margin-top: 10px;
+      }
+      .control-row label { color: #c6d6d3; font-size: 12px; }
+      .control-row output { color: var(--accent); font-size: 11px; text-align: right; }
+      input[type="range"] { width: 100%; accent-color: var(--accent); }
+      select,
+      .action-button {
+        width: 100%;
+        min-height: 36px;
+        border: 1px solid rgba(126, 170, 164, 0.28);
+        border-radius: 9px;
+        background: rgba(24, 36, 41, 0.92);
+        color: var(--ink);
+        padding: var(--control-padding-y) var(--control-padding-x);
+      }
+      .select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
+      .select-row label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
+      .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 10px; }
+      .action-button { cursor: pointer; }
+      .action-button:hover,
+      .action-button:focus-visible { border-color: rgba(88, 215, 197, 0.75); outline: none; }
+      .controls :disabled { cursor: not-allowed; opacity: 0.5; }
+      .action-button[aria-pressed="true"] {
+        border-color: var(--accent);
+        background: rgba(53, 132, 124, 0.3);
+      }
+
+      .virtual-menu {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        border-width: 1px 0 0;
+        border-radius: 0;
+        padding: 8px 16px 4px;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(100%);
+        transform-origin: bottom center;
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+      .virtual-menu[data-visible="true"] {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+      }
+      .brew-feedback {
+        position: absolute;
+        top: -30px;
+        right: 18px;
+        display: grid;
+        min-width: 156px;
+        gap: 4px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: rgba(10, 18, 21, 0.88);
+        color: var(--muted);
+        padding: 6px 9px;
+        font-size: 10px;
+      }
+      .brew-feedback[data-visible="false"] { display: none; }
+      .brew-feedback[data-active="true"] { color: var(--accent); }
+      .brew-feedback[data-error="true"] { color: var(--danger); }
+      .brew-feedback-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .brew-progress {
+        display: block;
+        width: 100%;
+        height: 2px;
+        overflow: hidden;
+        background: rgba(143, 167, 164, 0.2);
+      }
+      .brew-progress-fill {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: currentColor;
+        transform: scaleX(0);
+        transform-origin: left center;
+      }
+
+      .recipe-grid {
+        display: flex;
+        width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        scrollbar-color: rgba(88, 215, 197, 0.55) transparent;
+        scrollbar-width: thin;
+        touch-action: pan-x;
+      }
+      .recipe-grid::-webkit-scrollbar { height: 4px; }
+      .recipe-grid::-webkit-scrollbar-track { background: transparent; }
+      .recipe-grid::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(88, 215, 197, 0.55); }
+      .coffee-choice {
+        position: relative;
+        flex: 1 0 150px;
+        min-width: 0;
+        min-height: 88px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--ink);
+        padding: 0 16px 3px;
+        scroll-snap-align: center;
+        cursor: pointer;
+      }
+      .coffee-choice:hover,
+      .coffee-choice:focus-visible {
+        outline: none;
+      }
+      .coffee-choice:disabled { cursor: not-allowed; opacity: 0.48; }
+      .recipe-grid[data-brewing="true"] .coffee-choice[data-selected="true"] { opacity: 1; }
+      .coffee-image {
+        display: block;
+        width: 100%;
+        height: 64px;
+        object-fit: contain;
+        user-select: none;
+        transition: filter 150ms ease, transform 150ms ease;
+      }
+      .coffee-choice:hover .coffee-image,
+      .coffee-choice:focus-visible .coffee-image { filter: brightness(1.08); transform: translateY(-2px); }
+      .coffee-name {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        margin-top: 2px;
+        color: #dce9e6;
+        font-size: 11px;
+        font-weight: 600;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .coffee-choice[data-selected="true"] .coffee-name { color: var(--accent); }
+      .coffee-choice[data-selected="true"]::after {
+        position: absolute;
+        right: 28%;
+        bottom: 0;
+        left: 28%;
+        height: 2px;
+        background: var(--accent);
+        content: "";
+      }
+      .recipe-grid[data-brewing="true"] .coffee-choice[data-selected="true"] .coffee-image {
+        animation: brewing-cup 820ms ease-in-out infinite alternate;
+      }
+      @keyframes brewing-cup {
+        from { filter: brightness(1); transform: translateY(0); }
+        to { filter: brightness(1.18); transform: translateY(-3px); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .recipe-grid[data-brewing="true"] .coffee-choice[data-selected="true"] .coffee-image {
+          animation: none;
+          filter: brightness(1.12);
+        }
+      }
+      .coffee-unavailable {
+        position: absolute;
+        top: 11px;
+        right: 11px;
+        border-radius: 999px;
+        background: rgba(37, 18, 17, 0.9);
+        color: #f4b2a6;
+        padding: 3px 6px;
+        font-size: 8px;
+      }
+
+      @media (max-width: 780px) {
+        .brand { top: 12px; left: 12px; max-width: calc(100% - 24px); }
+        .eyebrow { font-size: 9px; }
+        h1 { margin: 4px 0; font-size: 23px; }
+        .subtitle { display: none; }
+        .badges { margin-top: 7px; gap: 5px; }
+        .badge { padding: 4px 7px; font-size: 9px; }
+
+        .controls {
+          top: auto;
+          right: 12px;
+          bottom: 132px;
+          left: 12px;
+          width: auto;
+          border-radius: 14px;
+          padding: 10px;
+        }
+        .controls h2 { font-size: 12px; }
+        .control-note,
+        .control-grid,
+        .select-row { display: none; }
+        .button-row { gap: 7px; margin-top: 8px; }
+        .action-button { min-height: 32px; padding: 5px 7px; font-size: 10px; }
+
+        .virtual-menu {
+          padding: 5px 0 3px;
+        }
+        .brew-feedback { top: -34px; right: 10px; min-width: 140px; padding: 5px 7px; font-size: 8px; }
+        .recipe-grid { padding: 0 8px; }
+        .coffee-choice { flex: 0 0 104px; min-height: 82px; padding: 0 8px 3px; }
+        .coffee-image { height: 58px; }
+        .coffee-name { margin-top: 1px; font-size: 9px; }
+        .coffee-unavailable { top: 7px; right: 7px; padding: 2px 4px; font-size: 7px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="preview-root">
+      <canvas id="preview-canvas" aria-label="参数化咖啡机三维预览"></canvas>
+
+      <section class="brand" aria-label="资产信息">
+        <div class="eyebrow">赛博工厂 · 茶水区资产</div>
+        <h1>参数化咖啡机</h1>
+        <div class="subtitle">靠近机器，在页面底部直接选择一杯咖啡。</div>
+        <div class="badges">
+          <span class="badge" id="device-badge">桌面层级</span>
+          <span class="badge" id="dimension-badge">380 × 520 × 440 mm</span>
+          <span class="badge" id="power-badge">电源：关闭</span>
+          <span class="badge" id="proximity-badge">用户：远离</span>
+          <span class="badge">状态：规划中</span>
+        </div>
+      </section>
+
+      <section
+        class="virtual-menu"
+        id="virtual-menu"
+        data-visible="false"
+        aria-hidden="true"
+        aria-label="咖啡菜单"
+      >
+        <div
+          class="brew-feedback"
+          id="brew-feedback"
+          data-active="false"
+          data-visible="false"
+          role="status"
+          aria-live="polite"
+        >
+          <span class="brew-feedback-text" id="brew-feedback-text"></span>
+          <span class="brew-progress" aria-hidden="true">
+            <span class="brew-progress-fill" id="brew-progress-fill"></span>
+          </span>
+        </div>
+        <div class="recipe-grid" id="recipe-grid" aria-label="可横向滚动的咖啡列表"></div>
+      </section>
+
+      <section class="controls" aria-label="预览参数与交互">
+        <h2>模型与交互模拟</h2>
+        <p class="control-note">拖动视口旋转；开机并接近后显示底部菜单。</p>
+        <div class="control-grid">
+          <div class="control-row">
+            <label for="width">宽度</label>
+            <input id="width" type="range" min="320" max="520" step="10" value="380" />
+            <output id="width-output">380 mm</output>
+          </div>
+          <div class="control-row">
+            <label for="height">高度</label>
+            <input id="height" type="range" min="460" max="680" step="10" value="520" />
+            <output id="height-output">520 mm</output>
+          </div>
+          <div class="control-row">
+            <label for="depth">深度</label>
+            <input id="depth" type="range" min="360" max="560" step="10" value="440" />
+            <output id="depth-output">440 mm</output>
+          </div>
+        </div>
+        <div class="select-row">
+          <label>机身配色
+            <select id="finish">
+              <option value="graphite">石墨黑</option>
+              <option value="porcelain">瓷白</option>
+              <option value="cobalt">钴蓝</option>
+            </select>
+          </label>
+          <label>预览层级
+            <select id="device">
+              <option value="auto">跟随屏幕</option>
+              <option value="desktop">桌面</option>
+              <option value="mobile">手机</option>
+            </select>
+          </label>
+        </div>
+        <div class="button-row">
+          <button class="action-button" id="power-toggle" type="button" aria-pressed="false">开启电源</button>
+          <button class="action-button" id="proximity-toggle" type="button" aria-pressed="false">模拟用户接近</button>
+          <button class="action-button" id="refill-stock" type="button">补满全部耗材</button>
+          <button class="action-button" id="lid-toggle" type="button" aria-pressed="false">打开水箱翻盖</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="./preview.ts"></script>
+  </body>
+</html>

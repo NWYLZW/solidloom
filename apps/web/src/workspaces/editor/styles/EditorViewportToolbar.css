@@ -1,0 +1,60 @@
+.viewport-panel {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--color-viewport);
+  perspective: 900px;
+}
+
+.viewport-toolbar { position: absolute; z-index: 5; top: 14px; left: 50%; display: flex; align-items: center; max-width: calc(100% - 28px); padding: 3px; overflow-x: auto; border: 1px solid var(--color-border); border-radius: 8px; background: color-mix(in srgb, var(--color-panel) 94%, transparent); scrollbar-width: none; transform: translateX(-50%); }
+.viewport-toolbar::-webkit-scrollbar { display: none; }
+.viewport-tool-group { display: flex; align-items: center; flex: 0 0 auto; }
+.viewport-toolbar button { display: grid; flex: 0 0 31px; place-items: center; width: 31px; height: 31px; padding: 0; border: 0; border-radius: 5px; color: var(--color-muted); background: transparent; }
+.viewport-toolbar button.tool-active { color: var(--color-text); background: var(--color-control-selected); }
+.viewport-tool-divider { flex: 0 0 1px; width: 1px; height: 21px; margin-inline: 4px; background: var(--color-border-soft); }
+
+.object-tool-popover {
+  position: absolute;
+  z-index: 6;
+  top: 58px;
+  left: 50%;
+  display: grid;
+  gap: 10px;
+  width: min(520px, calc(100% - 28px));
+  padding: var(--panel-padding);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-popover) 96%, transparent);
+  box-shadow: 0 14px 36px rgba(18, 21, 17, 0.22);
+  transform: translateX(-50%);
+  backdrop-filter: blur(12px);
+}
+.object-tool-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.object-tool-heading svg { flex: 0 0 16px; color: var(--color-muted); }
+.object-tool-heading strong { min-width: 0; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.tool-vector-grid { display: grid; grid-template-columns: 68px repeat(3, minmax(62px, 1fr)) 28px; align-items: center; gap: 7px; }
+.tool-vector-grid > b { font-size: 10px; text-align: center; }
+.axis-x { color: #e77c81; }
+.axis-y { color: #65c98a; }
+.axis-z { color: #7f8dea; }
+.tool-vector-grid > span { color: var(--color-muted); font-size: 10px; }
+.tool-vector-grid input, .tool-scalar-row input { min-width: 0; width: 100%; padding: var(--control-padding-y) var(--control-padding-x); border: 1px solid var(--color-border); border-radius: 5px; color: var(--color-text); background: var(--color-control); font: inherit; font-size: 11px; text-align: right; }
+.tool-vector-grid input:focus, .tool-scalar-row input:focus { border-color: #9cad74; outline: 1px solid #9cad74; }
+.tool-unit { text-align: left; }
+.tool-scalar-row { display: grid; grid-template-columns: 68px minmax(0, 1fr) 28px; align-items: center; gap: 7px; color: var(--color-muted); font-size: 10px; }
+.tool-scalar-row small { color: var(--color-muted); font-size: 9px; }
+.tool-checkbox { display: flex; align-items: center; gap: 7px; color: var(--color-text); font-size: 10px; }
+.tool-checkbox input { margin: 0; accent-color: #9cad74; }
+.object-tool-hint, .object-tool-notice, .object-tool-error { margin: 0; font-size: 10px; line-height: 1.5; }
+.object-tool-hint, .object-tool-notice { color: var(--color-muted); }
+.object-tool-error { color: #dc827b; }
+.boolean-mode { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.boolean-mode button, .object-tool-actions button { min-height: 31px; padding: 0 var(--control-padding-x); border: 1px solid var(--color-border-soft); border-radius: 5px; color: var(--color-text); background: var(--color-control); font-size: 10px; }
+.boolean-mode button.active { border-color: #9cad74; background: var(--color-control-selected); }
+.object-tool-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.object-tool-actions button.primary-button { border-color: #9cad74; background: color-mix(in srgb, #9cad74 25%, var(--color-control)); }
+.object-tool-actions button:disabled { color: var(--color-muted); cursor: not-allowed; opacity: 0.55; }

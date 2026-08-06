@@ -1,0 +1,254 @@
+.interaction-ui-root .interaction-device-backdrop {
+  display: none;
+}
+
+.interaction-ui-root .interaction-device-panel {
+  position: absolute;
+  z-index: 18;
+  right: var(--panel-edge-inset);
+  bottom: var(--panel-edge-inset);
+  display: grid;
+  width: min(var(--interaction-surface-width), calc(100% - (var(--panel-edge-inset) * 2)));
+  overflow: hidden;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--interaction-dialog-radius);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-popover) 96%, transparent);
+  box-shadow: var(--interaction-dialog-shadow);
+  backdrop-filter: blur(16px);
+}
+
+.interaction-ui-root[data-interaction-presentation="modal"] .interaction-device-backdrop,
+.interaction-ui-root[data-interaction-presentation="sheet"] .interaction-device-backdrop {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: block;
+  background: var(--interaction-dialog-backdrop);
+  backdrop-filter: var(--interaction-dialog-backdrop-filter);
+}
+
+.interaction-ui-root[data-interaction-presentation="modal"] .interaction-device-panel {
+  z-index: 21;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  width: min(520px, calc(100% - (var(--panel-edge-inset) * 2)));
+  max-height: calc(100% - (var(--panel-edge-inset) * 2));
+  transform: translate(-50%, -50%);
+}
+
+.interaction-ui-root[data-interaction-presentation="sheet"] .interaction-device-panel {
+  z-index: 21;
+  right: var(--panel-edge-inset);
+  bottom: var(--panel-edge-inset);
+  left: var(--panel-edge-inset);
+  width: auto;
+  max-height: calc(100% - (var(--panel-edge-inset) * 2));
+}
+
+.interaction-ui-root[data-interaction-presentation="quick"] .interaction-device-panel {
+  right: auto;
+  bottom: calc(var(--panel-edge-inset) * 2);
+  left: 50%;
+  width: min(460px, calc(100% - (var(--panel-edge-inset) * 2)));
+  transform: translateX(-50%);
+}
+
+.interaction-ui-root .interaction-device-header,
+.interaction-ui-root .interaction-device-actions {
+  display: flex;
+  align-items: center;
+}
+
+.interaction-ui-root .interaction-device-header {
+  min-height: 54px;
+  gap: var(--control-padding-y);
+  padding: var(--control-padding-y) var(--panel-edge-inset);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.interaction-ui-root .interaction-device-kind-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--interaction-color-accent);
+  background: color-mix(in srgb, var(--interaction-color-accent) 10%, var(--color-control));
+}
+
+.interaction-ui-root .interaction-device-heading-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: baseline;
+  gap: var(--control-padding-y);
+}
+
+.interaction-ui-root .interaction-device-heading-copy strong {
+  overflow: hidden;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interaction-ui-root .interaction-device-heading-copy span {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.interaction-ui-root .interaction-device-close {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  color: var(--color-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.interaction-ui-root .interaction-device-close:hover,
+.interaction-ui-root .interaction-device-close:focus-visible {
+  color: var(--color-text);
+  background: var(--color-control-selected);
+}
+
+.interaction-ui-root .interaction-device-body {
+  display: grid;
+  gap: var(--panel-edge-inset);
+  max-height: min(520px, calc(100vh - 190px));
+  padding: var(--panel-edge-inset);
+  overflow: auto;
+}
+
+.interaction-ui-root .interaction-device-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.interaction-ui-root .interaction-device-group legend {
+  margin-bottom: var(--control-padding-y);
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.interaction-ui-root .interaction-device-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--control-padding-y);
+}
+
+.interaction-ui-root .interaction-device-option {
+  display: grid;
+  min-width: 0;
+  min-height: 54px;
+  grid-template-columns: minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: var(--control-padding-y);
+  padding: var(--control-padding-y) var(--control-padding-x);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  color: var(--color-text);
+  background: var(--color-control);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.interaction-ui-root .interaction-device-option:hover,
+.interaction-ui-root .interaction-device-option:focus-visible,
+.interaction-ui-root .interaction-device-option[aria-checked="true"] {
+  border-color: var(--interaction-color-accent);
+  background: color-mix(in srgb, var(--interaction-color-accent) 8%, var(--color-control));
+}
+
+.interaction-ui-root .interaction-device-option-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.interaction-ui-root .interaction-device-option-copy strong,
+.interaction-ui-root .interaction-device-option-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interaction-ui-root .interaction-device-option-copy strong {
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.interaction-ui-root .interaction-device-option-copy span {
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
+.interaction-ui-root .interaction-device-option-check {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--interaction-color-accent);
+  background: color-mix(in srgb, var(--interaction-color-accent) 10%, transparent);
+}
+
+.interaction-ui-root .interaction-device-status {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: var(--control-padding-y);
+  padding: 0 var(--control-padding-x);
+  border-radius: 7px;
+  color: var(--interaction-color-accent);
+  background: color-mix(in srgb, var(--interaction-color-accent) 9%, var(--color-control));
+  font-size: 11px;
+}
+
+.interaction-ui-root .interaction-device-actions {
+  justify-content: flex-end;
+  padding: var(--control-padding-y) var(--panel-edge-inset) var(--panel-edge-inset);
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.interaction-ui-root .interaction-device-primary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--control-padding-y);
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--interaction-color-accent);
+  border-radius: 7px;
+  color: var(--interaction-color-accent-contrast);
+  background: var(--interaction-color-accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.interaction-ui-root .interaction-device-primary:hover,
+.interaction-ui-root .interaction-device-primary:focus-visible {
+  background: color-mix(in srgb, var(--interaction-color-accent) 88%, #000);
+}
+
+@media (max-width: 620px) {
+  .interaction-ui-root .interaction-device-options {
+    grid-template-columns: 1fr;
+  }
+}

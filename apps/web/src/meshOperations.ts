@@ -130,7 +130,12 @@ function createAsymmetricRoundedBoxGeometry(
   return geometry;
 }
 
-export function createFeatureGeometry(feature: ModelFeature): THREE.BufferGeometry {
+export type FeatureGeometryQuality = "full" | "reduced";
+
+export function createFeatureGeometry(
+  feature: ModelFeature,
+  quality: FeatureGeometryQuality = "full",
+): THREE.BufferGeometry {
   if (feature.type === "box") {
     const maximumRadius = Math.min(
       feature.parameters.width,
@@ -170,7 +175,7 @@ export function createFeatureGeometry(feature: ModelFeature): THREE.BufferGeomet
       feature.parameters.radius,
       feature.parameters.radius,
       feature.parameters.height,
-      32,
+      quality === "reduced" ? 12 : 32,
     );
   }
 
@@ -183,9 +188,12 @@ export function createFeatureGeometry(feature: ModelFeature): THREE.BufferGeomet
   return geometry;
 }
 
-export function featureGeometryCacheKey(feature: ModelFeature): string | null {
+export function featureGeometryCacheKey(
+  feature: ModelFeature,
+  quality: FeatureGeometryQuality = "full",
+): string | null {
   if (feature.type === "mesh") return null;
-  return `${feature.type}:${JSON.stringify(feature.parameters)}`;
+  return `${quality}:${feature.type}:${JSON.stringify(feature.parameters)}`;
 }
 
 export function featureVolume(feature: ModelFeature) {

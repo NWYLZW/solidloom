@@ -1,0 +1,78 @@
+.voxel-skin-panel {
+  --voxel-skin-gap: 8px;
+  --voxel-skin-control-gap: 6px;
+  display: grid;
+  gap: var(--voxel-skin-gap);
+  min-width: 0;
+}
+
+.voxel-skin-panel > strong {
+  color: var(--color-muted);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+}
+
+.voxel-skin-field,
+.voxel-skin-source {
+  align-items: center;
+  display: grid;
+  gap: var(--voxel-skin-gap);
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 1fr);
+  min-width: 0;
+}
+
+.voxel-skin-field > span,
+.voxel-skin-source > span,
+.voxel-skin-panel > small {
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
+.voxel-skin-field select {
+  background: var(--color-input);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 5px;
+  color: var(--color-text);
+  min-width: 0;
+  padding: var(--control-padding-y) var(--control-padding-x);
+}
+
+.voxel-skin-source strong {
+  color: var(--color-text);
+  font-size: 10px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voxel-skin-file-input {
+  display: none;
+}
+
+.voxel-skin-actions {
+  display: grid;
+  gap: var(--voxel-skin-control-gap);
+  grid-template-columns: 1fr 1fr;
+}
+
+.voxel-skin-actions button {
+  background: var(--color-control);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 5px;
+  color: var(--color-text);
+  min-height: 31px;
+  padding: 0 var(--control-padding-x);
+}
+
+.voxel-skin-actions button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.voxel-skin-error {
+  color: #c25a5a;
+  font-size: 10px;
+  margin: 0;
+}

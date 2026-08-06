@@ -2,12 +2,110 @@ import { describe, expect, it } from "vitest";
 import {
   applyFeatureGraphExpressions,
   createCyberOfficeSpaceModel,
+  createInteractionPlaygroundModel,
   cyberFactoryModels,
   regenerateProceduralMeshFeature,
   synchronizeRoomAssemblyFeatures,
 } from "@solidloom/shared";
 
 describe("cyber factory examples", () => {
+  it("builds a system-native interaction playground from live references", () => {
+    const playground = createInteractionPlaygroundModel({
+      roomId: "room-model",
+      deskId: "desk-model",
+      coffeeMachineId: "coffee-machine-model",
+      loungeId: "lounge-model",
+      monitorId: "monitor-model",
+      chairId: "chair-model",
+      snackCabinetId: "container-model",
+      waterDispenserId: "water-dispenser-model",
+      warehouseCartId: "warehouse-cart-model",
+      warehousePalletId: "warehouse-pallet-model",
+      warehouseRackId: "warehouse-rack-model",
+      warehouseToteId: "warehouse-tote-model",
+    });
+    expect(playground.kind).toBe("scene");
+    expect(playground.name).toBe("交互试验场");
+    expect(playground.featureGraph.features).toEqual([]);
+    expect(playground.featureGraph.references).toHaveLength(12);
+    expect(playground.featureGraph.references?.map((reference) => reference.modelId)).toEqual(
+      expect.arrayContaining([
+        "warehouse-cart-model",
+        "warehouse-pallet-model",
+        "warehouse-rack-model",
+        "warehouse-tote-model",
+      ]),
+    );
+    expect(playground.featureGraph.references?.flatMap((reference) => reference.interactions ?? []))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          kind: "door",
+          anchorPosition: [-4740, 1210, -650],
+        }),
+        expect.objectContaining({
+          activateLabel: "使用咖啡机",
+          kind: "device",
+          label: "咖啡机",
+          operationExecuteLabel: "开始制作",
+          operationGroups: [expect.objectContaining({
+            id: "recipe",
+            options: expect.arrayContaining([
+              expect.objectContaining({ id: "espresso", label: "浓缩咖啡" }),
+              expect.objectContaining({ id: "latte", label: "拿铁咖啡" }),
+            ]),
+          })],
+        }),
+        expect.objectContaining({
+          activateLabel: "使用饮水机",
+          kind: "device",
+          label: "饮水机",
+          operationExecuteLabel: "开始接水",
+          operationGroups: expect.arrayContaining([
+            expect.objectContaining({
+              id: "temperature",
+              options: expect.arrayContaining([
+                expect.objectContaining({ id: "hot", label: "热水" }),
+                expect.objectContaining({ id: "cold", label: "冷水" }),
+              ]),
+            }),
+            expect.objectContaining({
+              id: "volume",
+              options: expect.arrayContaining([
+                expect.objectContaining({ id: "small", label: "小杯" }),
+                expect.objectContaining({ id: "large", label: "大杯" }),
+              ]),
+            }),
+          ]),
+        }),
+        expect.objectContaining({
+          activateLabel: "打开落地灯",
+          deactivateLabel: "关闭落地灯",
+          kind: "power",
+        }),
+        expect.objectContaining({ kind: "seat" }),
+        expect.objectContaining({
+          kind: "container",
+          label: "办公补给柜",
+          containerCapacity: 64,
+          containerCanConfigure: true,
+          containerCurrency: "CNY",
+          containerProducts: expect.arrayContaining([
+            expect.objectContaining({ name: "气泡水", unitPrice: 6 }),
+            expect.objectContaining({ name: "能量棒", unitPrice: 12 }),
+          ]),
+          containerItems: expect.arrayContaining([
+            expect.objectContaining({ name: "气泡水", productId: "sparkling-water" }),
+            expect.objectContaining({ name: "能量棒", productId: "energy-bar" }),
+          ]),
+        }),
+      ]));
+    expect(playground.featureGraph.navigation).toMatchObject({
+      enabled: true,
+      floorY: 0,
+      agentHeight: 1720,
+    });
+  });
+
   it("builds the office space from live model references instead of copied geometry", () => {
     const space = createCyberOfficeSpaceModel({
       roomId: "room-model",
@@ -16,6 +114,7 @@ describe("cyber factory examples", () => {
       laptopId: "laptop-model",
       chairId: "chair-model",
     });
+    expect(space.kind).toBe("scene");
     expect(space.name).toBe("赛博办公空间");
     expect(space.featureGraph?.features).toEqual([]);
     expect(space.featureGraph?.references).toEqual(expect.arrayContaining([
@@ -82,7 +181,7 @@ describe("cyber factory examples", () => {
     });
   });
 
-  it("defines the six requested models with stable grouped features", () => {
+  it("defines the factory models with stable grouped features", () => {
     expect(cyberFactoryModels.map((model) => model.name)).toEqual([
       "办公桌",
       "电脑显示器",
@@ -91,8 +190,13 @@ describe("cyber factory examples", () => {
       "房间",
       "简易人体工学椅",
       "极简风小人",
+      "原创方块角色",
+      "参数化零食售货机",
+      "参数化咖啡机",
+      "参数化下置桶饮水机",
+      "现代休息区资产套件",
     ]);
-    expect(cyberFactoryModels.reduce((total, model) => total + (model.featureGraph?.features.length ?? 0), 0)).toBe(82);
+    expect(cyberFactoryModels.reduce((total, model) => total + (model.featureGraph?.features.length ?? 0), 0)).toBeGreaterThan(137);
 
     for (const model of cyberFactoryModels) {
       const graph = model.featureGraph;
@@ -158,6 +262,46 @@ describe("cyber factory examples", () => {
           appearance: { material: "glass" },
           parameters: { width: 8, height: 496, depth: 438 },
         });
+      } else if (model.name === "原创方块角色") {
+        expect(graph.features).toHaveLength(8);
+        expect(graph.groups).toHaveLength(8);
+        expect(graph.joints).toHaveLength(8);
+        expect(graph.poses?.map((pose) => pose.name)).toEqual(["站立", "招手", "潜行", "坐下"]);
+        expect(graph.animations?.map((animation) => animation.name)).toEqual(["走路", "奔跑", "潜行移动"]);
+        expect(graph.joints.find((joint) => joint.id === "block-avatar-head-joint")?.parentJointId).toBe("block-avatar-torso-joint");
+        expect(graph.joints.find((joint) => joint.id === "block-avatar-left-arm-joint")?.parentJointId).toBe("block-avatar-torso-joint");
+        expect(graph.joints.find((joint) => joint.id === "block-avatar-left-knee-joint")?.parentJointId).toBe("block-avatar-left-leg-joint");
+        expect(graph.poses?.find((pose) => pose.id === "block-avatar-pose-sit")?.jointValues).toMatchObject({
+          "block-avatar-left-leg-joint": -90,
+          "block-avatar-left-knee-joint": 90,
+          "block-avatar-right-leg-joint": -90,
+          "block-avatar-right-knee-joint": 90,
+        });
+        expect(graph.features.every((feature) => (
+          feature.type === "box"
+          && feature.appearance?.voxelSkin?.url === "builtin:solidloom-block-avatar"
+          && feature.appearance.voxelSkin.model === "classic"
+        ))).toBe(true);
+        expect(graph.features.map((feature) => feature.appearance?.voxelSkin?.part)).toEqual([
+          "head",
+          "torso",
+          "leftArm",
+          "rightArm",
+          "leftLeg",
+          "leftLeg",
+          "rightLeg",
+          "rightLeg",
+        ]);
+        expect(graph.features.map((feature) => feature.appearance?.voxelSkin?.segment)).toEqual([
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          "upper",
+          "lower",
+          "upper",
+          "lower",
+        ]);
       } else {
         expect(graph.features.length).toBeGreaterThanOrEqual(6);
         expect(graph.groups?.length).toBeGreaterThanOrEqual(2);

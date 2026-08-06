@@ -1,4 +1,41 @@
-import { createCyberOfficeSpaceModel, cyberFactoryModels } from "@solidloom/shared";
+import {
+  createCyberOfficeSpaceModel,
+  createInteractionPlaygroundModel,
+  cyberFactoryModelModules,
+} from "@solidloom/shared";
+import { readdir } from "node:fs/promises";
+
+const domainModelsUrl = new URL("../domain-packages/cyber-factory/models/", import.meta.url);
+
+function collectModelModules(value, modules) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectModelModules(item, modules);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  if (
+    typeof value.id === "string"
+    && (value.source === "asset" || value.source === "factory")
+    && (value.status === "available" || value.status === "planned")
+    && typeof value.createModel === "function"
+  ) {
+    modules.set(value.id, value);
+  }
+}
+
+async function discoverDomainModelModules() {
+  const modules = new Map(cyberFactoryModelModules.map((module) => [module.id, module]));
+  const entries = await readdir(domainModelsUrl, { withFileTypes: true });
+  for (const entry of entries.filter((candidate) => candidate.isDirectory()).sort((left, right) => left.name.localeCompare(right.name))) {
+    try {
+      const namespace = await import(new URL(`${entry.name}/index.ts`, domainModelsUrl).href);
+      for (const value of Object.values(namespace)) collectModelModules(value, modules);
+    } catch (error) {
+      throw new Error(`无法加载领域模型目录 ${entry.name}：${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return [...modules.values()];
+}
 
 const server = (process.env.SOLIDLOOM_URL ?? "http://127.0.0.1:4310").replace(/\/+$/, "");
 
@@ -36,8 +73,16 @@ const replaceExisting = process.argv.includes("--replace");
 const created = [];
 const replaced = [];
 const skipped = [];
+const modelModules = await discoverDomainModelModules();
+const availableModels = modelModules.filter((module) => module.status === "available");
+const plannedModels = modelModules.filter((module) => module.status === "planned").map((module) => module.id);
+const availableSpecifications = new Map();
+for (const module of availableModels) {
+  const specification = module.createModel();
+  availableSpecifications.set(specification.name, specification);
+}
 
-for (const specification of [...cyberFactoryModels].reverse()) {
+for (const specification of [...availableSpecifications.values()].reverse()) {
   const existing = existingByName.get(specification.name);
   if (existing && !replaceExisting) {
     skipped.push(specification.name);
@@ -46,11 +91,12 @@ for (const specification of [...cyberFactoryModels].reverse()) {
   if (existing) {
     let current = existing;
     let changed = false;
-    if (current.description !== specification.description || current.unit !== specification.unit) {
+    if (current.kind !== (specification.kind ?? "asset") || current.description !== specification.description || current.unit !== specification.unit) {
       current = await request(`/api/models/${encodeURIComponent(current.id)}`, {
         method: "PATCH",
         body: {
           expectedRevision: current.revision,
+          kind: specification.kind ?? "asset",
           description: specification.description,
           unit: specification.unit,
         },
@@ -82,7 +128,17 @@ const desk = sourceByName.get("办公桌");
 const monitor = sourceByName.get("电脑显示器");
 const laptop = sourceByName.get("笔记本");
 const chair = sourceByName.get("简易人体工学椅");
-if (!room || !desk || !monitor || !laptop || !chair) throw new Error("创建办公空间前必须先存在房间、办公桌、电脑显示器、笔记本和简易人体工学椅模型。");
+const snackCabinet = sourceByName.get("参数化零食售货机");
+const coffeeMachine = sourceByName.get("参数化咖啡机");
+const waterDispenser = sourceByName.get("参数化下置桶饮水机");
+const lounge = sourceByName.get("现代休息区资产套件");
+const warehouseRack = sourceByName.get("参数化仓储货架");
+const warehousePallet = sourceByName.get("参数化仓储托盘");
+const warehouseTote = sourceByName.get("参数化仓储周转箱");
+const warehouseCart = sourceByName.get("参数化仓储推车");
+if (!room || !desk || !monitor || !laptop || !chair || !snackCabinet || !coffeeMachine || !waterDispenser || !lounge || !warehouseRack || !warehousePallet || !warehouseTote || !warehouseCart) {
+  throw new Error("创建场景前必须先存在房间、办公资产、补给设备、休息区和可用仓储物流模型。");
+}
 
 const spaceSpecification = createCyberOfficeSpaceModel({
   roomId: room.id,
@@ -98,11 +154,12 @@ if (!existingSpace) {
 } else {
   let current = existingSpace;
   let changed = false;
-  if (current.description !== spaceSpecification.description || current.unit !== spaceSpecification.unit) {
+  if (current.kind !== (spaceSpecification.kind ?? "asset") || current.description !== spaceSpecification.description || current.unit !== spaceSpecification.unit) {
     current = await request(`/api/models/${encodeURIComponent(current.id)}`, {
       method: "PATCH",
       body: {
         expectedRevision: current.revision,
+        kind: spaceSpecification.kind ?? "asset",
         description: spaceSpecification.description,
         unit: spaceSpecification.unit,
       },
@@ -120,4 +177,55 @@ if (!existingSpace) {
   else skipped.push(spaceSpecification.name);
 }
 
-process.stdout.write(`${JSON.stringify({ project: "赛博工厂", created, replaced, skipped }, null, 2)}\n`);
+const playgroundSpecification = createInteractionPlaygroundModel({
+  roomId: room.id,
+  deskId: desk.id,
+  monitorId: monitor.id,
+  chairId: chair.id,
+  coffeeMachineId: coffeeMachine.id,
+  loungeId: lounge.id,
+  snackCabinetId: snackCabinet.id,
+  waterDispenserId: waterDispenser.id,
+  warehouseCartId: warehouseCart.id,
+  warehousePalletId: warehousePallet.id,
+  warehouseRackId: warehouseRack.id,
+  warehouseToteId: warehouseTote.id,
+});
+const existingPlayground = sourceByName.get(playgroundSpecification.name);
+if (!existingPlayground) {
+  const playground = await request("/api/models", { method: "POST", body: playgroundSpecification });
+  created.push({ id: playground.id, name: playground.name, features: 0, references: playground.featureGraph.references?.length ?? 0 });
+} else {
+  let current = existingPlayground;
+  let changed = false;
+  if (current.kind !== (playgroundSpecification.kind ?? "asset") || current.description !== playgroundSpecification.description || current.unit !== playgroundSpecification.unit) {
+    current = await request(`/api/models/${encodeURIComponent(current.id)}`, {
+      method: "PATCH",
+      body: {
+        expectedRevision: current.revision,
+        kind: playgroundSpecification.kind ?? "asset",
+        description: playgroundSpecification.description,
+        unit: playgroundSpecification.unit,
+      },
+    });
+    changed = true;
+  }
+  if (canonicalJson(current.featureGraph) !== canonicalJson(playgroundSpecification.featureGraph)) {
+    current = await request(`/api/models/${encodeURIComponent(current.id)}/features`, {
+      method: "PUT",
+      body: { expectedRevision: current.revision, featureGraph: playgroundSpecification.featureGraph },
+    });
+    changed = true;
+  }
+  if (changed) replaced.push({ id: current.id, name: current.name, revision: current.revision, features: 0, references: current.featureGraph.references?.length ?? 0 });
+  else skipped.push(playgroundSpecification.name);
+}
+
+process.stdout.write(`${JSON.stringify({
+  project: "赛博工厂",
+  discovered: modelModules.map((module) => ({ id: module.id, source: module.source, status: module.status })),
+  planned: plannedModels,
+  created,
+  replaced,
+  skipped,
+}, null, 2)}\n`);

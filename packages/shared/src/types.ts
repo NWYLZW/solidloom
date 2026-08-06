@@ -1,11 +1,22 @@
 export type Unit = "mm" | "cm" | "in";
+export type DocumentKind = "asset" | "scene";
 export type FeatureOperation = "add" | "cut";
 export type Vector3Tuple = [number, number, number];
 export type CornerAlgorithm = "circular" | "smooth";
 export type FeatureMaterialPreset = "default" | "wood" | "metal" | "plastic" | "glass" | "fabric" | "rubber";
+export type VoxelSkinModel = "classic" | "slim";
+export type VoxelSkinPart = "head" | "torso" | "leftArm" | "rightArm" | "leftLeg" | "rightLeg";
+export type VoxelSkinSegment = "full" | "upper" | "lower" | "foot";
+export interface VoxelSkinAppearance {
+  model: VoxelSkinModel;
+  part: VoxelSkinPart;
+  segment?: VoxelSkinSegment;
+  url: string;
+}
 export interface FeatureAppearance {
   material?: FeatureMaterialPreset;
   color?: string;
+  voxelSkin?: VoxelSkinAppearance;
 }
 export type BoxCornerKey =
   | "xMinYMinZMin"
@@ -29,11 +40,28 @@ export interface FeatureBase {
   parameterExpressions?: Record<string, string>;
 }
 
-export interface ModelVariable {
+interface ModelVariableBase {
   id: string;
   label: string;
+}
+
+export interface NumericModelVariable extends ModelVariableBase {
+  type?: "number";
   value: number;
   unit?: Unit;
+}
+
+export interface ColorModelVariable extends ModelVariableBase {
+  type: "color";
+  value: string;
+}
+
+export type ModelVariable = NumericModelVariable | ColorModelVariable;
+
+export interface FeatureGraphGenerator {
+  id: string;
+  version: 1;
+  options?: Record<string, unknown>;
 }
 
 export interface BoxFeature extends FeatureBase {
@@ -192,13 +220,41 @@ export interface ModelReferencePhysics {
 
 export interface ModelReferenceInteraction {
   id: string;
-  kind: "power" | "seat" | "door" | "articulation";
+  kind: "power" | "seat" | "door" | "articulation" | "container" | "device";
+  label?: string;
+  activateLabel?: string;
+  deactivateLabel?: string;
+  anchorPosition?: Vector3Tuple;
   range?: number;
   targetFeatureIds?: string[];
   openAngle?: number;
   jointId?: string;
   closedValue?: number;
   openValue?: number;
+  containerCapacity?: number;
+  containerCanConfigure?: boolean;
+  containerCurrency?: string;
+  containerProducts?: Array<{
+    id: string;
+    name: string;
+    unitPrice: number;
+  }>;
+  containerItems?: Array<{
+    id: string;
+    name: string;
+    productId?: string;
+  }>;
+  operationGroups?: Array<{
+    id: string;
+    label: string;
+    options: Array<{
+      description?: string;
+      id: string;
+      label: string;
+    }>;
+  }>;
+  operationExecuteLabel?: string;
+  operationCompleteLabel?: string;
 }
 
 export interface ModelReferenceInstance {
@@ -217,6 +273,7 @@ export interface ModelReferenceInstance {
 export interface FeatureGraph {
   version: 1;
   features: ModelFeature[];
+  generator?: FeatureGraphGenerator;
   groups?: FeatureGroup[];
   joints?: ArticulationJoint[];
   poses?: ArticulationPosePreset[];
@@ -229,6 +286,7 @@ export interface FeatureGraph {
 
 export interface ModelRecord {
   id: string;
+  kind: DocumentKind;
   name: string;
   description: string;
   unit: Unit;
@@ -239,6 +297,7 @@ export interface ModelRecord {
 }
 
 export interface CreateModelInput {
+  kind?: DocumentKind;
   name: string;
   description?: string;
   unit?: Unit;
@@ -247,6 +306,7 @@ export interface CreateModelInput {
 
 export interface UpdateModelInput {
   expectedRevision: number;
+  kind?: DocumentKind;
   name?: string;
   description?: string;
   unit?: Unit;

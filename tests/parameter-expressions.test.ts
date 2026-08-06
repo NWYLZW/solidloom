@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyFeatureGraphExpressions,
   evaluateParameterExpression,
+  modelVariableValues,
   type FeatureGraph,
 } from "@solidloom/shared";
 
@@ -55,5 +56,12 @@ describe("parameter expressions", () => {
     const result = applyFeatureGraphExpressions(graph);
     expect(result.issues[0]?.message).toContain("--missing");
     expect(result.featureGraph.features[0]?.parameters.height).toBe(10);
+  });
+
+  it("keeps color variables out of numeric expressions", () => {
+    expect(modelVariableValues([
+      { id: "--height", label: "整体高度", value: 2800, unit: "mm" },
+      { id: "--surface-color", label: "表面颜色", type: "color", value: "#AABBCC" },
+    ])).toEqual({ "--height": 2800 });
   });
 });

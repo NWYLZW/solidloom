@@ -13,10 +13,63 @@ export interface NavigationPushBody {
   obstacle: NavigationObstacle;
 }
 
+interface NavigationObstacleIndex {
+  buckets: Map<string, NavigationObstacle[]>;
+  cellSize: number;
+}
+
 type GridPoint = { x: number; z: number };
 
 function gridKey(point: GridPoint) {
   return `${point.x}:${point.z}`;
+}
+
+function obstacleCellKey(x: number, z: number) {
+  return `${x}:${z}`;
+}
+
+function obstacleCellRange(value: number, cellSize: number) {
+  return Math.floor(value / cellSize);
+}
+
+function createNavigationObstacleIndex(
+  obstacles: NavigationObstacle[],
+  cellSize: number,
+): NavigationObstacleIndex {
+  const safeCellSize = Math.max(1, cellSize);
+  const buckets = new Map<string, NavigationObstacle[]>();
+  for (const obstacle of obstacles) {
+    const minX = obstacleCellRange(obstacle.minX, safeCellSize);
+    const maxX = obstacleCellRange(obstacle.maxX, safeCellSize);
+    const minZ = obstacleCellRange(obstacle.minZ, safeCellSize);
+    const maxZ = obstacleCellRange(obstacle.maxZ, safeCellSize);
+    for (let x = minX; x <= maxX; x += 1) {
+      for (let z = minZ; z <= maxZ; z += 1) {
+        const key = obstacleCellKey(x, z);
+        const bucket = buckets.get(key);
+        if (bucket) bucket.push(obstacle);
+        else buckets.set(key, [obstacle]);
+      }
+    }
+  }
+  return { buckets, cellSize: safeCellSize };
+}
+
+function queryNavigationObstacleIndex(
+  index: NavigationObstacleIndex,
+  area: NavigationObstacle,
+): NavigationObstacle[] {
+  const minX = obstacleCellRange(area.minX, index.cellSize);
+  const maxX = obstacleCellRange(area.maxX, index.cellSize);
+  const minZ = obstacleCellRange(area.minZ, index.cellSize);
+  const maxZ = obstacleCellRange(area.maxZ, index.cellSize);
+  const candidates = new Set<NavigationObstacle>();
+  for (let x = minX; x <= maxX; x += 1) {
+    for (let z = minZ; z <= maxZ; z += 1) {
+      for (const obstacle of index.buckets.get(obstacleCellKey(x, z)) ?? []) candidates.add(obstacle);
+    }
+  }
+  return [...candidates];
 }
 
 function toGrid(surface: NavigationSurface, point: NavigationPoint): GridPoint {
@@ -36,10 +89,19 @@ export function isNavigationPointWalkable(
   surface: NavigationSurface,
   obstacles: NavigationObstacle[],
   point: NavigationPoint,
+  obstacleIndex?: NavigationObstacleIndex,
 ): boolean {
   const [minX, maxX, minZ, maxZ] = surface.bounds;
   if (point[0] < minX || point[0] > maxX || point[1] < minZ || point[1] > maxZ) return false;
-  return !obstacles.some((obstacle) => (
+  const nearbyObstacles = obstacleIndex
+    ? queryNavigationObstacleIndex(obstacleIndex, {
+        minX: point[0] - surface.agentRadius,
+        maxX: point[0] + surface.agentRadius,
+        minZ: point[1] - surface.agentRadius,
+        maxZ: point[1] + surface.agentRadius,
+      })
+    : obstacles;
+  return !nearbyObstacles.some((obstacle) => (
     point[0] >= obstacle.minX - surface.agentRadius
     && point[0] <= obstacle.maxX + surface.agentRadius
     && point[1] >= obstacle.minZ - surface.agentRadius
@@ -67,6 +129,13 @@ export function collectNavigationPushChain(
   const movingIds = new Set(pendingIds);
   const [deltaX, deltaZ] = delta;
   const [minX, maxX, minZ, maxZ] = bounds;
+  const indexCellSize = Math.max(32, ...bodies.map((body) => Math.max(
+    body.obstacle.maxX - body.obstacle.minX,
+    body.obstacle.maxZ - body.obstacle.minZ,
+  )));
+  const bodyIndex = createNavigationObstacleIndex(bodies.map((body) => body.obstacle), indexCellSize);
+  const bodyByObstacle = new Map(bodies.map((body) => [body.obstacle, body]));
+  const staticIndex = createNavigationObstacleIndex(staticObstacles, indexCellSize);
 
   for (let index = 0; index < pendingIds.length; index += 1) {
     const body = bodyById.get(pendingIds[index]!)!;
@@ -77,8 +146,11 @@ export function collectNavigationPushChain(
       maxZ: body.obstacle.maxZ + deltaZ,
     };
     if (proposed.minX < minX || proposed.maxX > maxX || proposed.minZ < minZ || proposed.maxZ > maxZ) return null;
-    if (staticObstacles.some((obstacle) => navigationObstaclesOverlap(proposed, obstacle, 8))) return null;
-    for (const other of bodies) {
+    if (queryNavigationObstacleIndex(staticIndex, proposed)
+      .some((obstacle) => navigationObstaclesOverlap(proposed, obstacle, 8))) return null;
+    for (const otherObstacle of queryNavigationObstacleIndex(bodyIndex, proposed)) {
+      const other = bodyByObstacle.get(otherObstacle);
+      if (!other) continue;
       if (movingIds.has(other.id) || !navigationObstaclesOverlap(proposed, other.obstacle)) continue;
       movingIds.add(other.id);
       pendingIds.push(other.id);
@@ -116,8 +188,17 @@ export function findNavigationPath(
   startPoint: NavigationPoint,
   endPoint: NavigationPoint,
 ): NavigationPoint[] {
-  if (!isNavigationPointWalkable(surface, obstacles, startPoint)
-    || !isNavigationPointWalkable(surface, obstacles, endPoint)) return [];
+  const obstacleIndex = createNavigationObstacleIndex(
+    obstacles,
+    Math.max(surface.cellSize * 2, surface.agentRadius * 2, 1),
+  );
+  const isWalkable = (point: NavigationPoint) => isNavigationPointWalkable(
+    surface,
+    obstacles,
+    point,
+    obstacleIndex,
+  );
+  if (!isWalkable(startPoint) || !isWalkable(endPoint)) return [];
 
   const start = toGrid(surface, startPoint);
   const end = toGrid(surface, endPoint);
@@ -151,12 +232,11 @@ export function findNavigationPath(
     for (const direction of directions) {
       const neighbor = { x: current.x + direction.x, z: current.z + direction.z };
       const neighborPoint = fromGrid(surface, neighbor);
-      if (!isNavigationPointWalkable(surface, obstacles, neighborPoint)) continue;
+      if (!isWalkable(neighborPoint)) continue;
       if (direction.x !== 0 && direction.z !== 0) {
         const sideX = fromGrid(surface, { x: current.x + direction.x, z: current.z });
         const sideZ = fromGrid(surface, { x: current.x, z: current.z + direction.z });
-        if (!isNavigationPointWalkable(surface, obstacles, sideX)
-          || !isNavigationPointWalkable(surface, obstacles, sideZ)) continue;
+        if (!isWalkable(sideX) || !isWalkable(sideZ)) continue;
       }
       const neighborKey = gridKey(neighbor);
       const tentativeScore = (gScore.get(currentKey) ?? Infinity) + direction.cost;

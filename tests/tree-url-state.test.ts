@@ -10,6 +10,7 @@ describe("tree URL state", () => {
       selectedReferenceId: null,
       projectExpanded: true,
       modelsExpanded: true,
+      scenesExpanded: true,
       expandedModelIds: ["model-1"],
       expandedGroupIds: ["group-1", "group-2"],
     });
@@ -22,6 +23,7 @@ describe("tree URL state", () => {
       selectedReferenceId: null,
       projectExpanded: true,
       modelsExpanded: true,
+      scenesExpanded: true,
       expandedModelIds: ["model-1"],
       expandedGroupIds: ["group-1", "group-2"],
     });
@@ -35,6 +37,7 @@ describe("tree URL state", () => {
       selectedReferenceId: null,
       projectExpanded: false,
       modelsExpanded: false,
+      scenesExpanded: false,
       expandedModelIds: [],
       expandedGroupIds: [],
     });
@@ -45,6 +48,7 @@ describe("tree URL state", () => {
       selectedReferenceId: null,
       projectExpanded: false,
       modelsExpanded: false,
+      scenesExpanded: false,
       expandedModelIds: [],
       expandedGroupIds: [],
     });
@@ -58,6 +62,7 @@ describe("tree URL state", () => {
       selectedReferenceId: "desk-reference",
       projectExpanded: true,
       modelsExpanded: true,
+      scenesExpanded: true,
       expandedModelIds: ["workspace-1"],
       expandedGroupIds: [],
     });

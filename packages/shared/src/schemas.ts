@@ -105,6 +105,17 @@ const featureBaseProperties = {
     properties: {
       material: { type: "string", enum: ["default", "wood", "metal", "plastic", "glass", "fabric", "rubber"] },
       color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+      voxelSkin: {
+        type: "object",
+        additionalProperties: false,
+        required: ["model", "part", "url"],
+        properties: {
+          model: { type: "string", enum: ["classic", "slim"] },
+          part: { type: "string", enum: ["head", "torso", "leftArm", "rightArm", "leftLeg", "rightLeg"] },
+            segment: { type: "string", enum: ["full", "upper", "lower", "foot"] },
+          url: { type: "string", minLength: 1, maxLength: 400000 },
+        },
+      },
     },
   },
   parameterExpressions: {
@@ -381,7 +392,11 @@ export const modelReferenceInstanceSchema = {
         required: ["id", "kind"],
         properties: {
           id: { type: "string", minLength: 1, maxLength: 120 },
-          kind: { type: "string", enum: ["power", "seat", "door", "articulation"] },
+          kind: { type: "string", enum: ["power", "seat", "door", "articulation", "container", "device"] },
+          label: { type: "string", minLength: 1, maxLength: 120 },
+          activateLabel: { type: "string", minLength: 1, maxLength: 120 },
+          deactivateLabel: { type: "string", minLength: 1, maxLength: 120 },
+          anchorPosition: vector3Schema,
           range: { type: "number", exclusiveMinimum: 0 },
           targetFeatureIds: {
             type: "array",
@@ -393,6 +408,68 @@ export const modelReferenceInstanceSchema = {
           jointId: { type: "string", minLength: 1, maxLength: 120 },
           closedValue: { type: "number", minimum: -360, maximum: 360 },
           openValue: { type: "number", minimum: -360, maximum: 360 },
+          containerCapacity: { type: "integer", minimum: 1, maximum: 128 },
+          containerCanConfigure: { type: "boolean" },
+          containerCurrency: { type: "string", minLength: 3, maxLength: 12 },
+          containerProducts: {
+            type: "array",
+            maxItems: 32,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["id", "name", "unitPrice"],
+              properties: {
+                id: { type: "string", minLength: 1, maxLength: 120 },
+                name: { type: "string", minLength: 1, maxLength: 120 },
+                unitPrice: { type: "number", minimum: 0, maximum: 1000000000 },
+              },
+            },
+          },
+          containerItems: {
+            type: "array",
+            maxItems: 128,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["id", "name"],
+              properties: {
+                id: { type: "string", minLength: 1, maxLength: 120 },
+                name: { type: "string", minLength: 1, maxLength: 120 },
+                productId: { type: "string", minLength: 1, maxLength: 120 },
+              },
+            },
+          },
+          operationGroups: {
+            type: "array",
+            minItems: 1,
+            maxItems: 8,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["id", "label", "options"],
+              properties: {
+                id: { type: "string", minLength: 1, maxLength: 120 },
+                label: { type: "string", minLength: 1, maxLength: 120 },
+                options: {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: 16,
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["id", "label"],
+                    properties: {
+                      id: { type: "string", minLength: 1, maxLength: 120 },
+                      label: { type: "string", minLength: 1, maxLength: 120 },
+                      description: { type: "string", minLength: 1, maxLength: 240 },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          operationExecuteLabel: { type: "string", minLength: 1, maxLength: 120 },
+          operationCompleteLabel: { type: "string", minLength: 1, maxLength: 240 },
         },
       },
     },
@@ -409,6 +486,19 @@ export const featureGraphSchema = {
       type: "array",
       items: modelFeatureSchema,
       maxItems: 256,
+    },
+    generator: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "version"],
+      properties: {
+        id: { type: "string", minLength: 1, maxLength: 160 },
+        version: { const: 1 },
+        options: {
+          type: "object",
+          additionalProperties: true,
+        },
+      },
     },
     groups: {
       type: "array",
@@ -441,15 +531,31 @@ export const featureGraphSchema = {
       type: "array",
       maxItems: 128,
       items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "label", "value"],
-        properties: {
-          id: { type: "string", pattern: "^--[A-Za-z][A-Za-z0-9-]*$" },
-          label: { type: "string", minLength: 1, maxLength: 120 },
-          value: { type: "number" },
-          unit: { type: "string", enum: ["mm", "cm", "in"] },
-        },
+        oneOf: [
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "label", "value"],
+            properties: {
+              id: { type: "string", pattern: "^--[A-Za-z][A-Za-z0-9-]*$" },
+              label: { type: "string", minLength: 1, maxLength: 120 },
+              type: { const: "number" },
+              value: { type: "number" },
+              unit: { type: "string", enum: ["mm", "cm", "in"] },
+            },
+          },
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "label", "type", "value"],
+            properties: {
+              id: { type: "string", pattern: "^--[A-Za-z][A-Za-z0-9-]*$" },
+              label: { type: "string", minLength: 1, maxLength: 120 },
+              type: { const: "color" },
+              value: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+            },
+          },
+        ],
       },
     },
   },
@@ -460,6 +566,7 @@ export const modelSchema = {
   additionalProperties: false,
   required: [
     "id",
+    "kind",
     "name",
     "description",
     "unit",
@@ -470,6 +577,7 @@ export const modelSchema = {
   ],
   properties: {
     id: { type: "string" },
+    kind: { type: "string", enum: ["asset", "scene"] },
     name: { type: "string" },
     description: { type: "string" },
     unit: { type: "string", enum: ["mm", "cm", "in"] },
@@ -494,6 +602,7 @@ export const createModelSchema = {
   additionalProperties: false,
   required: ["name"],
   properties: {
+    kind: { type: "string", enum: ["asset", "scene"] },
     name: { type: "string", minLength: 1, maxLength: 120 },
     description: { type: "string", maxLength: 2000 },
     unit: { type: "string", enum: ["mm", "cm", "in"] },
@@ -508,6 +617,7 @@ export const updateModelSchema = {
   minProperties: 2,
   properties: {
     expectedRevision: { type: "integer", minimum: 1 },
+    kind: { type: "string", enum: ["asset", "scene"] },
     name: { type: "string", minLength: 1, maxLength: 120 },
     description: { type: "string", maxLength: 2000 },
     unit: { type: "string", enum: ["mm", "cm", "in"] },
