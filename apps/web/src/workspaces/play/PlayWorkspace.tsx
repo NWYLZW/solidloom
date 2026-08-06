@@ -1,11 +1,15 @@
 import { ArrowLeft, Play } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Viewport3D, type NavigationCameraMode } from "../../Viewport3D";
+import {
+  Viewport3D,
+  type InteractionPresentation,
+  type NavigationCameraMode,
+} from "../../Viewport3D";
 import "../../styles/Viewport3D.css";
 import { copyByLocale, type EditorLocale } from "../editor/editorCopy";
 import { playCopyByLocale } from "./playCopy";
 import { usePlayScene } from "./usePlayScene";
-import { playInteractionUI } from "./playInteractionUI";
+import { createPlayInteractionUI } from "./playInteractionUI";
 import "./PlayWorkspace.css";
 
 interface PlayWorkspaceProps {
@@ -19,6 +23,17 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
   const { error, loading, runtimeModel, scene } = usePlayScene(sceneId);
   const [cameraMode, setCameraMode] = useState<NavigationCameraMode>("third-person");
   const theme = window.localStorage.getItem("solidloom.theme");
+  const interactionPresentation = useMemo<InteractionPresentation>(() => {
+    const requested = new URLSearchParams(window.location.search).get("interaction-ui");
+    return requested === "quick" || requested === "panel" || requested === "modal"
+      || requested === "sheet" || requested === "auto"
+      ? requested
+      : "modal";
+  }, []);
+  const interactionUI = useMemo(
+    () => createPlayInteractionUI(interactionPresentation),
+    [interactionPresentation],
+  );
 
   useEffect(() => {
     document.body.classList.add("play-workspace-active");
@@ -72,7 +87,7 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
           groups={runtimeModel.groups}
           jointAnimation={null}
           joints={scene.featureGraph.joints ?? []}
-          interactionUI={playInteractionUI}
+          interactionUI={interactionUI}
           label={playCopy.runtime}
           modelId={scene.id}
           modelName={scene.name}

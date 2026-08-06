@@ -6,6 +6,7 @@ import {
 import { useContainerInteractionController } from "./container/useContainerInteractionController";
 import { mergeInteractionUI } from "./config";
 import { useInteractionUI } from "./InteractionUIProvider";
+import { useResolvedInteractionPresentation } from "./useResolvedInteractionPresentation";
 import type {
   ContainerInteractionSlots,
   InteractionUIConfig,
@@ -43,7 +44,9 @@ function ContainerSurface({
     EmptySlot: config.slots?.container?.EmptySlot ?? DefaultContainerEmptySlot,
     Item: config.slots?.container?.Item ?? DefaultContainerItem,
   };
-  const presentation = config.presentations?.container ?? "anchored";
+  const presentation = useResolvedInteractionPresentation(
+    config.presentations?.container ?? "panel",
+  );
   const theme = config.theme ?? defaultConfig.theme;
 
   return (

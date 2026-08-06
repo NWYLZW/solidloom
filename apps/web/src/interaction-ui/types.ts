@@ -34,7 +34,15 @@ export interface NavigationInteractionLabels {
   stand: string;
 }
 
-export type InteractionPresentation = "anchored" | "modal" | "sheet";
+export type InteractionPresentation =
+  | "quick"
+  | "panel"
+  | "modal"
+  | "sheet"
+  | "auto"
+  | "anchored";
+
+export type ResolvedInteractionPresentation = "quick" | "panel" | "modal" | "sheet";
 
 export type InteractionUITokens = CSSProperties & Record<`--interaction-${string}`, string | number>;
 
@@ -64,7 +72,7 @@ export interface ContainerInteractionSlots {
 
 export interface ContainerInteractionRendererProps {
   controller: ContainerInteractionController;
-  presentation: InteractionPresentation;
+  presentation: ResolvedInteractionPresentation;
   slots: ContainerInteractionSlots;
 }
 

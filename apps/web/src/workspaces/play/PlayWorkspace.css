@@ -11,10 +11,14 @@ body.play-workspace-active {
   background: var(--color-viewport);
 }
 
-.play-workspace:has(.interaction-ui-root) .play-workspace-header,
-.play-workspace:has(.interaction-ui-root) .navigation-mode-banner,
-.play-workspace:has(.interaction-ui-root) .navigation-interaction-prompts,
-.play-workspace:has(.interaction-ui-root) .navigation-aim-target {
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .play-workspace-header,
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .navigation-mode-banner,
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .navigation-interaction-prompts,
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .navigation-aim-target,
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .play-workspace-header,
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .navigation-mode-banner,
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .navigation-interaction-prompts,
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .navigation-aim-target {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;

@@ -5,7 +5,7 @@
 - `controller`：无头状态与经过运行时校验的动作。
 - `renderers`：完整替换一种交互的 React 界面。
 - `slots`：只替换物品、空槽等局部内容。
-- `presentations` 与 `theme`：选择锚定面板、居中弹窗、移动端抽屉，并覆盖设计 Token。
+- `presentations` 与 `theme`：选择快速操作条、侧面板、居中弹窗或移动端抽屉，并覆盖设计 Token。
 
 配置按照以下优先级逐层覆盖：
 
@@ -35,6 +35,17 @@ export const sceneInteractionUI = createInteractionUI({
 
 将配置传给 `Viewport3D` 的 `interactionUI` 属性即可。上层还可以使用 `InteractionUIProvider`，为整个工作空间或场景提供默认配置。
 
+呈现模式可以由每个游戏或场景自行选择：
+
+- `quick`：图标优先的紧凑操作条，适合高频动作。
+- `panel`：不阻断场景的侧面板，适合浏览与连续操作。
+- `modal`：带背景遮罩的居中界面，适合专注管理。
+- `sheet`：窄屏底部抽屉。
+- `auto`：桌面端使用 `panel`，窄屏使用 `sheet`。
+- `anchored`：兼容旧配置，等同于 `panel`。
+
+游戏运行页可通过 `?interaction-ui=quick|panel|modal|sheet|auto` 进行界面验收；正式游戏应通过 `createInteractionUI` 配置，而不是向玩家暴露这个预览参数。
+
 默认渲染器公开以下稳定 Token：
 
 ```css
@@ -45,8 +56,6 @@ export const sceneInteractionUI = createInteractionUI({
   --interaction-dialog-backdrop-filter: blur(8px);
   --interaction-dialog-radius: 18px;
   --interaction-dialog-shadow: 0 28px 80px rgb(0 0 0 / 32%);
-  --interaction-note-display: none;
-  --interaction-slot-columns: 4;
   --interaction-surface-width: 560px;
 }
 ```
@@ -84,4 +93,4 @@ const config = createInteractionUI({
 
 ## 响应式呈现
 
-默认 `modal` 在桌面端居中，在窄屏自动变为底部抽屉。同一套 controller 和 slots 不需要为手机端复制业务实现。需要完全不同的移动端结构时，领域包可以注册自己的 renderer，并在 renderer 内根据容器宽度决定布局。
+`auto` 在桌面端解析为侧面板，在窄屏解析为底部抽屉。同一套 controller 和 slots 不需要为手机端复制业务实现。需要完全不同的移动端结构时，领域包可以注册自己的 renderer，并在 renderer 内根据容器宽度决定布局。

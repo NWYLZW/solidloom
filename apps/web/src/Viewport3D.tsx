@@ -23,6 +23,7 @@ export type {
   ContainerInteractionSlots,
   ContainerItemSlotProps,
   InteractionPresentation,
+  ResolvedInteractionPresentation,
   InteractionRendererRegistry,
   InteractionSlotRegistry,
   InteractionUIConfig,

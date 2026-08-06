@@ -1,14 +1,22 @@
-import { createInteractionUI } from "../../interaction-ui";
+import {
+  createInteractionUI,
+  type InteractionPresentation,
+} from "../../interaction-ui";
 
-export const playInteractionUI = createInteractionUI({
-  presentations: {
-    container: "modal",
-  },
-  theme: {
-    id: "play-workspace",
-    tokens: {
-      "--interaction-note-display": "none",
-      "--interaction-surface-width": "500px",
+export function createPlayInteractionUI(
+  presentation: InteractionPresentation = "modal",
+) {
+  return createInteractionUI({
+    presentations: {
+      container: presentation,
     },
-  },
-});
+    theme: {
+      id: "play-workspace",
+      tokens: {
+        "--interaction-surface-width": "320px",
+      },
+    },
+  });
+}
+
+export const playInteractionUI = createPlayInteractionUI();

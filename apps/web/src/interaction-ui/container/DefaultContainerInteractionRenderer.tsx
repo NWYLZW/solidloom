@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpFromLine, Info, PackageOpen, X } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Box, X } from "lucide-react";
 import { useId } from "react";
 import type { ContainerInteractionRendererProps } from "../types";
 import "./DefaultContainerInteractionRenderer.css";
@@ -18,14 +18,17 @@ export function DefaultContainerInteractionRenderer({
       <div className="interaction-container-backdrop" aria-hidden="true" />
       <section
         aria-labelledby={titleId}
-        aria-modal={presentation === "anchored" ? undefined : true}
+        aria-modal={presentation === "modal" || presentation === "sheet" ? true : undefined}
         className="interaction-container-panel"
         role="dialog"
       >
         <header className="interaction-container-header">
+          <span className="interaction-container-kind-icon" aria-hidden="true">
+            <Box size={17} />
+          </span>
           <div className="interaction-container-heading-copy">
             <strong id={titleId}>{state.title}</strong>
-            <span>{labels.containerCapacity} {state.items.length} / {state.capacity}</span>
+            <span>{state.items.length} / {state.capacity}</span>
           </div>
           <button
             aria-label={labels.containerClose}
@@ -39,10 +42,6 @@ export function DefaultContainerInteractionRenderer({
         </header>
 
         <div className="interaction-container-body">
-          <div className="interaction-container-section-heading">
-            <span aria-hidden="true"><PackageOpen size={16} /></span>
-            <strong>{labels.containerContents}</strong>
-          </div>
           <div
             aria-label={empty ? labels.containerEmpty : labels.containerContents}
             className="interaction-container-items"
@@ -57,14 +56,12 @@ export function DefaultContainerInteractionRenderer({
         </div>
 
         <footer className="interaction-container-footer">
-          <div className="interaction-container-note">
-            <Info aria-hidden="true" size={13} />
-            <small>{labels.containerSessionOnly}</small>
-          </div>
           <div className="interaction-container-actions">
             <button
+              aria-label={labels.containerStore}
               className="interaction-container-store"
               disabled={full}
+              title={labels.containerStore}
               type="button"
               onClick={store}
             >
@@ -72,8 +69,10 @@ export function DefaultContainerInteractionRenderer({
               <span>{labels.containerStore}</span>
             </button>
             <button
+              aria-label={labels.containerTake}
               className="interaction-container-take"
               disabled={empty}
+              title={labels.containerTake}
               type="button"
               onClick={take}
             >
