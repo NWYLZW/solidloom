@@ -1,3 +1,7 @@
+.interaction-container-backdrop {
+  display: none;
+}
+
 .interaction-container-panel {
   position: absolute;
   z-index: 8;
