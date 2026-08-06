@@ -5,6 +5,8 @@ export {
   createLoungeKit,
   defaultLoungeParameters,
   getLoungeLayoutTransforms,
+  getLoungeSofaSeatX,
+  loungeDimensions,
   loungeFeatureIds,
   loungeGroupIds,
   normalizeLoungeParameters,
