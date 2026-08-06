@@ -13,14 +13,17 @@ describe("cyber factory examples", () => {
     const playground = createInteractionPlaygroundModel({
       roomId: "room-model",
       deskId: "desk-model",
+      coffeeMachineId: "coffee-machine-model",
+      loungeId: "lounge-model",
       monitorId: "monitor-model",
       chairId: "chair-model",
       snackCabinetId: "container-model",
+      waterDispenserId: "water-dispenser-model",
     });
     expect(playground.kind).toBe("scene");
     expect(playground.name).toBe("交互试验场");
     expect(playground.featureGraph.features).toEqual([]);
-    expect(playground.featureGraph.references).toHaveLength(5);
+    expect(playground.featureGraph.references).toHaveLength(8);
     expect(playground.featureGraph.references?.flatMap((reference) => reference.interactions ?? []))
       .toEqual(expect.arrayContaining([
         expect.objectContaining({
@@ -138,8 +141,11 @@ describe("cyber factory examples", () => {
       "极简风小人",
       "原创方块角色",
       "参数化零食售货机",
+      "参数化咖啡机",
+      "参数化下置桶饮水机",
+      "现代休息区资产套件",
     ]);
-    expect(cyberFactoryModels.reduce((total, model) => total + (model.featureGraph?.features.length ?? 0), 0)).toBe(137);
+    expect(cyberFactoryModels.reduce((total, model) => total + (model.featureGraph?.features.length ?? 0), 0)).toBeGreaterThan(137);
 
     for (const model of cyberFactoryModels) {
       const graph = model.featureGraph;

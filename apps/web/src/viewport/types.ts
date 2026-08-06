@@ -91,6 +91,7 @@ export interface Viewport3DProps {
   navigationAvatarSkin: NavigationAvatarSkin | null;
   navigationCameraLabels: Record<NavigationCameraMode, string>;
   navigationCameraMode: NavigationCameraMode;
+  navigationCanConfigureInteractions: boolean;
   navigationMode: boolean;
   navigationModeLabel: string;
   onNavigationCameraModeChange: (mode: NavigationCameraMode) => void;

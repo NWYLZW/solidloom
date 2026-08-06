@@ -10,9 +10,9 @@ import {
 } from "./index.js";
 
 describe("parameterized coffee machine asset", () => {
-  it("satisfies the shared asset contract while remaining planned", () => {
+  it("satisfies the shared asset contract after system registration", () => {
     expect(validateModelAssetDefinition(coffeeMachineDefinition)).toEqual({ valid: true, issues: [] });
-    expect(coffeeMachineModule.status).toBe("planned");
+    expect(coffeeMachineModule.status).toBe("available");
     expect(coffeeMachineModule.id).toBe("cyber-factory-coffee-machine");
   });
 

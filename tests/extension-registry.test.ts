@@ -39,6 +39,9 @@ describe("extension registries", () => {
       "极简风小人",
       "原创方块角色",
       "参数化零食售货机",
+      "参数化咖啡机",
+      "参数化下置桶饮水机",
+      "现代休息区资产套件",
     ]);
     expect(builtInDomainRegistry.models.ids()).toEqual([
       "cyber-factory-desk",
@@ -50,6 +53,9 @@ describe("extension registries", () => {
       "cyber-factory-figure",
       "solidloom-block-avatar",
       "cyber-factory-snack-cabinet",
+      "cyber-factory-coffee-machine",
+      "cyber-factory-water-dispenser",
+      "cyber-factory-lounge-kit",
     ]);
   });
 

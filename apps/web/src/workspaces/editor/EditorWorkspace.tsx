@@ -1993,6 +1993,7 @@ export function EditorWorkspace() {
               "third-person": copy.navigationThirdPerson,
             }}
             navigationCameraMode={navigationCameraMode}
+            navigationCanConfigureInteractions
             navigationDynamicBodies={navigationDynamicBodies}
             navigationInteractions={navigationInteractions}
             navigationInteractionLabels={navigationInteractionLabels}

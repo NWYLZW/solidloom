@@ -17,4 +17,4 @@ export {
 } from "./model.js";
 export { loungeDefinition, loungeManifest };
 
-export const loungeModule = defineAssetModelModule("planned", loungeDefinition);
+export const loungeModule = defineAssetModelModule("available", loungeDefinition);

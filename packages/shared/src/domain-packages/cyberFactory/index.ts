@@ -1,13 +1,16 @@
 import {
   createBlockAvatar,
   createChair,
+  createCoffeeMachine,
   createDesk,
   createFigure,
   createLaptop,
+  createLoungeKit,
   createMonitor,
   createRoom,
   createSnackCabinet,
   createTower,
+  createWaterDispenserModel,
 } from "../../models/cyberFactory/index.js";
 import {
   defineFactoryModelModule,
@@ -25,6 +28,9 @@ export const cyberFactoryModelModules = [
   defineFactoryModelModule({ id: "cyber-factory-figure", status: "available", createModel: createFigure }),
   defineFactoryModelModule({ id: "solidloom-block-avatar", status: "available", createModel: createBlockAvatar }),
   defineFactoryModelModule({ id: "cyber-factory-snack-cabinet", status: "available", createModel: createSnackCabinet }),
+  defineFactoryModelModule({ id: "cyber-factory-coffee-machine", status: "available", createModel: createCoffeeMachine }),
+  defineFactoryModelModule({ id: "cyber-factory-water-dispenser", status: "available", createModel: createWaterDispenserModel }),
+  defineFactoryModelModule({ id: "cyber-factory-lounge-kit", status: "available", createModel: createLoungeKit }),
 ];
 
 export const cyberFactoryDomainPackage = defineDomainPackage({

@@ -110,6 +110,7 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
             "third-person": copy.navigationThirdPerson,
           }}
           navigationCameraMode={cameraMode}
+          navigationCanConfigureInteractions={false}
           navigationDynamicBodies={runtimeModel.dynamicBodies}
           navigationInteractionLabels={interactionLabels}
           navigationInteractions={runtimeModel.interactions}

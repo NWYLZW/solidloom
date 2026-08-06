@@ -1,6 +1,6 @@
 # 现代休息区资产套件
 
-该目录独立交付赛博工厂休息区模型，不修改公共模型注册表、共享协议或示例入口。资产模块保持 `planned`，等待领域包注册流程统一接入。
+该目录提供赛博工厂休息区的领域预览和验证；几何工厂由 `@solidloom/shared` 统一维护，并已注册到 SolidLoom 模型目录和交互试验场。
 
 ## 交付内容
 
@@ -32,7 +32,7 @@ apps/web/node_modules/.bin/vite --host 127.0.0.1
 
 打开 `/domain-packages/cyber-factory/models/lounge/preview.html`。窄屏自动切换手机 LOD，也可以通过“预览层级”显式切换。
 
-> 资产模块仍为 `planned`。当前交付模型、manifest 和独立预览；公共 registry、运行时坐下动作与场景挂接不在本任务范围内。
+> 模型模块状态为 `available`。独立预览用于布局验收；SolidLoom 交互试验场已接入沙发、单椅坐下动作与落地灯开关。
 
 局部验证：
 

@@ -33,6 +33,8 @@ export interface NavigationInteractionRuntime extends NavigationInteractionDescr
   }>;
   proximityAnchor: THREE.Object3D | null;
   raycastMeshes: THREE.Mesh[];
+  seatObject: THREE.Object3D | null;
+  seatObstacle: NavigationObstacle | null;
   targetMeshes: THREE.Mesh[];
 }
 
@@ -169,6 +171,8 @@ export function createNavigationInteractionRuntimes({
       powerMaterials,
       proximityAnchor,
       raycastMeshes,
+      seatObject: null,
+      seatObstacle: null,
       targetMeshes,
     };
     if (runtime.kind === "door" && runtime.doorPivot) {

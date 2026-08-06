@@ -88,7 +88,12 @@ const monitor = sourceByName.get("电脑显示器");
 const laptop = sourceByName.get("笔记本");
 const chair = sourceByName.get("简易人体工学椅");
 const snackCabinet = sourceByName.get("参数化零食售货机");
-if (!room || !desk || !monitor || !laptop || !chair || !snackCabinet) throw new Error("创建场景前必须先存在房间、办公桌、电脑显示器、笔记本、简易人体工学椅和参数化零食售货机模型。");
+const coffeeMachine = sourceByName.get("参数化咖啡机");
+const waterDispenser = sourceByName.get("参数化下置桶饮水机");
+const lounge = sourceByName.get("现代休息区资产套件");
+if (!room || !desk || !monitor || !laptop || !chair || !snackCabinet || !coffeeMachine || !waterDispenser || !lounge) {
+  throw new Error("创建场景前必须先存在房间、办公桌、电脑显示器、笔记本、座椅、补给设备和休息区模型。");
+}
 
 const spaceSpecification = createCyberOfficeSpaceModel({
   roomId: room.id,
@@ -132,7 +137,10 @@ const playgroundSpecification = createInteractionPlaygroundModel({
   deskId: desk.id,
   monitorId: monitor.id,
   chairId: chair.id,
+  coffeeMachineId: coffeeMachine.id,
+  loungeId: lounge.id,
   snackCabinetId: snackCabinet.id,
+  waterDispenserId: waterDispenser.id,
 });
 const existingPlayground = sourceByName.get(playgroundSpecification.name);
 if (!existingPlayground) {

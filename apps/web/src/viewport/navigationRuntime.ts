@@ -86,6 +86,7 @@ interface CreateNavigationRuntimeOptions extends NavigationSystemContext {
   navigation: NavigationSurface | null;
   navigationAvatarSkin: NavigationAvatarSkin | null;
   navigationCameraMode: NavigationCameraMode;
+  navigationCanConfigureInteractions: boolean;
   navigationDynamicBodies: Viewport3DProps["navigationDynamicBodies"];
   navigationInteractionLabels: Viewport3DProps["navigationInteractionLabels"];
   navigationInteractions: NavigationInteractionDescriptor[];
@@ -120,6 +121,7 @@ export function createNavigationRuntime({
   navigation,
   navigationAvatarSkin,
   navigationCameraMode,
+  navigationCanConfigureInteractions,
   navigationDynamicBodies,
   navigationInteractionLabels,
   navigationInteractions,
@@ -240,6 +242,24 @@ export function createNavigationRuntime({
     }
     for (const interaction of navigationInteractionRuntimes) {
       interaction.dynamicBody = navigationDynamicBodyRuntimes.find((body) => body.id === interaction.groupId) ?? null;
+      if (interaction.kind !== "seat") continue;
+      if (interaction.dynamicBody) {
+        interaction.seatObject = interaction.dynamicBody.object;
+        interaction.seatObstacle = interaction.dynamicBody.obstacle;
+        continue;
+      }
+      const seatObject = featureGroupById.get(interaction.groupId);
+      if (!seatObject) continue;
+      obstacleBounds.makeEmpty();
+      for (const mesh of interaction.targetMeshes) obstacleBounds.expandByObject(mesh);
+      if (obstacleBounds.isEmpty()) obstacleBounds.setFromObject(seatObject);
+      interaction.seatObject = seatObject;
+      interaction.seatObstacle = {
+        minX: obstacleBounds.min.x,
+        maxX: obstacleBounds.max.x,
+        minZ: obstacleBounds.min.z,
+        maxZ: obstacleBounds.max.z,
+      };
     }
 
     const [minX, maxX, minZ, maxZ] = navigation.bounds;
@@ -468,7 +488,8 @@ export function createNavigationRuntime({
       return;
     }
     onContainerPanelChange({
-      canConfigure: interaction.containerCanConfigure ?? false,
+      canConfigure: navigationCanConfigureInteractions
+        && (interaction.containerCanConfigure ?? false),
       capacity: interaction.containerCapacity ?? 8,
       currency: interaction.containerCurrency ?? "CNY",
       interactionId: interaction.id,
@@ -483,8 +504,9 @@ export function createNavigationRuntime({
   const syncSeatedNavigationAgent = () => {
     if (!navigation || !navigationAgent || !seatedInteractionId) return;
     const seat = navigationInteractionRuntimes.find((interaction) => interaction.id === seatedInteractionId);
-    const body = seat?.dynamicBody;
-    if (!seat || !body) {
+    const seatObject = seat?.seatObject;
+    const seatObstacle = seat?.seatObstacle;
+    if (!seat || !seatObject || !seatObstacle) {
       seatedInteractionId = null;
       navigationAgent.scale.y = 1;
       navigationAgent.position.y = navigation.floorY + navigation.agentHeight / 2;
@@ -493,8 +515,8 @@ export function createNavigationRuntime({
     const seatPose = navigationSeatPoseResolver.resolve({
       agentHeight: navigation.agentHeight,
       fallbackFloorY: navigation.floorY,
-      object: body.object,
-      obstacle: body.obstacle,
+      object: seatObject,
+      obstacle: seatObstacle,
       targetMeshes: seat.targetMeshes,
     });
     navigationAgent.position.copy(seatPose.position);
@@ -502,8 +524,8 @@ export function createNavigationRuntime({
     navigationAgent.scale.y = 1;
   };
   const standFromNavigationSeat = (seat: NavigationInteractionRuntime) => {
-    if (!navigation || !navigationAgent || !seat.dynamicBody) return false;
-    const obstacle = seat.dynamicBody.obstacle;
+    if (!navigation || !navigationAgent || !seat.seatObstacle) return false;
+    const obstacle = seat.seatObstacle;
     const clearance = navigation.agentRadius + 80;
     const centerX = (obstacle.minX + obstacle.maxX) / 2;
     const centerZ = (obstacle.minZ + obstacle.maxZ) / 2;
@@ -535,12 +557,12 @@ export function createNavigationRuntime({
       if (seatedInteractionId === interaction.id) {
         if (!standFromNavigationSeat(interaction)) return false;
       } else {
-        if (!interaction.dynamicBody) return false;
+        if (!interaction.seatObject || !interaction.seatObstacle) return false;
         const previousSeat = navigationInteractionRuntimes.find((candidate) => candidate.id === seatedInteractionId);
         if (previousSeat) previousSeat.active = false;
         seatedInteractionId = interaction.id;
         interaction.active = true;
-        interaction.dynamicBody.velocity.set(0, 0, 0);
+        interaction.dynamicBody?.velocity.set(0, 0, 0);
         navigationVelocity.set(0, 0, 0);
         navigationPath = [];
         navigationPathIndex = 0;
@@ -580,7 +602,7 @@ export function createNavigationRuntime({
       if (itemIndex >= 0) interaction.containerItems.splice(itemIndex, 1);
       publishContainerPanel(interaction);
     } else if (operation.type === "configure") {
-      if (!interaction.containerCanConfigure) return;
+      if (!navigationCanConfigureInteractions || !interaction.containerCanConfigure) return;
       const title = operation.configuration.title.trim();
       if (title) interaction.label = title;
       const capacity = interaction.containerCapacity ?? 8;

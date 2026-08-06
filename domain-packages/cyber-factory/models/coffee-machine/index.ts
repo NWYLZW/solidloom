@@ -33,4 +33,4 @@ export {
 } from "./operations.js";
 export { coffeeMachineDefinition, coffeeMachineManifest };
 
-export const coffeeMachineModule = defineAssetModelModule("planned", coffeeMachineDefinition);
+export const coffeeMachineModule = defineAssetModelModule("available", coffeeMachineDefinition);

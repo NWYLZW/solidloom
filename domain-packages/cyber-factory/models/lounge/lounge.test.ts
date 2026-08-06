@@ -13,9 +13,9 @@ import {
 } from "./index.js";
 
 describe("parameterized lounge asset kit", () => {
-  it("satisfies the shared scene contract while remaining planned", () => {
+  it("satisfies the shared scene contract after system registration", () => {
     expect(validateModelAssetDefinition(loungeDefinition)).toEqual({ valid: true, issues: [] });
-    expect(loungeModule.status).toBe("planned");
+    expect(loungeModule.status).toBe("available");
     expect(loungeManifest.kind).toBe("scene");
     expect(loungeManifest.id).toBe("cyber-factory-lounge-kit");
   });
