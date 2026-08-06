@@ -34,11 +34,13 @@ export interface TransformCommit {
 export interface NavigationInteractionDescriptor {
   anchorPosition?: Vector3Tuple;
   containerCapacity?: number;
+  containerCanConfigure?: boolean;
   containerItems?: NavigationContainerItem[];
   entityLabel: string;
   groupId: string;
   id: string;
   kind: "power" | "seat" | "door" | "articulation" | "container";
+  label?: string;
   jointAxis?: Vector3Tuple;
   jointClosedValue?: number;
   jointInitialValue?: number;

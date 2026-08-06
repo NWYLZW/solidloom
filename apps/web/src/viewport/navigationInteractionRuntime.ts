@@ -37,6 +37,7 @@ interface CreateNavigationInteractionRuntimesOptions {
   featureGroupById: Map<string, THREE.Group>;
   featureMeshById: Map<string, THREE.Mesh>;
   interactions: NavigationInteractionDescriptor[];
+  savedContainerConfigurations: Map<string, { capacity: number; label: string | undefined }> | undefined;
   savedContainerItems: Map<string, Array<{ id: string; name: string }>> | undefined;
   savedStates: Map<string, boolean> | undefined;
 }
@@ -45,6 +46,7 @@ export function createNavigationInteractionRuntimes({
   featureGroupById,
   featureMeshById,
   interactions,
+  savedContainerConfigurations,
   savedContainerItems,
   savedStates,
 }: CreateNavigationInteractionRuntimesOptions): NavigationInteractionRuntime[] {
@@ -129,8 +131,13 @@ export function createNavigationInteractionRuntimes({
       ? Math.abs(jointInitialValue - jointOpenValue) <= Math.abs(jointInitialValue - jointClosedValue)
       : false);
     const articulationTargetValue = active ? jointOpenValue : jointClosedValue;
+    const savedContainerConfiguration = savedContainerConfigurations?.get(interaction.id);
     const runtime: NavigationInteractionRuntime = {
       ...interaction,
+      ...(savedContainerConfiguration ? {
+        containerCapacity: savedContainerConfiguration.capacity,
+        ...(savedContainerConfiguration.label ? { label: savedContainerConfiguration.label } : {}),
+      } : {}),
       active,
       anchor: articulationPivot ?? doorPivot ?? groupObject,
       articulationAxis,

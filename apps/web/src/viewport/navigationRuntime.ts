@@ -39,6 +39,7 @@ export interface SavedNavigationRuntimeState {
     states: Map<string, { position: THREE.Vector3; velocity: THREE.Vector3 }>;
   } | null;
   interactions: {
+    containerConfigurations: Map<string, { capacity: number; label: string | undefined }>;
     containerItems: Map<string, Array<{ id: string; name: string }>>;
     modelId: string;
     seatedInteractionId: string | null;
@@ -129,6 +130,7 @@ export function createNavigationRuntime({
     featureGroupById,
     featureMeshById,
     interactions: navigationInteractions,
+    savedContainerConfigurations: savedInteractionState?.containerConfigurations,
     savedContainerItems: savedInteractionState?.containerItems,
     savedStates: savedInteractionState?.states,
   });
@@ -435,6 +437,12 @@ export function createNavigationRuntime({
     }
   };
   const captureInteractionState = () => ({
+    containerConfigurations: new Map(navigationInteractionRuntimes
+      .filter((interaction) => interaction.kind === "container")
+      .map((interaction) => [interaction.id, {
+        capacity: interaction.containerCapacity ?? 8,
+        label: interaction.label,
+      }])),
     containerItems: new Map(navigationInteractionRuntimes
       .filter((interaction) => interaction.kind === "container")
       .map((interaction) => [interaction.id, interaction.containerItems.map((item) => ({ ...item }))])),
@@ -448,10 +456,11 @@ export function createNavigationRuntime({
       return;
     }
     onContainerPanelChange({
+      canConfigure: interaction.containerCanConfigure ?? false,
       capacity: interaction.containerCapacity ?? 8,
       interactionId: interaction.id,
       items: interaction.containerItems.map((item) => ({ ...item })),
-      title: interaction.entityLabel,
+      title: interaction.label ?? interaction.entityLabel,
     });
   };
   const syncSeatedNavigationAgent = () => {
@@ -543,11 +552,22 @@ export function createNavigationRuntime({
       candidate.id === interactionId && candidate.kind === "container"
     ));
     if (!interaction) return;
-    if (operation === "close") {
+    if (operation.type === "close") {
       interaction.active = false;
       publishContainerPanel(null);
-    } else if (operation === "take") {
+    } else if (operation.type === "take") {
       interaction.containerItems.pop();
+      publishContainerPanel(interaction);
+    } else if (operation.type === "configure") {
+      if (!interaction.containerCanConfigure) return;
+      const title = operation.configuration.title.trim();
+      const capacity = Math.max(
+        1,
+        interaction.containerItems.length,
+        Math.min(128, Math.round(operation.configuration.capacity)),
+      );
+      if (title) interaction.label = title;
+      interaction.containerCapacity = capacity;
       publishContainerPanel(interaction);
     } else {
       const capacity = interaction.containerCapacity ?? 8;

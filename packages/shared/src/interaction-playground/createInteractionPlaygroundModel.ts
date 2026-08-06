@@ -74,13 +74,14 @@ export function createInteractionPlaygroundModel(
     },
     {
       id: "interaction-playground-container",
-      name: "可存取容器",
+      name: "办公补给柜",
       modelId: ids.snackCabinetId,
       position: [2600, 0, 850],
       rotation: [0, -90, 0],
       interactions: [{
         id: "inventory",
         kind: "container",
+        label: "办公补给柜",
         range: 1050,
         targetFeatureIds: [
           "snack-cabinet-payment-display",
@@ -88,6 +89,7 @@ export function createInteractionPlaygroundModel(
           "snack-cabinet-status-light",
         ],
         containerCapacity: 6,
+        containerCanConfigure: true,
         containerItems: [
           { id: "sparkling-water", name: "气泡水" },
           { id: "energy-bar", name: "能量棒" },

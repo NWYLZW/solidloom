@@ -393,6 +393,7 @@ export const modelReferenceInstanceSchema = {
         properties: {
           id: { type: "string", minLength: 1, maxLength: 120 },
           kind: { type: "string", enum: ["power", "seat", "door", "articulation", "container"] },
+          label: { type: "string", minLength: 1, maxLength: 120 },
           anchorPosition: vector3Schema,
           range: { type: "number", exclusiveMinimum: 0 },
           targetFeatureIds: {
@@ -406,6 +407,7 @@ export const modelReferenceInstanceSchema = {
           closedValue: { type: "number", minimum: -360, maximum: 360 },
           openValue: { type: "number", minimum: -360, maximum: 360 },
           containerCapacity: { type: "integer", minimum: 1, maximum: 128 },
+          containerCanConfigure: { type: "boolean" },
           containerItems: {
             type: "array",
             maxItems: 128,

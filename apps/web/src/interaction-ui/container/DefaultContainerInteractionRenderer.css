@@ -124,7 +124,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.interaction-ui-root .interaction-container-close {
+.interaction-ui-root .interaction-container-close,
+.interaction-ui-root .interaction-container-configure {
   display: grid;
   width: 30px;
   height: 30px;
@@ -139,13 +140,84 @@
 }
 
 .interaction-ui-root .interaction-container-close:hover,
-.interaction-ui-root .interaction-container-close:focus-visible {
+.interaction-ui-root .interaction-container-close:focus-visible,
+.interaction-ui-root .interaction-container-configure:hover,
+.interaction-ui-root .interaction-container-configure:focus-visible,
+.interaction-ui-root .interaction-container-configure[aria-pressed="true"] {
   color: var(--color-text);
   background: var(--color-control-selected);
 }
 
+.interaction-ui-root .interaction-container-configure[aria-pressed="true"] {
+  color: var(--interaction-color-accent);
+}
+
 .interaction-ui-root .interaction-container-body {
   padding: var(--panel-edge-inset);
+}
+
+.interaction-ui-root .interaction-container-settings {
+  display: grid;
+  gap: var(--panel-edge-inset);
+  padding: var(--panel-edge-inset);
+}
+
+.interaction-ui-root .interaction-container-settings label {
+  display: grid;
+  gap: var(--control-padding-y);
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.interaction-ui-root .interaction-container-settings input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: var(--control-padding-y) var(--control-padding-x);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-text);
+  background: var(--color-control);
+  font: inherit;
+}
+
+.interaction-ui-root .interaction-container-settings input:focus {
+  border-color: var(--interaction-color-accent);
+  outline: 2px solid color-mix(in srgb, var(--interaction-color-accent) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.interaction-ui-root .interaction-container-access {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: var(--control-padding-y);
+  padding: 0 var(--control-padding-x);
+  border-radius: 7px;
+  color: var(--interaction-color-accent);
+  background: color-mix(in srgb, var(--interaction-color-accent) 9%, var(--color-control));
+  font-size: 11px;
+}
+
+.interaction-ui-root .interaction-container-apply {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--control-padding-y);
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--interaction-color-accent);
+  border-radius: 7px;
+  color: var(--interaction-color-accent-contrast);
+  background: var(--interaction-color-accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.interaction-ui-root .interaction-container-apply:hover,
+.interaction-ui-root .interaction-container-apply:focus-visible {
+  background: color-mix(in srgb, var(--interaction-color-accent) 88%, #000);
 }
 
 .interaction-ui-root .interaction-container-items {
@@ -284,6 +356,11 @@
   height: 28px;
 }
 
+.interaction-ui-root[data-interaction-presentation="quick"] .interaction-container-configure {
+  width: 28px;
+  height: 28px;
+}
+
 .interaction-ui-root[data-interaction-presentation="quick"] .interaction-container-body {
   max-width: 230px;
   padding: var(--control-padding-y);
@@ -337,6 +414,21 @@
 
 .interaction-ui-root[data-interaction-presentation="quick"] .interaction-container-actions .interaction-container-take:not(:disabled) {
   min-width: 34px;
+}
+
+.interaction-ui-root[data-interaction-presentation="quick"] .interaction-container-panel[data-container-view="settings"] {
+  width: min(var(--interaction-surface-width), calc(100% - (var(--panel-edge-inset) * 2)));
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+.interaction-ui-root[data-interaction-presentation="quick"] .interaction-container-panel[data-container-view="settings"] .interaction-container-header {
+  border-right: 0;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.interaction-ui-root[data-interaction-presentation="quick"] .interaction-container-panel[data-container-view="settings"] .interaction-container-heading-copy strong {
+  display: block;
 }
 
 @media (max-width: 640px) {

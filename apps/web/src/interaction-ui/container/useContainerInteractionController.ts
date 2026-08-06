@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import type {
   ContainerInteractionController,
+  NavigationContainerConfiguration,
   InteractionSurfaceProps,
   NavigationContainerOperation,
 } from "../types";
@@ -17,12 +18,16 @@ export function useContainerInteractionController({
   }, [onContainerOperation, state.interactionId]);
 
   return useMemo(() => ({
-    close: () => perform("close"),
+    close: () => perform({ type: "close" }),
+    configure: (configuration: NavigationContainerConfiguration) => perform({
+      configuration,
+      type: "configure",
+    }),
     empty: state.items.length === 0,
     full: state.items.length >= state.capacity,
     labels,
     state,
-    store: () => perform("store"),
-    take: () => perform("take"),
+    store: () => perform({ type: "store" }),
+    take: () => perform({ type: "take" }),
   }), [labels, perform, state]);
 }

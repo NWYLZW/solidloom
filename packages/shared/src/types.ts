@@ -221,6 +221,7 @@ export interface ModelReferencePhysics {
 export interface ModelReferenceInteraction {
   id: string;
   kind: "power" | "seat" | "door" | "articulation" | "container";
+  label?: string;
   anchorPosition?: Vector3Tuple;
   range?: number;
   targetFeatureIds?: string[];
@@ -229,6 +230,7 @@ export interface ModelReferenceInteraction {
   closedValue?: number;
   openValue?: number;
   containerCapacity?: number;
+  containerCanConfigure?: boolean;
   containerItems?: Array<{
     id: string;
     name: string;

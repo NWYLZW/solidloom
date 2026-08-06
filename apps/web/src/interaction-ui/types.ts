@@ -6,13 +6,23 @@ export interface NavigationContainerItem {
 }
 
 export interface NavigationContainerPanelState {
+  canConfigure: boolean;
   capacity: number;
   interactionId: string;
   items: NavigationContainerItem[];
   title: string;
 }
 
-export type NavigationContainerOperation = "store" | "take" | "close";
+export interface NavigationContainerConfiguration {
+  capacity: number;
+  title: string;
+}
+
+export type NavigationContainerOperation =
+  | { type: "store" }
+  | { type: "take" }
+  | { type: "close" }
+  | { configuration: NavigationContainerConfiguration; type: "configure" };
 
 export interface NavigationInteractionLabels {
   articulationClose: string;
@@ -20,6 +30,11 @@ export interface NavigationInteractionLabels {
   containerClose: string;
   containerContents: string;
   containerCapacity: string;
+  containerConfigure: string;
+  containerConfigureApply: string;
+  containerConfigureGranted: string;
+  containerItemsView: string;
+  containerName: string;
   containerEmpty: string;
   containerOpen: string;
   containerSessionOnly: string;
@@ -47,6 +62,7 @@ export type ResolvedInteractionPresentation = "quick" | "panel" | "modal" | "she
 export type InteractionUITokens = CSSProperties & Record<`--interaction-${string}`, string | number>;
 
 export interface ContainerInteractionController {
+  configure: (configuration: NavigationContainerConfiguration) => void;
   close: () => void;
   empty: boolean;
   full: boolean;
