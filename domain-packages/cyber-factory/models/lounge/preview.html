@@ -56,7 +56,7 @@
         position: absolute;
         top: 22px;
         right: 24px;
-        width: 320px;
+        width: 350px;
         border: 1px solid var(--line);
         border-radius: 16px;
         background: var(--surface);
@@ -88,8 +88,8 @@
         color: var(--ink);
         padding: var(--control-padding-y) var(--control-padding-x);
       }
-      .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 10px; }
-      .action-button { cursor: pointer; }
+      .button-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 10px; }
+      .action-button { cursor: pointer; font-size: 12px; white-space: nowrap; }
       .action-button:hover,
       .action-button:focus-visible { border-color: rgba(101, 224, 208, 0.76); outline: none; }
       .action-button[aria-pressed="true"] {
@@ -136,7 +136,7 @@
         select { min-height: 32px; padding: 5px 7px; font-size: 10px; }
         .button-row { gap: 7px; margin-top: 8px; }
         .action-button { min-height: 32px; padding: 5px 7px; font-size: 10px; }
-        .legend { right: 16px; bottom: 126px; gap: 10px; font-size: 8px; }
+        .legend { display: none; }
       }
     </style>
   </head>
@@ -147,11 +147,12 @@
       <section class="brand" aria-label="资产信息">
         <div class="eyebrow">赛博工厂 · 休息区资产</div>
         <h1>现代休息区套件</h1>
-        <div class="subtitle">沙发、单椅、茶几和软装均为独立组件，五个座位具有各自的坐下锚点。</div>
+        <div class="subtitle">按 1720 mm 漫游角色包络重做家具宽度、座深、净距与碰撞体，五个座位分别校准。</div>
         <div class="badges">
           <span class="badge" id="device-badge">桌面完整层级</span>
           <span class="badge">7 组独立组件</span>
           <span class="badge">5 个坐下锚点</span>
+          <span class="badge" data-active="true">1720 mm 角色比例尺</span>
           <span class="badge" id="layout-badge">围合布局</span>
           <span class="badge" id="lamp-badge" data-active="true">落地灯：开启</span>
           <span class="badge">状态：规划中</span>
@@ -160,27 +161,27 @@
 
       <section class="controls" aria-label="预览参数与交互">
         <h2>组合与尺寸</h2>
-        <p class="control-note">拖动视口旋转；切换布局检查动线、座位朝向和移动端层级。</p>
+        <p class="control-note">拖动视口旋转；用运行时角色比例尺检查座位宽度、座深、动线和移动端层级。</p>
         <div class="control-grid">
           <div class="control-row">
             <label for="sofa-width">沙发宽度</label>
-            <input id="sofa-width" type="range" min="1800" max="2800" step="20" value="2240" />
-            <output id="sofa-width-output">2240 mm</output>
+            <input id="sofa-width" type="range" min="2400" max="3400" step="20" value="2800" />
+            <output id="sofa-width-output">2800 mm</output>
           </div>
           <div class="control-row">
             <label for="seat-height">座面高度</label>
-            <input id="seat-height" type="range" min="380" max="500" step="10" value="430" />
-            <output id="seat-height-output">430 mm</output>
+            <input id="seat-height" type="range" min="380" max="470" step="10" value="420" />
+            <output id="seat-height-output">420 mm</output>
           </div>
           <div class="control-row">
             <label for="table-width">茶几宽度</label>
-            <input id="table-width" type="range" min="720" max="1400" step="20" value="1080" />
-            <output id="table-width-output">1080 mm</output>
+            <input id="table-width" type="range" min="900" max="1600" step="20" value="1200" />
+            <output id="table-width-output">1200 mm</output>
           </div>
           <div class="control-row">
             <label for="rug-width">地毯宽度</label>
-            <input id="rug-width" type="range" min="3200" max="4800" step="40" value="3800" />
-            <output id="rug-width-output">3800 mm</output>
+            <input id="rug-width" type="range" min="4600" max="6200" step="40" value="5200" />
+            <output id="rug-width-output">5200 mm</output>
           </div>
         </div>
         <div class="select-row">
@@ -209,6 +210,7 @@
         <div class="button-row">
           <button class="action-button" id="lamp-toggle" type="button" aria-pressed="true">关闭落地灯</button>
           <button class="action-button" id="anchor-toggle" type="button" aria-pressed="true">隐藏座位锚点</button>
+          <button class="action-button" id="scale-toggle" type="button" aria-pressed="true">隐藏角色比例</button>
         </div>
       </section>
 

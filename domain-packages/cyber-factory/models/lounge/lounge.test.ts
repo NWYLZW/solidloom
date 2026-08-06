@@ -4,6 +4,7 @@ import {
   createLoungeKit,
   defaultLoungeParameters,
   getLoungeLayoutTransforms,
+  loungeDimensions,
   loungeDefinition,
   loungeFeatureIds,
   loungeGroupIds,
@@ -47,10 +48,10 @@ describe("parameterized lounge asset kit", () => {
       layout: "compact",
     });
     expect(compact).toMatchObject({
-      sofaWidth: 1_800,
+      sofaWidth: 2_400,
       seatHeight: 380,
-      tableWidth: 1_400,
-      rugWidth: 4_800,
+      tableWidth: 1_600,
+      rugWidth: 6_200,
       layout: "compact",
     });
 
@@ -65,8 +66,57 @@ describe("parameterized lounge asset kit", () => {
     if (linearSofa?.type !== "box") return;
     expect(linearSofa.parameters.width).toBe(2_600);
     expect(linearChair?.rotation[1]).toBe(0);
-    expect(conversationChair?.rotation[1]).toBe(62);
+    expect(conversationChair?.rotation[1]).toBe(38);
     expect(linearSofa?.position).not.toEqual(conversationSofa?.position);
+  });
+
+  it("keeps furniture proportions tied to the runtime avatar envelope", () => {
+    const graph = createLoungeKit().featureGraph!;
+    const sofaBase = graph.features.find((feature) => feature.id === loungeFeatureIds.sofaBase);
+    const sofaBack = graph.features.find((feature) => feature.id === loungeFeatureIds.sofaBack);
+    const seat = graph.features.find((feature) => feature.id === "lounge-sofa-seat-cushion-2");
+    const tableTop = graph.features.find((feature) => feature.id === loungeFeatureIds.tableTop);
+    const rug = graph.features.find((feature) => feature.id === loungeFeatureIds.rug);
+
+    expect(loungeDimensions.referenceFigureHeight).toBe(1_720);
+    expect(loungeDimensions.referenceFigureWidth).toBe(860);
+    expect(defaultLoungeParameters.sofaWidth).toBeGreaterThanOrEqual(loungeDimensions.referenceFigureWidth * 3.2);
+    expect(loungeDimensions.armchair.width).toBeGreaterThan(loungeDimensions.referenceFigureWidth);
+    expect(loungeDimensions.sofa.overallHeight).toBeLessThan(loungeDimensions.referenceFigureHeight / 2);
+    expect(loungeDimensions.coffeeTable.height).toBeLessThan(defaultLoungeParameters.seatHeight);
+    expect(loungeDimensions.floorLamp.height).toBeLessThan(loungeDimensions.referenceFigureHeight);
+    expect(sofaBase?.type).toBe("box");
+    expect(sofaBack?.type).toBe("box");
+    expect(seat?.type).toBe("box");
+    expect(tableTop?.type).toBe("box");
+    expect(rug?.type).toBe("box");
+    if (sofaBase?.type !== "box" || sofaBack?.type !== "box" || seat?.type !== "box" || tableTop?.type !== "box" || rug?.type !== "box") return;
+
+    expect(sofaBase.position[1] + sofaBase.parameters.height / 2)
+      .toBe(seat.position[1] - seat.parameters.height / 2);
+    expect(sofaBack.position[1] + sofaBack.parameters.height / 2)
+      .toBe(loungeDimensions.sofa.overallHeight);
+    expect(tableTop.position[1] + tableTop.parameters.height / 2)
+      .toBe(loungeDimensions.coffeeTable.height);
+    expect(rug.parameters.height).toBe(loungeDimensions.rug.thickness);
+  });
+
+  it("keeps default furniture inside the rug envelope in every layout", () => {
+    const rugHalfWidth = defaultLoungeParameters.rugWidth / 2;
+    const allowedHalfWidth = rugHalfWidth - loungeDimensions.rug.edgeInset;
+    const chairHalfWidth = loungeDimensions.armchair.width / 2;
+    const chairHalfDepth = loungeDimensions.armchair.depth / 2;
+
+    for (const layout of ["conversation", "linear", "compact"] as const) {
+      const transforms = getLoungeLayoutTransforms({ layout });
+      const radians = transforms.rightChair.rotationY * Math.PI / 180;
+      const rotatedHalfWidth = Math.abs(Math.cos(radians)) * chairHalfWidth
+        + Math.abs(Math.sin(radians)) * chairHalfDepth;
+      expect(Math.abs(transforms.rightChair.position[0]) + rotatedHalfWidth)
+        .toBeLessThanOrEqual(allowedHalfWidth);
+      expect(Math.abs(transforms.leftChair.position[0]) + rotatedHalfWidth)
+        .toBeLessThanOrEqual(allowedHalfWidth);
+    }
   });
 
   it("keeps the rug, furniture feet, lamp and planter on the zero ground baseline", () => {
@@ -89,11 +139,17 @@ describe("parameterized lounge asset kit", () => {
 
   it("provides five independent seat anchors with matching orientation", () => {
     const seatAnchors = loungeManifest.anchors.filter((anchor) => anchor.kind === "seat");
+    const sofaSeatXs = seatAnchors
+      .filter((anchor) => anchor.id.startsWith("lounge-sofa-seat-"))
+      .map((anchor) => anchor.position[0])
+      .sort((left, right) => left - right);
     const transforms = getLoungeLayoutTransforms();
 
     expect(seatAnchors).toHaveLength(5);
     expect(new Set(seatAnchors.map((anchor) => anchor.position.join(","))).size).toBe(5);
     expect(seatAnchors.every((anchor) => anchor.position[1] === defaultLoungeParameters.seatHeight)).toBe(true);
+    expect(sofaSeatXs[1]! - sofaSeatXs[0]!).toBeGreaterThanOrEqual(loungeDimensions.referenceFigureWidth * 0.98);
+    expect(sofaSeatXs[2]! - sofaSeatXs[1]!).toBeGreaterThanOrEqual(loungeDimensions.referenceFigureWidth * 0.98);
     expect(seatAnchors.find((anchor) => anchor.id === "lounge-left-chair-seat")?.rotation[1])
       .toBe(transforms.leftChair.rotationY);
     expect(seatAnchors.find((anchor) => anchor.id === "lounge-right-chair-seat")?.rotation[1])
@@ -116,6 +172,14 @@ describe("parameterized lounge asset kit", () => {
         groupId: loungeGroupIds.floorLamp,
         tags: ["power", "light", "toggle"],
       });
+    expect(loungeManifest.colliders.find((collider) => collider.id === "lounge-sofa-collider")?.size)
+      .toEqual([
+        defaultLoungeParameters.sofaWidth,
+        loungeDimensions.sofa.overallHeight,
+        loungeDimensions.sofa.depth,
+      ]);
+    expect(loungeManifest.colliders.find((collider) => collider.id === "lounge-coffee-table-collider")?.size[1])
+      .toBe(loungeDimensions.coffeeTable.height);
   });
 
   it("changes the lamp appearance without changing its stable id", () => {
