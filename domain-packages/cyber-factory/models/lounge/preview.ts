@@ -7,6 +7,8 @@ import {
   createLoungeKit,
   defaultLoungeParameters,
   getLoungeLayoutTransforms,
+  getLoungeSofaSeatX,
+  loungeDimensions,
   loungeFeatureIds,
   normalizeLoungeParameters,
   transformLoungePoint,
@@ -27,24 +29,24 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true 
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.55;
+renderer.toneMappingExposure = 1.85;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.setClearColor(0x000000, 0);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x091013, 0.00016);
+scene.fog = new THREE.FogExp2(0x091013, 0.00009);
 const camera = new THREE.PerspectiveCamera(34, 1, 1, 30_000);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.07;
-controls.minDistance = 3_200;
-controls.maxDistance = 14_000;
+controls.minDistance = 4_200;
+controls.maxDistance = 18_000;
 controls.maxPolarAngle = Math.PI * 0.48;
 
-scene.add(new THREE.HemisphereLight(0xd7fff7, 0x314146, 4.5));
-const keyLight = new THREE.DirectionalLight(0xfff4dc, 8.1);
-keyLight.position.set(4_200, 5_800, 4_800);
+scene.add(new THREE.HemisphereLight(0xd7fff7, 0x314146, 5.4));
+const keyLight = new THREE.DirectionalLight(0xfff4dc, 9.2);
+keyLight.position.set(5_400, 6_400, 6_200);
 keyLight.castShadow = true;
 keyLight.shadow.mapSize.set(2048, 2048);
 keyLight.shadow.camera.left = -5_500;
@@ -71,6 +73,7 @@ let parameters: LoungeParameters = { ...defaultLoungeParameters };
 let modelRoot = new THREE.Group();
 let seatMarkerRoot = new THREE.Group();
 let showSeatAnchors = true;
+let showReferenceFigure = true;
 let lampPointLight: THREE.PointLight | null = null;
 let devicePreference: "auto" | ModelAssetDeviceClass = "auto";
 let cameraDevice: ModelAssetDeviceClass | null = null;
@@ -80,6 +83,43 @@ const inputs = Object.fromEntries(inputIds.map((id) => [id, requiredElement<HTML
 const layoutSelect = requiredElement<HTMLSelectElement>("layout");
 const paletteSelect = requiredElement<HTMLSelectElement>("palette");
 const deviceSelect = requiredElement<HTMLSelectElement>("device");
+
+function createReferenceFigure() {
+  const figure = new THREE.Group();
+  figure.name = "1720 毫米漫游角色比例尺";
+  const pixel = loungeDimensions.referenceFigureHeight / 32;
+  const skin = new THREE.MeshStandardMaterial({ color: 0xe7b25f, roughness: 0.72, metalness: 0.04 });
+  const clothing = new THREE.MeshStandardMaterial({ color: 0x376f79, roughness: 0.88, metalness: 0.02 });
+  const trousers = new THREE.MeshStandardMaterial({ color: 0x283b55, roughness: 0.9, metalness: 0.01 });
+  const addPart = (
+    size: Vector3Tuple,
+    position: Vector3Tuple,
+    material: THREE.Material,
+  ) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+    mesh.position.set(...position);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    figure.add(mesh);
+  };
+  addPart([8 * pixel, 8 * pixel, 8 * pixel], [0, 28 * pixel, 0], skin);
+  addPart([8 * pixel, 12 * pixel, 4 * pixel], [0, 18 * pixel, 0], clothing);
+  addPart([4 * pixel, 12 * pixel, 4 * pixel], [-6 * pixel, 18 * pixel, 0], clothing);
+  addPart([4 * pixel, 12 * pixel, 4 * pixel], [6 * pixel, 18 * pixel, 0], clothing);
+  addPart([4 * pixel, 12 * pixel, 4 * pixel], [-2 * pixel, 6 * pixel, 0], trousers);
+  addPart([4 * pixel, 12 * pixel, 4 * pixel], [2 * pixel, 6 * pixel, 0], trousers);
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(310, 12, 10, 48),
+    new THREE.MeshBasicMaterial({ color: 0xe7b25f, toneMapped: false }),
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 8;
+  figure.add(ring);
+  return figure;
+}
+
+const referenceFigureRoot = createReferenceFigure();
+scene.add(referenceFigureRoot);
 
 function resolvedDevice(): ModelAssetDeviceClass {
   if (devicePreference !== "auto") return devicePreference;
@@ -168,11 +208,11 @@ function rebuildSeatMarkers() {
   seatMarkerRoot = new THREE.Group();
   const transforms = getLoungeLayoutTransforms(parameters);
   const sofaSeats = [-1, 0, 1].map((column) => ({
-    position: transformLoungePoint([column * parameters.sofaWidth * 0.29, parameters.seatHeight, 100], transforms.sofa),
+    position: transformLoungePoint([getLoungeSofaSeatX(parameters.sofaWidth, column as -1 | 0 | 1), parameters.seatHeight, 55], transforms.sofa),
     rotationY: transforms.sofa.rotationY,
   }));
   const chairSeats = [transforms.leftChair, transforms.rightChair].map((transform) => ({
-    position: transformLoungePoint([0, parameters.seatHeight, 70], transform),
+    position: transformLoungePoint([0, parameters.seatHeight, 55], transform),
     rotationY: transform.rotationY,
   }));
   [...sofaSeats, ...chairSeats].forEach((seat, index) => {
@@ -212,6 +252,16 @@ function rebuildModel() {
     }
   });
 
+  referenceFigureRoot.position.set(
+    device === "mobile" ? -450 : -parameters.rugWidth / 2 + 500,
+    0,
+    device === "mobile"
+      ? 1_250
+      : parameters.rugWidth * loungeDimensions.rug.depthRatio / 2 - 400,
+  );
+  referenceFigureRoot.rotation.y = THREE.MathUtils.degToRad(-24);
+  referenceFigureRoot.visible = showReferenceFigure;
+
   if (cameraDevice !== device) {
     const preview = loungeManifest.previews.find((candidate) => candidate.device === device)!;
     camera.position.set(...preview.cameraPosition);
@@ -245,8 +295,15 @@ function updateParameters() {
     palette: paletteSelect.value as LoungePalette,
     lampOn: parameters.lampOn,
   });
+  const values: Record<typeof inputIds[number], number> = {
+    "sofa-width": parameters.sofaWidth,
+    "seat-height": parameters.seatHeight,
+    "table-width": parameters.tableWidth,
+    "rug-width": parameters.rugWidth,
+  };
   inputIds.forEach((id) => {
-    requiredElement(`${id}-output`).textContent = `${inputs[id].value} mm`;
+    inputs[id].value = String(values[id]);
+    requiredElement(`${id}-output`).textContent = `${values[id]} mm`;
   });
   rebuildModel();
 }
@@ -271,6 +328,13 @@ requiredElement<HTMLButtonElement>("anchor-toggle").addEventListener("click", (e
   const button = event.currentTarget as HTMLButtonElement;
   button.setAttribute("aria-pressed", String(showSeatAnchors));
   button.textContent = showSeatAnchors ? "隐藏座位锚点" : "显示座位锚点";
+});
+requiredElement<HTMLButtonElement>("scale-toggle").addEventListener("click", (event) => {
+  showReferenceFigure = !showReferenceFigure;
+  referenceFigureRoot.visible = showReferenceFigure;
+  const button = event.currentTarget as HTMLButtonElement;
+  button.setAttribute("aria-pressed", String(showReferenceFigure));
+  button.textContent = showReferenceFigure ? "隐藏角色比例" : "显示角色比例";
 });
 
 function resize() {
