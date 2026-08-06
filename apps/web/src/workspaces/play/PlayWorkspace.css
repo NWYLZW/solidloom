@@ -16,8 +16,8 @@ body.play-workspace-active {
   z-index: 20;
   inset: 0;
   display: block;
-  background: color-mix(in srgb, var(--color-viewport) 52%, transparent);
-  backdrop-filter: blur(2px);
+  background: color-mix(in srgb, var(--color-viewport) 42%, transparent);
+  backdrop-filter: blur(4px);
 }
 
 .play-workspace .interaction-container-panel {

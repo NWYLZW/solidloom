@@ -1,3 +1,4 @@
+import { ArrowDownToLine, ArrowUpFromLine, Box, Info, PackageOpen, X } from "lucide-react";
 import type {
   NavigationContainerOperation,
   NavigationContainerPanelState,
@@ -28,9 +29,14 @@ export function ContainerInteractionPanel({
         role="dialog"
       >
         <header className="interaction-container-header">
-          <div>
-            <strong>{state.title}</strong>
-            <span>{state.items.length} / {state.capacity}</span>
+          <div className="interaction-container-heading">
+            <span className="interaction-container-heading-icon" aria-hidden="true">
+              <PackageOpen size={18} />
+            </span>
+            <div className="interaction-container-heading-copy">
+              <strong>{state.title}</strong>
+              <span>{state.items.length} / {state.capacity}</span>
+            </div>
           </div>
           <button
             aria-label={labels.containerClose}
@@ -39,33 +45,43 @@ export function ContainerInteractionPanel({
             type="button"
             onClick={() => onOperation(state.interactionId, "close")}
           >
-            ×
+            <X aria-hidden="true" size={16} />
           </button>
         </header>
         <div className="interaction-container-items">
           {empty ? (
             <p>{labels.containerEmpty}</p>
           ) : state.items.map((item) => (
-            <span className="interaction-container-item" key={item.id}>{item.name}</span>
+            <span className="interaction-container-item" key={item.id}>
+              <span aria-hidden="true"><Box size={14} /></span>
+              <strong>{item.name}</strong>
+            </span>
           ))}
         </div>
         <div className="interaction-container-actions">
           <button
+            className="interaction-container-store"
             disabled={full}
             type="button"
             onClick={() => onOperation(state.interactionId, "store")}
           >
-            {labels.containerStore}
+            <ArrowDownToLine aria-hidden="true" size={15} />
+            <span>{labels.containerStore}</span>
           </button>
           <button
+            className="interaction-container-take"
             disabled={empty}
             type="button"
             onClick={() => onOperation(state.interactionId, "take")}
           >
-            {labels.containerTake}
+            <ArrowUpFromLine aria-hidden="true" size={15} />
+            <span>{labels.containerTake}</span>
           </button>
         </div>
-        <small>{labels.containerSessionOnly}</small>
+        <footer className="interaction-container-footer">
+          <Info aria-hidden="true" size={13} />
+          <small>{labels.containerSessionOnly}</small>
+        </footer>
       </section>
     </>
   );

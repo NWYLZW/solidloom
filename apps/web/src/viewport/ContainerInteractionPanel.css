@@ -9,18 +9,18 @@
   bottom: var(--panel-edge-inset);
   display: grid;
   width: min(300px, calc(100% - 28px));
-  gap: 10px;
+  gap: var(--control-padding-y);
   padding: var(--panel-edge-inset);
-  border: 1px solid color-mix(in srgb, #9cad74 72%, var(--color-border));
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, #9cad74 52%, var(--color-border));
+  border-radius: 12px;
   color: var(--color-text);
-  background: color-mix(in srgb, var(--color-panel) 95%, transparent);
-  box-shadow: 0 14px 34px rgba(18, 21, 17, 0.24);
-  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--color-popover) 97%, transparent);
+  box-shadow: 0 22px 60px rgba(18, 21, 17, 0.28);
+  backdrop-filter: blur(18px);
 }
 
 .interaction-container-header,
-.interaction-container-header > div,
+.interaction-container-heading,
 .interaction-container-actions {
   display: flex;
   align-items: center;
@@ -28,22 +28,43 @@
 
 .interaction-container-header {
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--control-padding-x);
+  padding-bottom: var(--control-padding-y);
+  border-bottom: 1px solid var(--color-border-soft);
 }
 
-.interaction-container-header > div {
+.interaction-container-heading {
   min-width: 0;
-  gap: 8px;
+  gap: var(--control-padding-x);
 }
 
-.interaction-container-header strong {
+.interaction-container-heading-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, #9cad74 48%, var(--color-border));
+  border-radius: 8px;
+  color: color-mix(in srgb, #718445 82%, var(--color-text));
+  background: color-mix(in srgb, #9cad74 16%, var(--color-control));
+}
+
+.interaction-container-heading-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.interaction-container-heading-copy strong {
   overflow: hidden;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.interaction-container-header span,
-.interaction-container-panel small {
+.interaction-container-heading-copy span,
+.interaction-container-footer small {
   color: var(--color-text-muted);
   font-size: 10px;
 }
@@ -52,47 +73,92 @@
   width: 28px;
   height: 28px;
   flex: 0 0 auto;
+  display: grid;
+  place-items: center;
   padding: 0;
   border: 1px solid var(--color-border);
   border-radius: 6px;
   color: var(--color-text);
   background: var(--color-control);
+  cursor: pointer;
+}
+
+.interaction-container-close:hover {
+  background: var(--color-control-selected);
 }
 
 .interaction-container-items {
-  display: flex;
-  min-height: 54px;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 6px;
+  display: grid;
+  min-height: 86px;
+  max-height: 190px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: var(--control-padding-y);
+  padding: var(--control-padding-y);
+  overflow: auto;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-input) 42%, transparent);
 }
 
 .interaction-container-items p {
+  grid-column: 1 / -1;
   margin: 0;
+  align-self: center;
   color: var(--color-text-muted);
   font-size: 11px;
+  text-align: center;
 }
 
 .interaction-container-item {
-  padding: 5px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
+  display: flex;
+  min-width: 0;
+  min-height: 38px;
+  align-items: center;
+  gap: var(--control-padding-y);
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 7px;
   background: var(--color-control);
   font-size: 10px;
 }
 
+.interaction-container-item > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 5px;
+  color: color-mix(in srgb, #718445 78%, var(--color-text));
+  background: color-mix(in srgb, #9cad74 14%, var(--color-control-selected));
+}
+
+.interaction-container-item strong {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .interaction-container-actions {
-  gap: 8px;
+  gap: var(--control-padding-y);
 }
 
 .interaction-container-actions button {
-  min-height: 32px;
+  display: flex;
+  min-height: 36px;
   flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: var(--control-padding-y);
   padding: 0 var(--control-padding-x);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: 7px;
   color: var(--color-text);
   background: var(--color-control);
+  cursor: pointer;
 }
 
 .interaction-container-actions button:hover:not(:disabled) {
@@ -101,4 +167,30 @@
 
 .interaction-container-actions button:disabled {
   opacity: 0.45;
+}
+
+.interaction-container-actions .interaction-container-take:not(:disabled) {
+  border-color: color-mix(in srgb, #9cad74 68%, var(--color-border));
+  background: color-mix(in srgb, #9cad74 20%, var(--color-control));
+}
+
+.interaction-container-footer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+}
+
+.interaction-container-footer small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .interaction-container-items {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
