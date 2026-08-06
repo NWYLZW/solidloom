@@ -16,8 +16,8 @@ body.play-workspace-active {
   z-index: 20;
   inset: 0;
   display: block;
-  background: color-mix(in srgb, var(--color-viewport) 42%, transparent);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 18, 15, 0.46);
+  backdrop-filter: blur(1px);
 }
 
 .play-workspace .interaction-container-panel {
@@ -26,10 +26,14 @@ body.play-workspace-active {
   right: auto;
   bottom: auto;
   left: 50%;
-  width: min(420px, calc(100% - (var(--panel-edge-inset) * 2)));
+  width: min(500px, calc(100% - (var(--panel-edge-inset) * 2)));
   max-height: calc(100% - (var(--panel-edge-inset) * 2));
   overflow: auto;
   transform: translate(-50%, -50%);
+}
+
+.play-workspace .interaction-container-note {
+  display: none;
 }
 
 .play-workspace:has(.interaction-container-panel) .play-workspace-header,
@@ -111,6 +115,15 @@ body.play-workspace-active {
 }
 
 @media (max-width: 640px) {
+  .play-workspace .interaction-container-panel {
+    top: auto;
+    right: var(--panel-edge-inset);
+    bottom: var(--panel-edge-inset);
+    left: var(--panel-edge-inset);
+    width: auto;
+    transform: none;
+  }
+
   .play-workspace-header > div {
     display: none;
   }

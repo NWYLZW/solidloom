@@ -99,6 +99,8 @@ export interface Viewport3DProps {
     articulationClose: string;
     articulationOpen: string;
     containerClose: string;
+    containerContents: string;
+    containerCapacity: string;
     containerEmpty: string;
     containerOpen: string;
     containerSessionOnly: string;

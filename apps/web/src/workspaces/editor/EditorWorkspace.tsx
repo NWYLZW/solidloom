@@ -288,6 +288,8 @@ export function EditorWorkspace() {
     articulationClose: copy.interactionArticulationClose,
     articulationOpen: copy.interactionArticulationOpen,
     containerClose: copy.interactionContainerClose,
+    containerContents: copy.interactionContainerContents,
+    containerCapacity: copy.interactionContainerCapacity,
     containerEmpty: copy.interactionContainerEmpty,
     containerOpen: copy.interactionContainerOpen,
     containerSessionOnly: copy.interactionContainerSessionOnly,
