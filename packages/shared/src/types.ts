@@ -231,9 +231,16 @@ export interface ModelReferenceInteraction {
   openValue?: number;
   containerCapacity?: number;
   containerCanConfigure?: boolean;
+  containerCurrency?: string;
+  containerProducts?: Array<{
+    id: string;
+    name: string;
+    unitPrice: number;
+  }>;
   containerItems?: Array<{
     id: string;
     name: string;
+    productId?: string;
   }>;
 }
 

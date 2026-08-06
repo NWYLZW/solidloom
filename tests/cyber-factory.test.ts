@@ -32,11 +32,16 @@ describe("cyber factory examples", () => {
         expect.objectContaining({
           kind: "container",
           label: "办公补给柜",
-          containerCapacity: 6,
+          containerCapacity: 64,
           containerCanConfigure: true,
+          containerCurrency: "CNY",
+          containerProducts: expect.arrayContaining([
+            expect.objectContaining({ name: "气泡水", unitPrice: 6 }),
+            expect.objectContaining({ name: "能量棒", unitPrice: 12 }),
+          ]),
           containerItems: expect.arrayContaining([
-            expect.objectContaining({ name: "气泡水" }),
-            expect.objectContaining({ name: "能量棒" }),
+            expect.objectContaining({ name: "气泡水", productId: "sparkling-water" }),
+            expect.objectContaining({ name: "能量棒", productId: "energy-bar" }),
           ]),
         }),
       ]));

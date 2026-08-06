@@ -35,7 +35,13 @@ export interface NavigationInteractionDescriptor {
   anchorPosition?: Vector3Tuple;
   containerCapacity?: number;
   containerCanConfigure?: boolean;
+  containerCurrency?: string;
   containerItems?: NavigationContainerItem[];
+  containerProducts?: Array<{
+    id: string;
+    name: string;
+    unitPrice: number;
+  }>;
   entityLabel: string;
   groupId: string;
   id: string;

@@ -24,10 +24,8 @@ export function useContainerInteractionController({
       type: "configure",
     }),
     empty: state.items.length === 0,
-    full: state.items.length >= state.capacity,
     labels,
     state,
-    store: () => perform({ type: "store" }),
-    take: () => perform({ type: "take" }),
+    take: (productId: string) => perform({ productId, type: "take" }),
   }), [labels, perform, state]);
 }

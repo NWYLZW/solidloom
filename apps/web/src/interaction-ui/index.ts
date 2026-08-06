@@ -17,6 +17,7 @@ export type {
   InteractionUITheme,
   InteractionUITokens,
   NavigationContainerItem,
+  NavigationContainerProduct,
   NavigationContainerConfiguration,
   NavigationContainerOperation,
   NavigationContainerPanelState,

@@ -3,24 +3,33 @@ import type { ComponentType, CSSProperties, ReactNode } from "react";
 export interface NavigationContainerItem {
   id: string;
   name: string;
+  productId?: string;
+}
+
+export interface NavigationContainerProduct {
+  id: string;
+  name: string;
+  stock: number;
+  unitPrice: number;
 }
 
 export interface NavigationContainerPanelState {
   canConfigure: boolean;
   capacity: number;
+  currency: string;
   interactionId: string;
   items: NavigationContainerItem[];
+  products: NavigationContainerProduct[];
   title: string;
 }
 
 export interface NavigationContainerConfiguration {
-  capacity: number;
+  products: NavigationContainerProduct[];
   title: string;
 }
 
 export type NavigationContainerOperation =
-  | { type: "store" }
-  | { type: "take" }
+  | { productId: string; type: "take" }
   | { type: "close" }
   | { configuration: NavigationContainerConfiguration; type: "configure" };
 
@@ -29,17 +38,23 @@ export interface NavigationInteractionLabels {
   articulationOpen: string;
   containerClose: string;
   containerContents: string;
-  containerCapacity: string;
+  containerAddProduct: string;
   containerConfigure: string;
   containerConfigureApply: string;
   containerConfigureGranted: string;
+  containerCurrency: string;
+  containerDeleteProduct: string;
   containerItemsView: string;
   containerName: string;
   containerEmpty: string;
   containerOpen: string;
+  containerPrice: string;
+  containerProduct: string;
+  containerProducts: string;
   containerSessionOnly: string;
-  containerStore: string;
-  containerTake: string;
+  containerStock: string;
+  containerTakeSelected: string;
+  containerUnavailable: string;
   doorClose: string;
   doorOpen: string;
   keyHint: string;
@@ -65,11 +80,9 @@ export interface ContainerInteractionController {
   configure: (configuration: NavigationContainerConfiguration) => void;
   close: () => void;
   empty: boolean;
-  full: boolean;
   labels: NavigationInteractionLabels;
   state: NavigationContainerPanelState;
-  store: () => void;
-  take: () => void;
+  take: (productId: string) => void;
 }
 
 export interface ContainerItemSlotProps {

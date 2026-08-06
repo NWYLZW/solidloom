@@ -15,6 +15,11 @@ import {
   type NavigationInteractionRuntime,
 } from "./navigationInteractionRuntime";
 import { createNavigationSeatPoseResolver } from "./navigationSeat";
+import {
+  createContainerProductState,
+  reconcileContainerInventory,
+  type ContainerProductDefinition,
+} from "./containerInventory";
 import type {
   NavigationCameraMode,
   NavigationContainerOperation,
@@ -39,8 +44,13 @@ export interface SavedNavigationRuntimeState {
     states: Map<string, { position: THREE.Vector3; velocity: THREE.Vector3 }>;
   } | null;
   interactions: {
-    containerConfigurations: Map<string, { capacity: number; label: string | undefined }>;
-    containerItems: Map<string, Array<{ id: string; name: string }>>;
+    containerConfigurations: Map<string, {
+      capacity: number;
+      currency: string | undefined;
+      label: string | undefined;
+      products: ContainerProductDefinition[];
+    }>;
+    containerItems: Map<string, Array<{ id: string; name: string; productId?: string }>>;
     modelId: string;
     seatedInteractionId: string | null;
     states: Map<string, boolean>;
@@ -441,7 +451,9 @@ export function createNavigationRuntime({
       .filter((interaction) => interaction.kind === "container")
       .map((interaction) => [interaction.id, {
         capacity: interaction.containerCapacity ?? 8,
+        currency: interaction.containerCurrency,
         label: interaction.label,
+        products: interaction.containerProducts.map((product) => ({ ...product })),
       }])),
     containerItems: new Map(navigationInteractionRuntimes
       .filter((interaction) => interaction.kind === "container")
@@ -458,8 +470,13 @@ export function createNavigationRuntime({
     onContainerPanelChange({
       canConfigure: interaction.containerCanConfigure ?? false,
       capacity: interaction.containerCapacity ?? 8,
+      currency: interaction.containerCurrency ?? "CNY",
       interactionId: interaction.id,
       items: interaction.containerItems.map((item) => ({ ...item })),
+      products: createContainerProductState(
+        interaction.containerProducts,
+        interaction.containerItems,
+      ),
       title: interaction.label ?? interaction.entityLabel,
     });
   };
@@ -556,28 +573,24 @@ export function createNavigationRuntime({
       interaction.active = false;
       publishContainerPanel(null);
     } else if (operation.type === "take") {
-      interaction.containerItems.pop();
+      const itemIndex = interaction.containerItems.findIndex((item) => (
+        item.productId === operation.productId
+        || (!item.productId && `legacy-${item.name}` === operation.productId)
+      ));
+      if (itemIndex >= 0) interaction.containerItems.splice(itemIndex, 1);
       publishContainerPanel(interaction);
     } else if (operation.type === "configure") {
       if (!interaction.containerCanConfigure) return;
       const title = operation.configuration.title.trim();
-      const capacity = Math.max(
-        1,
-        interaction.containerItems.length,
-        Math.min(128, Math.round(operation.configuration.capacity)),
-      );
       if (title) interaction.label = title;
-      interaction.containerCapacity = capacity;
-      publishContainerPanel(interaction);
-    } else {
       const capacity = interaction.containerCapacity ?? 8;
-      if (interaction.containerItems.length < capacity) {
-        const sequence = interaction.containerItems.length + 1;
-        interaction.containerItems.push({
-          id: `local-session-item-${sequence}`,
-          name: `外部测试实体 ${sequence}`,
-        });
-      }
+      const reconciled = reconcileContainerInventory({
+        capacity,
+        currentItems: interaction.containerItems,
+        requestedProducts: operation.configuration.products,
+      });
+      interaction.containerItems = reconciled.items;
+      interaction.containerProducts = reconciled.products;
       publishContainerPanel(interaction);
     }
     lastNavigationInteractionPromptKey = "";

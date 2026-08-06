@@ -1,6 +1,8 @@
 import type { ModelFeature } from "@solidloom/shared";
 import * as THREE from "three";
 import type { NavigationObstacle } from "../navigation";
+import type { NavigationContainerItem } from "../interaction-ui/types";
+import type { ContainerProductDefinition } from "./containerInventory";
 import type { NavigationInteractionDescriptor } from "./types";
 
 export interface NavigationDynamicBodyRuntime {
@@ -20,7 +22,8 @@ export interface NavigationInteractionRuntime extends NavigationInteractionDescr
   articulationCurrentValue: number;
   articulationPivot: THREE.Group | null;
   articulationTargetValue: number;
-  containerItems: Array<{ id: string; name: string }>;
+  containerItems: NavigationContainerItem[];
+  containerProducts: ContainerProductDefinition[];
   doorPivot: THREE.Group | null;
   dynamicBody: NavigationDynamicBodyRuntime | null;
   powerMaterials: Array<{
@@ -37,8 +40,13 @@ interface CreateNavigationInteractionRuntimesOptions {
   featureGroupById: Map<string, THREE.Group>;
   featureMeshById: Map<string, THREE.Mesh>;
   interactions: NavigationInteractionDescriptor[];
-  savedContainerConfigurations: Map<string, { capacity: number; label: string | undefined }> | undefined;
-  savedContainerItems: Map<string, Array<{ id: string; name: string }>> | undefined;
+  savedContainerConfigurations: Map<string, {
+    capacity: number;
+    currency: string | undefined;
+    label: string | undefined;
+    products?: ContainerProductDefinition[];
+  }> | undefined;
+  savedContainerItems: Map<string, NavigationContainerItem[]> | undefined;
   savedStates: Map<string, boolean> | undefined;
 }
 
@@ -136,6 +144,12 @@ export function createNavigationInteractionRuntimes({
       ...interaction,
       ...(savedContainerConfiguration ? {
         containerCapacity: savedContainerConfiguration.capacity,
+        containerProducts: savedContainerConfiguration.products?.map((product) => ({ ...product }))
+          ?? interaction.containerProducts?.map((product) => ({ ...product }))
+          ?? [],
+        ...(savedContainerConfiguration.currency
+          ? { containerCurrency: savedContainerConfiguration.currency }
+          : {}),
         ...(savedContainerConfiguration.label ? { label: savedContainerConfiguration.label } : {}),
       } : {}),
       active,
@@ -146,6 +160,9 @@ export function createNavigationInteractionRuntimes({
       articulationTargetValue,
       containerItems: savedContainerItems?.get(interaction.id)?.map((item) => ({ ...item }))
         ?? interaction.containerItems?.map((item) => ({ ...item }))
+        ?? [],
+      containerProducts: savedContainerConfiguration?.products?.map((product) => ({ ...product }))
+        ?? interaction.containerProducts?.map((product) => ({ ...product }))
         ?? [],
       doorPivot,
       dynamicBody: null,

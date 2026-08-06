@@ -408,6 +408,21 @@ export const modelReferenceInstanceSchema = {
           openValue: { type: "number", minimum: -360, maximum: 360 },
           containerCapacity: { type: "integer", minimum: 1, maximum: 128 },
           containerCanConfigure: { type: "boolean" },
+          containerCurrency: { type: "string", minLength: 3, maxLength: 12 },
+          containerProducts: {
+            type: "array",
+            maxItems: 32,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["id", "name", "unitPrice"],
+              properties: {
+                id: { type: "string", minLength: 1, maxLength: 120 },
+                name: { type: "string", minLength: 1, maxLength: 120 },
+                unitPrice: { type: "number", minimum: 0, maximum: 1000000000 },
+              },
+            },
+          },
           containerItems: {
             type: "array",
             maxItems: 128,
@@ -418,6 +433,7 @@ export const modelReferenceInstanceSchema = {
               properties: {
                 id: { type: "string", minLength: 1, maxLength: 120 },
                 name: { type: "string", minLength: 1, maxLength: 120 },
+                productId: { type: "string", minLength: 1, maxLength: 120 },
               },
             },
           },

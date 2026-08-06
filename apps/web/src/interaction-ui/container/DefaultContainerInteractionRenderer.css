@@ -159,7 +159,13 @@
 .interaction-ui-root .interaction-container-settings {
   display: grid;
   gap: var(--panel-edge-inset);
+  max-height: min(620px, calc(100vh - 180px));
   padding: var(--panel-edge-inset);
+  overflow: auto;
+}
+
+.interaction-ui-root .interaction-container-panel[data-container-view="settings"] {
+  width: min(520px, calc(100% - (var(--panel-edge-inset) * 2)));
 }
 
 .interaction-ui-root .interaction-container-settings label {
@@ -199,6 +205,76 @@
   font-size: 11px;
 }
 
+.interaction-ui-root .interaction-container-catalog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--control-padding-y);
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.interaction-ui-root .interaction-container-catalog-heading button {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-text);
+  background: var(--color-control);
+  font: inherit;
+  cursor: pointer;
+}
+
+.interaction-ui-root .interaction-container-catalog-heading button:hover,
+.interaction-ui-root .interaction-container-catalog-heading button:focus-visible {
+  background: var(--color-control-selected);
+}
+
+.interaction-ui-root .interaction-container-catalog {
+  display: grid;
+  gap: var(--control-padding-y);
+}
+
+.interaction-ui-root .interaction-container-product-editor {
+  display: grid;
+  grid-template-columns: minmax(112px, 1fr) 92px 72px 30px;
+  align-items: end;
+  gap: var(--control-padding-y);
+  padding-bottom: var(--control-padding-y);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.interaction-ui-root .interaction-container-product-editor:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.interaction-ui-root .interaction-container-product-editor input {
+  height: 34px;
+}
+
+.interaction-ui-root .interaction-container-delete-product {
+  display: grid;
+  width: 30px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-muted);
+  background: var(--color-control);
+  cursor: pointer;
+}
+
+.interaction-ui-root .interaction-container-delete-product:hover,
+.interaction-ui-root .interaction-container-delete-product:focus-visible {
+  color: var(--color-danger, #b44848);
+  background: var(--color-control-selected);
+}
+
 .interaction-ui-root .interaction-container-apply {
   display: flex;
   min-height: 38px;
@@ -220,81 +296,119 @@
   background: color-mix(in srgb, var(--interaction-color-accent) 88%, #000);
 }
 
-.interaction-ui-root .interaction-container-items {
+.interaction-ui-root .interaction-container-products {
   display: grid;
-  min-height: 118px;
+  min-height: 92px;
   max-height: 244px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
   gap: var(--control-padding-y);
   overflow: auto;
 }
 
-.interaction-ui-root[data-interaction-presentation="modal"] .interaction-container-items {
-  min-height: 58px;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
-.interaction-ui-root .interaction-container-item,
-.interaction-ui-root .interaction-container-slot {
-  display: flex;
+.interaction-ui-root .interaction-container-product {
+  display: grid;
   min-width: 0;
-  min-height: 50px;
+  min-height: 54px;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--control-padding-y);
   padding: 0 var(--control-padding-x);
   border: 1px solid var(--color-border-soft);
   border-radius: 8px;
+  color: var(--color-text);
   background: var(--color-control);
-  font-size: 11px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.interaction-ui-root .interaction-container-slot {
-  justify-content: center;
-  border-style: dashed;
-  background: color-mix(in srgb, var(--color-control-muted) 72%, transparent);
+.interaction-ui-root .interaction-container-product:hover:not(:disabled),
+.interaction-ui-root .interaction-container-product:focus-visible:not(:disabled) {
+  border-color: var(--color-border);
+  background: var(--color-control-selected);
 }
 
-.interaction-ui-root .interaction-container-slot > span {
-  width: 16px;
-  height: 16px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 58%, transparent);
-  border-radius: 5px;
+.interaction-ui-root .interaction-container-product[data-selected="true"] {
+  border-color: var(--interaction-color-accent);
+  background: color-mix(in srgb, var(--interaction-color-accent) 8%, var(--color-control));
 }
 
-.interaction-ui-root .interaction-container-item > span {
+.interaction-ui-root .interaction-container-product:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.interaction-ui-root .interaction-container-product-icon {
   display: grid;
   width: 28px;
   height: 28px;
-  flex: 0 0 auto;
   place-items: center;
   border-radius: 7px;
   color: var(--interaction-color-accent);
   background: color-mix(in srgb, var(--interaction-color-accent) 10%, var(--color-control));
 }
 
-.interaction-ui-root .interaction-container-item strong {
-  overflow: hidden;
+.interaction-ui-root .interaction-container-product-copy {
+  display: grid;
   min-width: 0;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.interaction-ui-root .interaction-container-product-copy strong {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.interaction-ui-root[data-interaction-presentation="modal"] .interaction-container-item,
-.interaction-ui-root[data-interaction-presentation="modal"] .interaction-container-slot {
-  min-height: 58px;
-  justify-content: center;
-  padding: 0;
+.interaction-ui-root .interaction-container-product-copy > span,
+.interaction-ui-root .interaction-container-product-stock {
+  color: var(--color-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
-.interaction-ui-root[data-interaction-presentation="modal"] .interaction-container-item strong {
-  display: none;
+.interaction-ui-root .interaction-container-empty {
+  display: grid;
+  min-height: 92px;
+  place-items: center;
+  color: var(--color-muted);
+  font-size: 11px;
 }
 
 .interaction-ui-root .interaction-container-footer {
+  display: flex;
+  justify-content: flex-end;
   padding: var(--panel-edge-inset);
   border-top: 1px solid var(--color-border-soft);
   background: color-mix(in srgb, var(--color-control-muted) 52%, var(--color-popover));
+}
+
+.interaction-ui-root .interaction-container-footer .interaction-container-take {
+  display: flex;
+  min-width: 136px;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--control-padding-y);
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--interaction-color-accent);
+  border-radius: 7px;
+  color: var(--interaction-color-accent-contrast);
+  background: var(--interaction-color-accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.interaction-ui-root .interaction-container-footer .interaction-container-take:hover:not(:disabled),
+.interaction-ui-root .interaction-container-footer .interaction-container-take:focus-visible:not(:disabled) {
+  background: color-mix(in srgb, var(--interaction-color-accent) 88%, #000);
+}
+
+.interaction-ui-root .interaction-container-footer .interaction-container-take:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 .interaction-ui-root .interaction-container-actions {
