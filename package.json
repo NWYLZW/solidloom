@@ -16,7 +16,7 @@
     "dev": "npm run build:packages && concurrently -k -n api,web -c blue,green \"npm run dev -w @solidloom/server\" \"npm run dev -w @solidloom/web\"",
     "dev:server": "npm run build:packages && npm run dev -w @solidloom/server",
     "dev:web": "npm run build:packages && npm run dev -w @solidloom/web",
-    "seed:cyber-factory": "npm run build:packages && node scripts/seed-cyber-factory.mjs",
+    "seed:cyber-factory": "npm run build:packages && tsx scripts/seed-cyber-factory.mjs",
     "cli": "npm run build:packages && npm run dev -w @solidloom/cli --",
     "test": "npm run build:packages && vitest run",
     "typecheck": "npm run typecheck --workspaces --if-present",

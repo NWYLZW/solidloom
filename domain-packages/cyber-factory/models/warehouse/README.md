@@ -1,6 +1,6 @@
 # 仓储与内部物流资产套件
 
-本目录独立交付 Epic #2 / Issue #52，只消费 #45 的 `ModelAssetDefinition` 契约，不修改公共 registry、schema、示例或共享入口。五项资产均保持 `planned`，等待统一注册与运行时接入。
+本目录独立交付 Epic #2 / Issue #52，并通过 `scripts/seed-cyber-factory.mjs` 的目录约定自动注册。货架、托盘、周转箱和推车已经可在工作台中使用；堆垛机几何与纯函数动作计划可预览，但正式库存挂接和自动运动运行时仍保持 `planned`。
 
 ## 独立资产
 

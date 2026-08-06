@@ -539,10 +539,10 @@ export function createLoungeKit(
         group(loungeGroupIds.plant, "绿植", plant),
       ],
       variables: [
-        { id: "lounge-sofa-width", label: "沙发宽度", value: parameters.sofaWidth, unit: "mm" },
-        { id: "lounge-seat-height", label: "座面高度", value: parameters.seatHeight, unit: "mm" },
-        { id: "lounge-table-width", label: "茶几宽度", value: parameters.tableWidth, unit: "mm" },
-        { id: "lounge-rug-width", label: "地毯宽度", value: parameters.rugWidth, unit: "mm" },
+        { id: "--lounge-sofa-width", label: "沙发宽度", type: "number", value: parameters.sofaWidth, unit: "mm" },
+        { id: "--lounge-seat-height", label: "座面高度", type: "number", value: parameters.seatHeight, unit: "mm" },
+        { id: "--lounge-table-width", label: "茶几宽度", type: "number", value: parameters.tableWidth, unit: "mm" },
+        { id: "--lounge-rug-width", label: "地毯宽度", type: "number", value: parameters.rugWidth, unit: "mm" },
       ],
     },
   };

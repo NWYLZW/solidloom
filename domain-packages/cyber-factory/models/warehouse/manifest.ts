@@ -151,7 +151,7 @@ export function createWarehouseRackManifest(
       { device: "desktop", cameraPosition: [4_800, 3_500, 5_900], cameraTarget: [0, 1_300, 0], background: "dark" },
       { device: "mobile", cameraPosition: [6_300, 3_700, 7_500], cameraTarget: [0, 1_250, 0], background: "dark" },
     ],
-    tags: ["cyber-factory", "warehouse", "rack", "storage", "planned"],
+    tags: ["cyber-factory", "warehouse", "rack", "storage"],
   };
 }
 
@@ -213,7 +213,7 @@ export function createWarehousePalletManifest(
       { device: "desktop", cameraPosition: [1_800, 1_100, 2_100], cameraTarget: [0, 120, 0], background: "dark" },
       { device: "mobile", cameraPosition: [2_300, 1_300, 2_800], cameraTarget: [0, 120, 0], background: "dark" },
     ],
-    tags: ["cyber-factory", "warehouse", "pallet", "logistics", "planned"],
+    tags: ["cyber-factory", "warehouse", "pallet", "logistics"],
   };
 }
 
@@ -267,7 +267,7 @@ export function createWarehouseToteManifest(
       { device: "desktop", cameraPosition: [1_300, 850, 1_500], cameraTarget: [0, 180, 0], background: "dark" },
       { device: "mobile", cameraPosition: [1_750, 980, 2_000], cameraTarget: [0, 180, 0], background: "dark" },
     ],
-    tags: ["cyber-factory", "warehouse", "tote", "container", "planned"],
+    tags: ["cyber-factory", "warehouse", "tote", "container"],
   };
 }
 
@@ -332,7 +332,7 @@ export function createWarehouseCartManifest(
       { device: "desktop", cameraPosition: [2_000, 1_450, 2_500], cameraTarget: [0, 520, 0], background: "dark" },
       { device: "mobile", cameraPosition: [2_700, 1_600, 3_300], cameraTarget: [0, 500, 0], background: "dark" },
     ],
-    tags: ["cyber-factory", "warehouse", "cart", "logistics", "planned"],
+    tags: ["cyber-factory", "warehouse", "cart", "logistics"],
   };
 }
 

@@ -19,11 +19,23 @@ describe("cyber factory examples", () => {
       chairId: "chair-model",
       snackCabinetId: "container-model",
       waterDispenserId: "water-dispenser-model",
+      warehouseCartId: "warehouse-cart-model",
+      warehousePalletId: "warehouse-pallet-model",
+      warehouseRackId: "warehouse-rack-model",
+      warehouseToteId: "warehouse-tote-model",
     });
     expect(playground.kind).toBe("scene");
     expect(playground.name).toBe("交互试验场");
     expect(playground.featureGraph.features).toEqual([]);
-    expect(playground.featureGraph.references).toHaveLength(8);
+    expect(playground.featureGraph.references).toHaveLength(12);
+    expect(playground.featureGraph.references?.map((reference) => reference.modelId)).toEqual(
+      expect.arrayContaining([
+        "warehouse-cart-model",
+        "warehouse-pallet-model",
+        "warehouse-rack-model",
+        "warehouse-tote-model",
+      ]),
+    );
     expect(playground.featureGraph.references?.flatMap((reference) => reference.interactions ?? []))
       .toEqual(expect.arrayContaining([
         expect.objectContaining({

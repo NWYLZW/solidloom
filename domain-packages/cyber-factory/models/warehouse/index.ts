@@ -11,11 +11,12 @@ import {
 export * from "./manifest.js";
 export * from "./model.js";
 
-export const warehouseRackModule = defineAssetModelModule("planned", warehouseRackDefinition);
-export const warehousePalletModule = defineAssetModelModule("planned", warehousePalletDefinition);
-export const warehouseToteModule = defineAssetModelModule("planned", warehouseToteDefinition);
-export const warehouseCartModule = defineAssetModelModule("planned", warehouseCartDefinition);
+export const warehouseRackModule = defineAssetModelModule("available", warehouseRackDefinition);
+export const warehousePalletModule = defineAssetModelModule("available", warehousePalletDefinition);
+export const warehouseToteModule = defineAssetModelModule("available", warehouseToteDefinition);
+export const warehouseCartModule = defineAssetModelModule("available", warehouseCartDefinition);
 export const warehouseStackerCraneModule = defineAssetModelModule("planned", warehouseStackerCraneDefinition);
-export const warehouseAssetModules = warehouseAssetDefinitions.map((definition) => (
-  defineAssetModelModule("planned", definition)
+export const warehouseAssetModules = warehouseAssetDefinitions.map((definition) => defineAssetModelModule(
+  definition.manifest.id === warehouseStackerCraneDefinition.manifest.id ? "planned" : "available",
+  definition,
 ));

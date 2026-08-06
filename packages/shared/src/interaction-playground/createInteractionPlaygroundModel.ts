@@ -9,6 +9,10 @@ export interface InteractionPlaygroundModelIds {
   roomId: string;
   snackCabinetId: string;
   waterDispenserId: string;
+  warehouseCartId: string;
+  warehousePalletId: string;
+  warehouseRackId: string;
+  warehouseToteId: string;
 }
 
 export function createInteractionPlaygroundModel(
@@ -258,12 +262,74 @@ export function createInteractionPlaygroundModel(
         ],
       }],
     },
+    {
+      id: "interaction-playground-warehouse-rack",
+      name: "仓储货架",
+      modelId: ids.warehouseRackId,
+      position: [-2050, 0, 1880],
+      rotation: [0, 0, 0],
+      scale: [0.55, 0.55, 0.55],
+      interactions: [{
+        id: "warehouse-stock",
+        kind: "container",
+        label: "仓储货架",
+        range: 1180,
+        targetFeatureIds: [
+          "warehouse-rack-upright-01-front",
+          "warehouse-rack-upright-04-front",
+          "warehouse-rack-shelf-b01-l01",
+        ],
+        containerCapacity: 96,
+        containerCanConfigure: true,
+        containerProducts: [
+          { id: "component-a", name: "标准组件 A", unitPrice: 24 },
+          { id: "component-b", name: "标准组件 B", unitPrice: 38 },
+          { id: "maintenance-kit", name: "维护套件", unitPrice: 65 },
+        ],
+        containerItems: [
+          { id: "component-a-1", name: "标准组件 A", productId: "component-a" },
+          { id: "component-a-2", name: "标准组件 A", productId: "component-a" },
+          { id: "component-b-1", name: "标准组件 B", productId: "component-b" },
+          { id: "maintenance-kit-1", name: "维护套件", productId: "maintenance-kit" },
+        ],
+      }],
+    },
+    {
+      id: "interaction-playground-warehouse-pallet",
+      name: "仓储托盘",
+      modelId: ids.warehousePalletId,
+      position: [-3180, 0, 1280],
+      rotation: [0, 0, 0],
+      scale: [0.62, 0.62, 0.62],
+    },
+    {
+      id: "interaction-playground-warehouse-tote",
+      name: "仓储周转箱",
+      modelId: ids.warehouseToteId,
+      position: [-3180, 92, 1280],
+      rotation: [0, 0, 0],
+      scale: [0.62, 0.62, 0.62],
+    },
+    {
+      id: "interaction-playground-warehouse-cart",
+      name: "可推动仓储推车",
+      modelId: ids.warehouseCartId,
+      position: [-760, 0, 2020],
+      rotation: [0, 90, 0],
+      scale: [0.6, 0.6, 0.6],
+      physics: {
+        bodyType: "dynamic",
+        mass: 28,
+        friction: 0.48,
+        linearDamping: 2.4,
+      },
+    },
   ];
 
   return {
     kind: "scene",
     name: "交互试验场",
-    description: "通过独立运行入口验证角色与门、座位、办公设备、补给设备和休息区之间的语义交互；当前状态仅在本地运行会话中保留。",
+    description: "通过独立运行入口验证角色与门、座位、办公设备、补给设备、休息区和仓储物流资产之间的语义交互；当前状态仅在本地运行会话中保留。",
     unit: "mm",
     featureGraph: {
       version: 1,

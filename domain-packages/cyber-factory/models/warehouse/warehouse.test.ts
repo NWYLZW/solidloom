@@ -22,7 +22,7 @@ import {
 } from "./index.js";
 
 describe("warehouse and internal logistics asset kit", () => {
-  it("publishes five independent planned assets that satisfy the shared contract", () => {
+  it("publishes four available assets and one planned automation asset that satisfy the shared contract", () => {
     expect(warehouseAssetDefinitions.map(({ manifest }) => manifest.id)).toEqual([
       "cyber-factory-warehouse-rack",
       "cyber-factory-warehouse-pallet",
@@ -33,7 +33,13 @@ describe("warehouse and internal logistics asset kit", () => {
     expect(warehouseAssetDefinitions.map(validateModelAssetDefinition)).toEqual(
       Array.from({ length: 5 }, () => ({ valid: true, issues: [] })),
     );
-    expect(warehouseAssetModules.every(({ status }) => status === "planned")).toBe(true);
+    expect(warehouseAssetModules.map(({ status }) => status)).toEqual([
+      "available",
+      "available",
+      "available",
+      "available",
+      "planned",
+    ]);
   });
 
   it("generates deterministic rack shelf and slot ids from bay and level parameters", () => {

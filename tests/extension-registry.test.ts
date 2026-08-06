@@ -54,7 +54,7 @@ describe("extension registries", () => {
       "solidloom-block-avatar",
       "cyber-factory-snack-cabinet",
       "cyber-factory-coffee-machine",
-      "cyber-factory-water-dispenser",
+      "water-dispenser",
       "cyber-factory-lounge-kit",
     ]);
   });
