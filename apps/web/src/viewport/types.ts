@@ -6,7 +6,19 @@ import type {
   Vector3Tuple,
 } from "@solidloom/shared";
 import type { JointAnimationRequest } from "../articulation/types";
+import type {
+  InteractionUIConfig,
+  NavigationContainerItem,
+  NavigationInteractionLabels,
+} from "../interaction-ui/types";
 import type { NavigationAvatarSkin } from "../navigationAvatar";
+
+export type {
+  NavigationContainerItem,
+  NavigationContainerOperation,
+  NavigationContainerPanelState,
+  NavigationInteractionLabels,
+} from "../interaction-ui/types";
 
 export type TransformMode = "translate" | "rotate" | "scale" | null;
 export type NavigationCameraMode = "god" | "first-person" | "third-person";
@@ -37,20 +49,6 @@ export interface NavigationInteractionDescriptor {
   targetFeatureIds: string[];
 }
 
-export interface NavigationContainerItem {
-  id: string;
-  name: string;
-}
-
-export interface NavigationContainerPanelState {
-  capacity: number;
-  interactionId: string;
-  items: NavigationContainerItem[];
-  title: string;
-}
-
-export type NavigationContainerOperation = "store" | "take" | "close";
-
 export interface Viewport3DProps {
   annotationMode: boolean;
   annotationStrings: {
@@ -71,6 +69,7 @@ export interface Viewport3DProps {
   groups: FeatureGroup[];
   joints: ArticulationJoint[];
   jointAnimation: JointAnimationRequest | null;
+  interactionUI?: InteractionUIConfig;
   label: string;
   modelId: string;
   modelName: string;
@@ -95,25 +94,7 @@ export interface Viewport3DProps {
     mass: number;
   }>;
   navigationInteractions: NavigationInteractionDescriptor[];
-  navigationInteractionLabels: {
-    articulationClose: string;
-    articulationOpen: string;
-    containerClose: string;
-    containerContents: string;
-    containerCapacity: string;
-    containerEmpty: string;
-    containerOpen: string;
-    containerSessionOnly: string;
-    containerStore: string;
-    containerTake: string;
-    doorClose: string;
-    doorOpen: string;
-    keyHint: string;
-    powerOff: string;
-    powerOn: string;
-    sit: string;
-    stand: string;
-  };
+  navigationInteractionLabels: NavigationInteractionLabels;
   selectedFeatureIds: string[];
   selectedGroupId: string | null;
   theme: "light" | "dark" | "system";

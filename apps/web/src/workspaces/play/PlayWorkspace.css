@@ -11,35 +11,10 @@ body.play-workspace-active {
   background: var(--color-viewport);
 }
 
-.play-workspace .interaction-container-backdrop {
-  position: absolute;
-  z-index: 20;
-  inset: 0;
-  display: block;
-  background: rgba(15, 18, 15, 0.46);
-  backdrop-filter: blur(1px);
-}
-
-.play-workspace .interaction-container-panel {
-  z-index: 21;
-  top: 50%;
-  right: auto;
-  bottom: auto;
-  left: 50%;
-  width: min(500px, calc(100% - (var(--panel-edge-inset) * 2)));
-  max-height: calc(100% - (var(--panel-edge-inset) * 2));
-  overflow: auto;
-  transform: translate(-50%, -50%);
-}
-
-.play-workspace .interaction-container-note {
-  display: none;
-}
-
-.play-workspace:has(.interaction-container-panel) .play-workspace-header,
-.play-workspace:has(.interaction-container-panel) .navigation-mode-banner,
-.play-workspace:has(.interaction-container-panel) .navigation-interaction-prompts,
-.play-workspace:has(.interaction-container-panel) .navigation-aim-target {
+.play-workspace:has(.interaction-ui-root) .play-workspace-header,
+.play-workspace:has(.interaction-ui-root) .navigation-mode-banner,
+.play-workspace:has(.interaction-ui-root) .navigation-interaction-prompts,
+.play-workspace:has(.interaction-ui-root) .navigation-aim-target {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -115,15 +90,6 @@ body.play-workspace-active {
 }
 
 @media (max-width: 640px) {
-  .play-workspace .interaction-container-panel {
-    top: auto;
-    right: var(--panel-edge-inset);
-    bottom: var(--panel-edge-inset);
-    left: var(--panel-edge-inset);
-    width: auto;
-    transform: none;
-  }
-
   .play-workspace-header > div {
     display: none;
   }

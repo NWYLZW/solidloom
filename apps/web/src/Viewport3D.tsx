@@ -1,4 +1,4 @@
-import { ContainerInteractionPanel } from "./viewport/ContainerInteractionPanel";
+import { InteractionSurface } from "./interaction-ui/InteractionSurface";
 import { AnnotationOverlay } from "./viewport/AnnotationOverlay";
 import { NavigationOverlays } from "./viewport/NavigationOverlays";
 import { RendererFallback } from "./viewport/RendererFallback";
@@ -12,6 +12,25 @@ export type {
   TransformMode,
   Viewport3DProps,
 } from "./viewport/types";
+export {
+  createInteractionUI,
+  InteractionUIProvider,
+  mergeInteractionUI,
+} from "./interaction-ui";
+export type {
+  ContainerEmptySlotProps,
+  ContainerInteractionRendererProps,
+  ContainerInteractionSlots,
+  ContainerItemSlotProps,
+  InteractionPresentation,
+  InteractionRendererRegistry,
+  InteractionSlotRegistry,
+  InteractionUIConfig,
+  InteractionUIProviderProps,
+  InteractionSurfaceProps,
+  InteractionUITheme,
+  InteractionUITokens,
+} from "./interaction-ui";
 
 export function Viewport3D(props: Viewport3DProps) {
   const runtime = useViewport3DRuntime(props);
@@ -20,6 +39,7 @@ export function Viewport3D(props: Viewport3DProps) {
     annotationStrings,
     features,
     groups,
+    interactionUI,
     modelName,
     navigation,
     navigationCameraLabels,
@@ -55,13 +75,12 @@ export function Viewport3D(props: Viewport3DProps) {
         onInteraction={runtime.performNavigationInteraction}
         prompts={runtime.navigationInteractionPrompts}
       />
-      {runtime.navigationContainerPanel && (
-        <ContainerInteractionPanel
-          labels={navigationInteractionLabels}
-          onOperation={runtime.performNavigationContainerOperation}
-          state={runtime.navigationContainerPanel}
-        />
-      )}
+      <InteractionSurface
+        config={interactionUI}
+        container={runtime.navigationContainerPanel}
+        labels={navigationInteractionLabels}
+        onContainerOperation={runtime.performNavigationContainerOperation}
+      />
       {runtime.rendererFailed && (
         <RendererFallback
           failureLabel={rendererFailureLabel}

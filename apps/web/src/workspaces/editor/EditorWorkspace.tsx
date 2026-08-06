@@ -79,7 +79,6 @@ import { clamp, readNumberPreference, readPreference, readTextPreference } from 
 import { usePanelResize } from "../../hooks/usePanelResize";
 import "../../styles/Viewport3D.css";
 import "../../styles/responsive.css";
-import "../../viewport/ContainerInteractionPanel.css";
 
 type ServiceState = "checking" | "online" | "offline";
 type Locale = EditorLocale;

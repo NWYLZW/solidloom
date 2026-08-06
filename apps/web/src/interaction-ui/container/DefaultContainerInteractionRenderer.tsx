@@ -1,50 +1,43 @@
-import { ArrowDownToLine, ArrowUpFromLine, Box, Info, PackageOpen, X } from "lucide-react";
-import type {
-  NavigationContainerOperation,
-  NavigationContainerPanelState,
-  Viewport3DProps,
-} from "./types";
+import { ArrowDownToLine, ArrowUpFromLine, Info, PackageOpen, X } from "lucide-react";
+import { useId } from "react";
+import type { ContainerInteractionRendererProps } from "../types";
+import "./DefaultContainerInteractionRenderer.css";
 
-interface ContainerInteractionPanelProps {
-  labels: Viewport3DProps["navigationInteractionLabels"];
-  onOperation: (interactionId: string, operation: NavigationContainerOperation) => void;
-  state: NavigationContainerPanelState;
-}
-
-export function ContainerInteractionPanel({
-  labels,
-  onOperation,
-  state,
-}: ContainerInteractionPanelProps) {
-  const full = state.items.length >= state.capacity;
-  const empty = state.items.length === 0;
+export function DefaultContainerInteractionRenderer({
+  controller,
+  presentation,
+  slots,
+}: ContainerInteractionRendererProps) {
+  const titleId = useId();
+  const { close, empty, full, labels, state, store, take } = controller;
+  const { EmptySlot, Item } = slots;
+  const slotCount = Math.max(state.capacity, state.items.length);
 
   return (
     <>
       <div className="interaction-container-backdrop" aria-hidden="true" />
       <section
-        aria-labelledby="interaction-container-title"
-        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-modal={presentation === "anchored" ? undefined : true}
         className="interaction-container-panel"
         role="dialog"
       >
         <header className="interaction-container-header">
-          <div className="interaction-container-heading">
-            <div className="interaction-container-heading-copy">
-              <strong id="interaction-container-title">{state.title}</strong>
-              <span>{labels.containerCapacity} {state.items.length} / {state.capacity}</span>
-            </div>
+          <div className="interaction-container-heading-copy">
+            <strong id={titleId}>{state.title}</strong>
+            <span>{labels.containerCapacity} {state.items.length} / {state.capacity}</span>
           </div>
           <button
             aria-label={labels.containerClose}
             autoFocus
             className="interaction-container-close"
             type="button"
-            onClick={() => onOperation(state.interactionId, "close")}
+            onClick={close}
           >
             <X aria-hidden="true" size={16} />
           </button>
         </header>
+
         <div className="interaction-container-body">
           <div className="interaction-container-section-heading">
             <span aria-hidden="true"><PackageOpen size={16} /></span>
@@ -54,21 +47,15 @@ export function ContainerInteractionPanel({
             aria-label={empty ? labels.containerEmpty : labels.containerContents}
             className="interaction-container-items"
           >
-            {Array.from({ length: Math.max(state.capacity, state.items.length) }, (_, index) => {
+            {Array.from({ length: slotCount }, (_, index) => {
               const item = state.items[index];
-              return item ? (
-                <span className="interaction-container-item" key={item.id}>
-                  <span aria-hidden="true"><Box size={15} /></span>
-                  <strong>{item.name}</strong>
-                </span>
-              ) : (
-                <span className="interaction-container-slot" aria-hidden="true" key={`slot-${index}`}>
-                  <span />
-                </span>
-              );
+              return item
+                ? <Item index={index} item={item} key={item.id} />
+                : <EmptySlot index={index} key={`slot-${index}`} />;
             })}
           </div>
         </div>
+
         <footer className="interaction-container-footer">
           <div className="interaction-container-note">
             <Info aria-hidden="true" size={13} />
@@ -79,7 +66,7 @@ export function ContainerInteractionPanel({
               className="interaction-container-store"
               disabled={full}
               type="button"
-              onClick={() => onOperation(state.interactionId, "store")}
+              onClick={store}
             >
               <ArrowDownToLine aria-hidden="true" size={15} />
               <span>{labels.containerStore}</span>
@@ -88,7 +75,7 @@ export function ContainerInteractionPanel({
               className="interaction-container-take"
               disabled={empty}
               type="button"
-              onClick={() => onOperation(state.interactionId, "take")}
+              onClick={take}
             >
               <ArrowUpFromLine aria-hidden="true" size={15} />
               <span>{labels.containerTake}</span>

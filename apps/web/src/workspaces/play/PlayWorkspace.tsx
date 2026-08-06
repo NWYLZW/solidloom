@@ -2,10 +2,10 @@ import { ArrowLeft, Play } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Viewport3D, type NavigationCameraMode } from "../../Viewport3D";
 import "../../styles/Viewport3D.css";
-import "../../viewport/ContainerInteractionPanel.css";
 import { copyByLocale, type EditorLocale } from "../editor/editorCopy";
 import { playCopyByLocale } from "./playCopy";
 import { usePlayScene } from "./usePlayScene";
+import { playInteractionUI } from "./playInteractionUI";
 import "./PlayWorkspace.css";
 
 interface PlayWorkspaceProps {
@@ -72,6 +72,7 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
           groups={runtimeModel.groups}
           jointAnimation={null}
           joints={scene.featureGraph.joints ?? []}
+          interactionUI={playInteractionUI}
           label={playCopy.runtime}
           modelId={scene.id}
           modelName={scene.name}

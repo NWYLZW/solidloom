@@ -1,0 +1,291 @@
+.interaction-ui-root {
+  --interaction-color-accent: #4f6226;
+  --interaction-color-accent-contrast: #fff;
+  --interaction-dialog-backdrop: rgba(15, 18, 15, 0.46);
+  --interaction-dialog-backdrop-filter: blur(1px);
+  --interaction-dialog-padding: calc(var(--panel-edge-inset) + var(--control-padding-x));
+  --interaction-dialog-radius: 12px;
+  --interaction-dialog-shadow: 0 24px 72px rgba(18, 21, 17, 0.34);
+  --interaction-note-display: flex;
+  --interaction-slot-columns: 3;
+  --interaction-surface-width: 340px;
+  display: contents;
+}
+
+:root[data-theme="dark"] .interaction-ui-root {
+  --interaction-color-accent: #b8d56d;
+  --interaction-color-accent-contrast: #172008;
+}
+
+.interaction-ui-root .interaction-container-backdrop {
+  display: none;
+}
+
+.interaction-ui-root .interaction-container-panel {
+  position: absolute;
+  z-index: 8;
+  right: var(--panel-edge-inset);
+  bottom: var(--panel-edge-inset);
+  display: grid;
+  width: min(var(--interaction-surface-width), calc(100% - (var(--panel-edge-inset) * 2)));
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--interaction-dialog-radius);
+  color: var(--color-text);
+  background: var(--color-popover);
+  box-shadow: var(--interaction-dialog-shadow);
+}
+
+.interaction-ui-root[data-interaction-presentation="modal"] .interaction-container-backdrop,
+.interaction-ui-root[data-interaction-presentation="sheet"] .interaction-container-backdrop {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: block;
+  background: var(--interaction-dialog-backdrop);
+  backdrop-filter: var(--interaction-dialog-backdrop-filter);
+}
+
+.interaction-ui-root[data-interaction-presentation="modal"] .interaction-container-panel {
+  z-index: 21;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  max-height: calc(100% - (var(--panel-edge-inset) * 2));
+  transform: translate(-50%, -50%);
+}
+
+.interaction-ui-root[data-interaction-presentation="sheet"] .interaction-container-panel {
+  z-index: 21;
+  right: var(--panel-edge-inset);
+  bottom: var(--panel-edge-inset);
+  left: var(--panel-edge-inset);
+  width: auto;
+  max-height: calc(100% - (var(--panel-edge-inset) * 2));
+}
+
+.interaction-ui-root .interaction-container-header,
+.interaction-ui-root .interaction-container-actions {
+  display: flex;
+  align-items: center;
+}
+
+.interaction-ui-root .interaction-container-header {
+  min-height: 76px;
+  justify-content: space-between;
+  gap: var(--control-padding-x);
+  padding: calc(var(--control-padding-y) * 2) var(--interaction-dialog-padding);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.interaction-ui-root .interaction-container-heading-copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.interaction-ui-root .interaction-container-heading-copy strong {
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interaction-ui-root .interaction-container-heading-copy span,
+.interaction-ui-root .interaction-container-footer small {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.interaction-ui-root .interaction-container-close {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-muted);
+  background: var(--color-control);
+  cursor: pointer;
+}
+
+.interaction-ui-root .interaction-container-close:hover {
+  color: var(--color-text);
+  background: var(--color-control-selected);
+}
+
+.interaction-ui-root .interaction-container-body {
+  display: grid;
+  gap: calc(var(--control-padding-y) + 4px);
+  padding: calc(var(--control-padding-y) * 2) var(--interaction-dialog-padding) calc(var(--control-padding-y) * 2 + 4px);
+}
+
+.interaction-ui-root .interaction-container-section-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--control-padding-y);
+  color: var(--color-muted);
+}
+
+.interaction-ui-root .interaction-container-section-heading > span {
+  display: grid;
+  place-items: center;
+}
+
+.interaction-ui-root .interaction-container-section-heading strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.interaction-ui-root .interaction-container-items {
+  display: grid;
+  min-height: 112px;
+  max-height: 240px;
+  grid-template-columns: repeat(var(--interaction-slot-columns), minmax(0, 1fr));
+  align-content: start;
+  gap: var(--control-padding-y);
+  padding: var(--control-padding-y);
+  overflow: auto;
+  border-radius: 9px;
+  background: var(--color-control-muted);
+}
+
+.interaction-ui-root .interaction-container-item,
+.interaction-ui-root .interaction-container-slot {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  gap: var(--control-padding-y);
+  padding: 0 var(--control-padding-x);
+  border: 1px solid color-mix(in srgb, var(--color-border-soft) 72%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-control) 86%, var(--color-panel));
+  font-size: 11px;
+}
+
+.interaction-ui-root .interaction-container-slot {
+  justify-content: center;
+  border-style: dashed;
+  background: transparent;
+}
+
+.interaction-ui-root .interaction-container-slot > span {
+  width: 18px;
+  height: 18px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  border-radius: 5px;
+}
+
+.interaction-ui-root .interaction-container-item > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--interaction-color-accent);
+  background: color-mix(in srgb, var(--interaction-color-accent) 10%, var(--color-control));
+}
+
+.interaction-ui-root .interaction-container-item strong {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interaction-ui-root .interaction-container-actions {
+  justify-content: flex-end;
+  gap: var(--control-padding-y);
+}
+
+.interaction-ui-root .interaction-container-actions button {
+  display: flex;
+  min-height: 38px;
+  min-width: 132px;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--control-padding-y);
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-text);
+  background: var(--color-control);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.interaction-ui-root .interaction-container-actions button:hover:not(:disabled) {
+  background: var(--color-control-selected);
+}
+
+.interaction-ui-root .interaction-container-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.interaction-ui-root .interaction-container-actions .interaction-container-take:not(:disabled) {
+  border-color: var(--interaction-color-accent);
+  color: var(--interaction-color-accent-contrast);
+  background: var(--interaction-color-accent);
+}
+
+.interaction-ui-root .interaction-container-actions .interaction-container-take:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--interaction-color-accent) 88%, #000);
+}
+
+.interaction-ui-root .interaction-container-footer {
+  display: grid;
+  min-width: 0;
+  gap: calc(var(--control-padding-y) + 4px);
+  padding: calc(var(--control-padding-y) * 2) var(--interaction-dialog-padding);
+  border-top: 1px solid var(--color-border-soft);
+  background: color-mix(in srgb, var(--color-control-muted) 58%, var(--color-popover));
+}
+
+.interaction-ui-root .interaction-container-note {
+  display: var(--interaction-note-display);
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-muted);
+}
+
+.interaction-ui-root .interaction-container-footer small {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .interaction-ui-root {
+    --interaction-dialog-padding: var(--panel-edge-inset);
+    --interaction-slot-columns: 2;
+  }
+
+  .interaction-ui-root[data-interaction-presentation="modal"] .interaction-container-panel {
+    top: auto;
+    right: var(--panel-edge-inset);
+    bottom: var(--panel-edge-inset);
+    left: var(--panel-edge-inset);
+    width: auto;
+    transform: none;
+  }
+
+  .interaction-ui-root .interaction-container-actions button {
+    min-width: 0;
+    flex: 1;
+  }
+}
