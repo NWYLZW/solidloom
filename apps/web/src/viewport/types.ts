@@ -11,7 +11,10 @@ import type {
   NavigationContainerItem,
   NavigationInteractionLabels,
 } from "../interaction-ui/types";
-import type { NavigationAvatarSkin } from "../navigationAvatar";
+import type {
+  NavigationAvatarSkin,
+  NavigationFirstPersonAvatarMode,
+} from "../navigationAvatar";
 
 export type {
   NavigationContainerItem,
@@ -21,6 +24,7 @@ export type {
   NavigationDevicePanelState,
   NavigationInteractionLabels,
 } from "../interaction-ui/types";
+export type { NavigationFirstPersonAvatarMode } from "../navigationAvatar";
 
 export type TransformMode = "translate" | "rotate" | "scale" | null;
 export type NavigationCameraMode = "god" | "first-person" | "third-person";
@@ -133,6 +137,7 @@ export interface Viewport3DProps {
   navigationCameraMode: NavigationCameraMode;
   navigationCameraControlsVisible: boolean;
   navigationCanConfigureInteractions: boolean;
+  navigationFirstPersonAvatarMode: NavigationFirstPersonAvatarMode;
   navigationMode: boolean;
   navigationModeLabel: string;
   onNavigationCameraModeChange: (mode: NavigationCameraMode) => void;

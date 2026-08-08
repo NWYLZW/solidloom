@@ -20,7 +20,9 @@
   top: 46px;
   right: 0;
   width: min(430px, calc(100vw - 28px));
-  overflow: hidden;
+  max-height: calc(100vh - 46px - var(--panel-edge-inset));
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: color-mix(in srgb, var(--color-panel) 97%, transparent);
@@ -96,19 +98,23 @@
   padding: var(--panel-edge-inset);
 }
 
-.play-settings-section-heading {
+.play-settings-section-heading,
+.play-settings-field-heading {
   display: flex;
   align-items: flex-start;
   gap: 9px;
 }
 
-.play-settings-section-heading > svg {
+.play-settings-section-heading > svg,
+.play-settings-field-heading > svg {
   flex: 0 0 auto;
   margin-top: 1px;
   color: var(--color-muted);
 }
 
-.play-settings-section-heading div {
+.play-settings-section-heading div,
+.play-settings-field-heading div,
+.play-avatar-options button {
   display: grid;
   min-width: 0;
   gap: 3px;
@@ -124,15 +130,17 @@
   line-height: 1.5;
 }
 
-.play-camera-options {
+.play-camera-options,
+.play-avatar-options {
   display: grid;
   gap: 7px;
   margin-top: var(--panel-edge-inset);
 }
 
-.play-camera-options button {
+.play-camera-options button,
+.play-avatar-options button {
   min-height: 36px;
-  padding: 0 var(--control-padding-x);
+  padding: var(--control-padding-y) var(--control-padding-x);
   border: 1px solid var(--color-border);
   border-radius: 7px;
   color: var(--color-text);
@@ -142,14 +150,41 @@
 }
 
 .play-camera-options button:hover,
-.play-camera-options button:focus-visible {
+.play-camera-options button:focus-visible,
+.play-avatar-options button:hover,
+.play-avatar-options button:focus-visible {
   border-color: var(--color-muted);
   outline: none;
 }
 
-.play-camera-options button.active {
+.play-camera-options button.active,
+.play-avatar-options button.active {
   border-color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 16%, var(--color-control));
+}
+
+.play-settings-field {
+  display: grid;
+  gap: var(--panel-edge-inset);
+  margin-top: var(--panel-edge-inset);
+  padding-top: var(--panel-edge-inset);
+  border-top: 1px solid var(--color-border);
+}
+
+.play-settings-field-heading strong,
+.play-avatar-options strong {
+  font-size: 11px;
+}
+
+.play-settings-field-heading span,
+.play-avatar-options span {
+  color: var(--color-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.play-avatar-options {
+  margin-top: 0;
 }
 
 @media (max-width: 520px) {
@@ -160,6 +195,8 @@
     bottom: var(--panel-edge-inset);
     left: var(--panel-edge-inset);
     width: auto;
+    max-height: calc(100vh - var(--panel-edge-inset) - var(--panel-edge-inset));
+    overflow-y: auto;
   }
 
   .play-settings-layout {

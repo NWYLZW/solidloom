@@ -1,6 +1,10 @@
-import { Camera, Settings, X } from "lucide-react";
+import { Camera, PersonStanding, Settings, X } from "lucide-react";
 import { useEffect } from "react";
-import type { NavigationCameraMode } from "../../Viewport3D";
+import type {
+  NavigationCameraMode,
+  NavigationFirstPersonAvatarMode,
+} from "../../Viewport3D";
+import { NAVIGATION_FIRST_PERSON_AVATAR_MODES } from "../../navigationAvatar";
 import type { EditorLocale } from "../editor/editorCopy";
 import { playCopyByLocale } from "./playCopy";
 import "./PlaySettingsPanel.css";
@@ -10,8 +14,10 @@ const CAMERA_MODES: NavigationCameraMode[] = ["god", "first-person", "third-pers
 interface PlaySettingsPanelProps {
   cameraLabels: Record<NavigationCameraMode, string>;
   cameraMode: NavigationCameraMode;
+  firstPersonAvatarMode: NavigationFirstPersonAvatarMode;
   locale: EditorLocale;
   onCameraModeChange: (mode: NavigationCameraMode) => void;
+  onFirstPersonAvatarModeChange: (mode: NavigationFirstPersonAvatarMode) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }
@@ -19,8 +25,10 @@ interface PlaySettingsPanelProps {
 export function PlaySettingsPanel({
   cameraLabels,
   cameraMode,
+  firstPersonAvatarMode,
   locale,
   onCameraModeChange,
+  onFirstPersonAvatarModeChange,
   onOpenChange,
   open,
 }: PlaySettingsPanelProps) {
@@ -105,6 +113,35 @@ export function PlaySettingsPanel({
                       {cameraLabels[mode]}
                     </button>
                   ))}
+                </div>
+
+                <div className="play-settings-field">
+                  <div className="play-settings-field-heading">
+                    <PersonStanding aria-hidden="true" size={17} />
+                    <div>
+                      <strong>{copy.firstPersonAvatar}</strong>
+                      <span>{copy.firstPersonAvatarDescription}</span>
+                    </div>
+                  </div>
+                  <div
+                    className="play-avatar-options"
+                    role="radiogroup"
+                    aria-label={copy.firstPersonAvatar}
+                  >
+                    {NAVIGATION_FIRST_PERSON_AVATAR_MODES.map((mode) => (
+                      <button
+                        className={firstPersonAvatarMode === mode ? "active" : ""}
+                        key={mode}
+                        role="radio"
+                        aria-checked={firstPersonAvatarMode === mode}
+                        type="button"
+                        onClick={() => onFirstPersonAvatarModeChange(mode)}
+                      >
+                        <strong>{copy.firstPersonAvatarModes[mode].label}</strong>
+                        <span>{copy.firstPersonAvatarModes[mode].description}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

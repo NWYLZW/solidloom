@@ -18,7 +18,12 @@ import {
   type NavigationObstacle,
   type NavigationPoint,
 } from "../navigation";
-import { createNavigationAvatar, type NavigationAvatar, type NavigationAvatarSkin } from "../navigationAvatar";
+import {
+  createNavigationAvatar,
+  type NavigationAvatar,
+  type NavigationAvatarSkin,
+  type NavigationFirstPersonAvatarMode,
+} from "../navigationAvatar";
 import {
   moveNavigationVelocityToward,
   resolveNavigationMotionProfile,
@@ -122,6 +127,7 @@ interface CreateNavigationRuntimeOptions extends NavigationSystemContext {
   navigationCameraMode: NavigationCameraMode;
   navigationCanConfigureInteractions: boolean;
   navigationDynamicBodies: Viewport3DProps["navigationDynamicBodies"];
+  navigationFirstPersonAvatarMode: NavigationFirstPersonAvatarMode;
   navigationInteractionLabels: Viewport3DProps["navigationInteractionLabels"];
   navigationInteractions: NavigationInteractionDescriptor[];
   navigationMode: boolean;
@@ -159,6 +165,7 @@ export function createNavigationRuntime({
   navigationCameraMode,
   navigationCanConfigureInteractions,
   navigationDynamicBodies,
+  navigationFirstPersonAvatarMode,
   navigationInteractionLabels,
   navigationInteractions,
   navigationMode,
@@ -379,8 +386,14 @@ export function createNavigationRuntime({
     );
     navigationCameraYaw = savedAgentState?.cameraYaw ?? navigationAgent.rotation.y;
     navigationAgent.castShadow = true;
-    navigationAgent.visible = navigationCameraMode !== "first-person";
+    navigationAgent.visible = true;
     navigationAgent.userData.navigationAgent = true;
+    navigationAvatar.setPresentation(
+      navigationCameraMode === "first-person",
+      navigationFirstPersonAvatarMode,
+      navigationCameraPitch,
+    );
+    camera.add(navigationAvatar.firstPersonObject);
     scene.add(navigationAgent);
   }
 
@@ -1044,7 +1057,8 @@ export function createNavigationRuntime({
         } else {
           moved = applyNavigationDisplacement(navigationDisplacement);
         }
-        if (!seatedInteraction && moved && navigationVelocity.lengthSq() > 400) {
+        if (!seatedInteraction && navigationCameraMode !== "first-person"
+          && moved && navigationVelocity.lengthSq() > 400) {
           smoothlyRotateNavigationAgent(
             Math.atan2(navigationVelocity.x, navigationVelocity.z),
             deltaSeconds,
@@ -1148,18 +1162,24 @@ export function createNavigationRuntime({
     if (!navigationMode || !navigation || !navigationAgent || navigationCameraMode === "god") return;
     const seated = Boolean(seatedInteractionId);
     const airborneOffset = seated ? 0 : navigationJumpState.verticalOffset;
+    if (navigationCameraMode === "first-person" && !seated) {
+      smoothlyRotateNavigationAgent(navigationCameraYaw, deltaSeconds);
+    }
+    if (navigationAvatar) {
+      navigationAvatarAnimating = navigationAvatar.setPresentation(
+        navigationCameraMode === "first-person",
+        navigationFirstPersonAvatarMode,
+        navigationCameraPitch,
+      ) || navigationAvatarAnimating;
+    }
     navigationCameraForward.set(
       Math.sin(navigationCameraYaw),
       0,
       Math.cos(navigationCameraYaw),
     );
     if (navigationCameraMode === "first-person") {
-      navigationAgent.visible = false;
-      navigationCameraPosition.set(
-        navigationAgent.position.x,
-        navigation.floorY + navigation.agentHeight * (seated ? 0.58 : 0.86) + airborneOffset,
-        navigationAgent.position.z,
-      );
+      navigationAgent.visible = true;
+      navigationAvatar?.getEyePosition(navigationCameraPosition);
       const horizontalScale = Math.cos(navigationCameraPitch) * navigation.agentHeight;
       navigationCameraTarget.copy(navigationCameraPosition)
         .addScaledVector(navigationCameraForward, horizontalScale);

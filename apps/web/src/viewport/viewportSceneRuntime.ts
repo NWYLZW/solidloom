@@ -8,6 +8,11 @@ import {
 } from "./scenePrimitives";
 import { createViewCubeRuntime } from "./viewCubeRuntime";
 import type { RuntimeDisposable } from "./runtimeLifecycle";
+import {
+  FIRST_PERSON_RENDER_LAYER,
+  MINECRAFT_FIRST_PERSON_FOV,
+  WORLD_RENDER_LAYER,
+} from "./renderLayers";
 
 interface CreateViewportSceneRuntimeOptions {
   axisWidget: HTMLCanvasElement;
@@ -26,6 +31,7 @@ export interface ViewportSceneRuntime extends RuntimeDisposable {
   readonly controls: OrbitControls;
   readonly cornerBoxColor: string;
   readonly infiniteGrid: ReturnType<typeof createInfiniteGrid>;
+  readonly render: () => void;
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
   readonly viewCubeRuntime: ReturnType<typeof createViewCubeRuntime>;
@@ -84,6 +90,7 @@ export function createViewportSceneRuntime({
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 10_000);
+  scene.add(camera);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
@@ -100,15 +107,39 @@ export function createViewportSceneRuntime({
   scene.add(infiniteGrid.mesh);
 
   const ambient = new THREE.HemisphereLight(0xffffff, 0x53604d, theme === "dark" ? 1.8 : 1.45);
+  ambient.layers.enable(FIRST_PERSON_RENDER_LAYER);
   scene.add(ambient);
   const keyLight = new THREE.DirectionalLight(0xffffff, theme === "dark" ? 3.3 : 2.5);
   keyLight.position.set(80, 120, 70);
   keyLight.castShadow = true;
+  keyLight.layers.enable(FIRST_PERSON_RENDER_LAYER);
   scene.add(keyLight);
   const fillLight = new THREE.DirectionalLight(0xbed7ff, 1.1);
   fillLight.position.set(-90, 50, -60);
+  fillLight.layers.enable(FIRST_PERSON_RENDER_LAYER);
   scene.add(fillLight);
   onRendererFailureChange(false);
+
+  const rendersFirstPersonLayer = navigationMode && navigationCameraMode === "first-person";
+  const render = () => {
+    const previousAutoClear = renderer.autoClear;
+    const previousCameraLayerMask = camera.layers.mask;
+    const previousCameraFov = camera.fov;
+    camera.layers.set(WORLD_RENDER_LAYER);
+    renderer.render(scene, camera);
+    if (rendersFirstPersonLayer) {
+      renderer.autoClear = false;
+      renderer.clearDepth();
+      camera.layers.set(FIRST_PERSON_RENDER_LAYER);
+      camera.fov = MINECRAFT_FIRST_PERSON_FOV;
+      camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+      camera.fov = previousCameraFov;
+      camera.updateProjectionMatrix();
+    }
+    camera.layers.mask = previousCameraLayerMask;
+    renderer.autoClear = previousAutoClear;
+  };
 
   let disposed = false;
   return {
@@ -117,6 +148,7 @@ export function createViewportSceneRuntime({
     controls,
     cornerBoxColor: computedStyle.getPropertyValue("--color-text").trim() || "#f7f8f3",
     infiniteGrid,
+    render,
     renderer,
     scene,
     viewCubeRuntime,

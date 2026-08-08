@@ -46,6 +46,7 @@ export function useViewport3DRuntime({
   navigationCanConfigureInteractions,
   navigationCameraMode,
   navigationDynamicBodies,
+  navigationFirstPersonAvatarMode,
   navigationInteractions,
   navigationInteractionLabels,
   navigationMode,
@@ -145,6 +146,7 @@ export function useViewport3DRuntime({
       controls,
       cornerBoxColor,
       infiniteGrid,
+      render,
       renderer,
       scene,
       viewCubeRuntime,
@@ -191,6 +193,7 @@ export function useViewport3DRuntime({
       navigationCanConfigureInteractions,
       navigationCameraMode,
       navigationDynamicBodies,
+      navigationFirstPersonAvatarMode,
       navigationInteractionLabels,
       navigationInteractions,
       navigationMode,
@@ -244,8 +247,17 @@ export function useViewport3DRuntime({
     const viewDirection = new THREE.Vector3(1.35, 1.05, 1.55).normalize();
     const savedView = savedViewRef.current?.modelId === modelId ? savedViewRef.current : null;
     controls.target.copy(savedView?.target ?? center);
-    camera.near = Math.max(0.1, maximumDimension / 100);
+    const usesFirstPersonCamera = Boolean(
+      navigationMode && navigation && navigationCameraMode === "first-person",
+    );
+    const modelNearPlane = Math.max(0.1, maximumDimension / 100);
+    const firstPersonNearPlane = navigation
+      ? Math.max(0.1, Math.min(modelNearPlane, navigation.agentHeight * 0.01))
+      : modelNearPlane;
+    camera.fov = usesFirstPersonCamera ? 55 : 38;
+    camera.near = usesFirstPersonCamera ? firstPersonNearPlane : modelNearPlane;
     camera.far = maximumDimension * 100;
+    camera.updateProjectionMatrix();
     infiniteGrid.mesh.scale.set(camera.far, camera.far, 1);
 
     const cameraControllerRuntime = lifecycle.add(createCameraControllerRuntime({
@@ -333,7 +345,7 @@ export function useViewport3DRuntime({
         }
         updateAnnotationTargets();
         cameraControllerRuntime.updateAxisWidget();
-        renderer.render(scene, camera);
+        render();
         return shouldScheduleViewportFrame({
           controlsChanged,
           jointAnimationActive: jointAnimationRuntime.active,
@@ -383,6 +395,7 @@ export function useViewport3DRuntime({
     navigationCanConfigureInteractions,
     navigationCameraMode,
     navigationDynamicBodies,
+    navigationFirstPersonAvatarMode,
     navigationInteractionLabels,
     navigationInteractions,
     navigationMode,
