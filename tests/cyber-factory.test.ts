@@ -22,17 +22,19 @@ describe("cyber factory examples", () => {
       warehouseCartId: "warehouse-cart-model",
       warehousePalletId: "warehouse-pallet-model",
       warehouseRackId: "warehouse-rack-model",
+      warehouseStackerCraneId: "warehouse-stacker-crane-model",
       warehouseToteId: "warehouse-tote-model",
     });
     expect(playground.kind).toBe("scene");
     expect(playground.name).toBe("交互试验场");
     expect(playground.featureGraph.features).toEqual([]);
-    expect(playground.featureGraph.references).toHaveLength(12);
+    expect(playground.featureGraph.references).toHaveLength(17);
     expect(playground.featureGraph.references?.map((reference) => reference.modelId)).toEqual(
       expect.arrayContaining([
         "warehouse-cart-model",
         "warehouse-pallet-model",
         "warehouse-rack-model",
+        "warehouse-stacker-crane-model",
         "warehouse-tote-model",
       ]),
     );

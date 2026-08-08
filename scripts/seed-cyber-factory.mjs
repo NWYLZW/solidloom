@@ -64,6 +64,34 @@ function canonicalJson(value) {
   return JSON.stringify(normalize(value));
 }
 
+function preserveImportedAvatarSkin(specification, existing) {
+  if (!existing || specification.name !== "原创方块角色") return specification;
+  const importedSkin = existing.featureGraph.features
+    .map((feature) => feature.appearance?.voxelSkin)
+    .find((skin) => typeof skin?.url === "string" && !skin.url.startsWith("builtin:"));
+  if (!importedSkin) return specification;
+  return {
+    ...specification,
+    featureGraph: {
+      ...specification.featureGraph,
+      features: specification.featureGraph.features.map((feature) => {
+        if (!feature.appearance?.voxelSkin) return feature;
+        return {
+          ...feature,
+          appearance: {
+            ...feature.appearance,
+            voxelSkin: {
+              ...feature.appearance.voxelSkin,
+              model: importedSkin.model,
+              url: importedSkin.url,
+            },
+          },
+        };
+      }),
+    },
+  };
+}
+
 const health = await request("/api/health");
 if (health.status !== "ok") throw new Error("SolidLoom 本地服务尚未就绪。");
 
@@ -82,8 +110,28 @@ for (const module of availableModels) {
   availableSpecifications.set(specification.name, specification);
 }
 
-for (const specification of [...availableSpecifications.values()].reverse()) {
-  const existing = existingByName.get(specification.name);
+const legacyStacker = existingByName.get("参数化巷道堆垛机（规划中）");
+if (replaceExisting && legacyStacker && !existingByName.has("参数化巷道堆垛机")) {
+  const specification = availableSpecifications.get("参数化巷道堆垛机");
+  if (specification) {
+    const migrated = await request(`/api/models/${encodeURIComponent(legacyStacker.id)}`, {
+      method: "PATCH",
+      body: {
+        expectedRevision: legacyStacker.revision,
+        kind: specification.kind ?? "asset",
+        name: specification.name,
+        description: specification.description,
+        unit: specification.unit,
+      },
+    });
+    existingByName.delete(legacyStacker.name);
+    existingByName.set(migrated.name, migrated);
+  }
+}
+
+for (const sourceSpecification of [...availableSpecifications.values()].reverse()) {
+  const existing = existingByName.get(sourceSpecification.name);
+  const specification = preserveImportedAvatarSkin(sourceSpecification, existing);
   if (existing && !replaceExisting) {
     skipped.push(specification.name);
     continue;
@@ -133,10 +181,11 @@ const coffeeMachine = sourceByName.get("参数化咖啡机");
 const waterDispenser = sourceByName.get("参数化下置桶饮水机");
 const lounge = sourceByName.get("现代休息区资产套件");
 const warehouseRack = sourceByName.get("参数化仓储货架");
+const warehouseStackerCrane = sourceByName.get("参数化巷道堆垛机");
 const warehousePallet = sourceByName.get("参数化仓储托盘");
 const warehouseTote = sourceByName.get("参数化仓储周转箱");
 const warehouseCart = sourceByName.get("参数化仓储推车");
-if (!room || !desk || !monitor || !laptop || !chair || !snackCabinet || !coffeeMachine || !waterDispenser || !lounge || !warehouseRack || !warehousePallet || !warehouseTote || !warehouseCart) {
+if (!room || !desk || !monitor || !laptop || !chair || !snackCabinet || !coffeeMachine || !waterDispenser || !lounge || !warehouseRack || !warehouseStackerCrane || !warehousePallet || !warehouseTote || !warehouseCart) {
   throw new Error("创建场景前必须先存在房间、办公资产、补给设备、休息区和可用仓储物流模型。");
 }
 
@@ -189,6 +238,7 @@ const playgroundSpecification = createInteractionPlaygroundModel({
   warehouseCartId: warehouseCart.id,
   warehousePalletId: warehousePallet.id,
   warehouseRackId: warehouseRack.id,
+  warehouseStackerCraneId: warehouseStackerCrane.id,
   warehouseToteId: warehouseTote.id,
 });
 const existingPlayground = sourceByName.get(playgroundSpecification.name);

@@ -251,10 +251,35 @@ export interface ModelReferenceInteraction {
       description?: string;
       id: string;
       label: string;
+      program?: ModelReferenceOperationProgram;
     }>;
   }>;
   operationExecuteLabel?: string;
   operationCompleteLabel?: string;
+}
+
+export interface ModelReferenceOperationMotion {
+  positionOffset?: Vector3Tuple;
+  scaleMultiplier?: Vector3Tuple;
+  targetFeatureIds?: string[];
+  targetReferenceId?: string;
+  visible?: boolean;
+}
+
+export interface ModelReferenceOperationStep {
+  durationMs: number;
+  id: string;
+  label: string;
+  motions: ModelReferenceOperationMotion[];
+}
+
+export interface ModelReferenceOperationProgram {
+  collect?: {
+    label: string;
+    status: string;
+    targetReferenceId: string;
+  };
+  steps: ModelReferenceOperationStep[];
 }
 
 export interface ModelReferenceInstance {

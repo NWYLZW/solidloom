@@ -15,8 +15,8 @@ export const warehouseRackModule = defineAssetModelModule("available", warehouse
 export const warehousePalletModule = defineAssetModelModule("available", warehousePalletDefinition);
 export const warehouseToteModule = defineAssetModelModule("available", warehouseToteDefinition);
 export const warehouseCartModule = defineAssetModelModule("available", warehouseCartDefinition);
-export const warehouseStackerCraneModule = defineAssetModelModule("planned", warehouseStackerCraneDefinition);
+export const warehouseStackerCraneModule = defineAssetModelModule("available", warehouseStackerCraneDefinition);
 export const warehouseAssetModules = warehouseAssetDefinitions.map((definition) => defineAssetModelModule(
-  definition.manifest.id === warehouseStackerCraneDefinition.manifest.id ? "planned" : "available",
+  "available",
   definition,
 ));

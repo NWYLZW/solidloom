@@ -22,7 +22,7 @@ import {
 } from "./index.js";
 
 describe("warehouse and internal logistics asset kit", () => {
-  it("publishes four available assets and one planned automation asset that satisfy the shared contract", () => {
+  it("publishes five available warehouse assets that satisfy the shared contract", () => {
     expect(warehouseAssetDefinitions.map(({ manifest }) => manifest.id)).toEqual([
       "cyber-factory-warehouse-rack",
       "cyber-factory-warehouse-pallet",
@@ -38,7 +38,7 @@ describe("warehouse and internal logistics asset kit", () => {
       "available",
       "available",
       "available",
-      "planned",
+      "available",
     ]);
   });
 
@@ -114,7 +114,7 @@ describe("warehouse and internal logistics asset kit", () => {
     });
   });
 
-  it("builds an independent stacker crane with stable motion groups and planned anchors", () => {
+  it("builds an independent stacker crane with stable motion groups and runtime anchors", () => {
     const definition = createWarehouseStackerCraneDefinition({ railLength: 18_000, mastHeight: 5_200 });
     const graph = definition.createModel().featureGraph!;
 
@@ -136,7 +136,9 @@ describe("warehouse and internal logistics asset kit", () => {
       "warehouse-stacker-outbound-socket",
     ]));
     expect(definition.manifest.joints).toEqual([]);
-    expect(definition.manifest.tags).toContain("planned");
+    expect(definition.manifest.tags).not.toContain("planned");
+    expect(definition.manifest.anchors.find(({ id }) => id === "warehouse-stacker-control-panel")?.tags)
+      .toContain("runtime-control");
   });
 
   it("uses a compact single-mast default that still reaches every slot in the default rack", () => {
@@ -194,17 +196,17 @@ describe("warehouse and internal logistics asset kit", () => {
     expect(extendedFork?.type).toBe("box");
     if (retractedFork?.type !== "box" || extendedFork?.type !== "box") return;
     expect(retractedFork.parameters.depth).toBe(defaultWarehouseStackerCraneParameters.carriageDepth - 80);
-    expect(retractedFork.position[2] - retractedFork.parameters.depth / 2).toBe(
-      -defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 80,
-    );
-    expect(extendedFork.position[2] - extendedFork.parameters.depth / 2).toBe(
-      -defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 80,
+    expect(retractedFork.position[2] + retractedFork.parameters.depth / 2).toBe(
+      defaultWarehouseStackerCraneParameters.carriageDepth / 2 - 80,
     );
     expect(extendedFork.position[2] + extendedFork.parameters.depth / 2).toBe(
-      defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 600,
+      defaultWarehouseStackerCraneParameters.carriageDepth / 2 - 80,
+    );
+    expect(extendedFork.position[2] - extendedFork.parameters.depth / 2).toBe(
+      -defaultWarehouseStackerCraneParameters.carriageDepth / 2 - 600,
     );
     const crosshead = extended.featureGraph!.features.find(({ id }) => id === "warehouse-stacker-fork-crosshead");
-    expect(crosshead?.position[2]).toBe(-defaultWarehouseStackerCraneParameters.carriageDepth / 2 + 140);
+    expect(crosshead?.position[2]).toBe(defaultWarehouseStackerCraneParameters.carriageDepth / 2 - 140);
   });
 
   it("turns a stable rack slot id into a deterministic planned retrieval sequence", () => {
@@ -243,7 +245,7 @@ describe("warehouse and internal logistics asset kit", () => {
     )?.position).toEqual([
       -warehouseStackerMaximumTravel(defaultWarehouseStackerCraneParameters),
       290,
-      30,
+      -30,
     ]);
   });
 

@@ -16,24 +16,31 @@ export function DefaultDeviceInteractionRenderer({
     ?? state.groups[0];
 
   const moveSelection = useCallback((direction: -1 | 1) => {
-    if (!activeGroup || activeGroup.options.length === 0) return;
+    if (!activeGroup || activeGroup.options.length === 0 || state.busy) return;
+    const enabledOptions = activeGroup.options.filter((option) => !option.disabled);
+    if (enabledOptions.length === 0) return;
     const currentIndex = activeGroup.options.findIndex((option) => (
       option.id === activeGroup.selectedOptionId
     ));
-    const nextIndex = currentIndex === -1
-      ? (direction === 1 ? 0 : activeGroup.options.length - 1)
-      : (currentIndex + direction + activeGroup.options.length) % activeGroup.options.length;
-    const nextOption = activeGroup.options[nextIndex];
+    const currentEnabledIndex = enabledOptions.findIndex((option) => (
+      option.id === activeGroup.options[currentIndex]?.id
+    ));
+    const nextIndex = currentEnabledIndex === -1
+      ? (direction === 1 ? 0 : enabledOptions.length - 1)
+      : (currentEnabledIndex + direction + enabledOptions.length) % enabledOptions.length;
+    const nextOption = enabledOptions[nextIndex];
     if (nextOption) select(activeGroup.id, nextOption.id);
-  }, [activeGroup, select]);
+  }, [activeGroup, select, state.busy]);
 
   const selectBoundary = useCallback((boundary: "first" | "last") => {
-    if (!activeGroup || activeGroup.options.length === 0) return;
+    if (!activeGroup || activeGroup.options.length === 0 || state.busy) return;
+    const enabledOptions = activeGroup.options.filter((option) => !option.disabled);
+    if (enabledOptions.length === 0) return;
     const nextOption = boundary === "first"
-      ? activeGroup.options[0]
-      : activeGroup.options[activeGroup.options.length - 1];
+      ? enabledOptions[0]
+      : enabledOptions[enabledOptions.length - 1];
     if (nextOption) select(activeGroup.id, nextOption.id);
-  }, [activeGroup, select]);
+  }, [activeGroup, select, state.busy]);
 
   const modalPresentation = presentation === "modal" || presentation === "sheet";
   useInteractionDialogKeyboard({
@@ -94,6 +101,7 @@ export function DefaultDeviceInteractionRenderer({
                       data-dialog-initial-focus={groupIndex === 0 && optionIndex === 0}
                       data-dialog-selection={active ? true : undefined}
                       data-selected={active && selected}
+                      disabled={state.busy || option.disabled}
                       key={option.id}
                       role="radio"
                       type="button"
@@ -130,6 +138,7 @@ export function DefaultDeviceInteractionRenderer({
             className="interaction-device-primary"
             data-dialog-primary-action
             type="button"
+            disabled={state.executeDisabled}
             onClick={execute}
           >
             <Zap aria-hidden="true" size={16} />

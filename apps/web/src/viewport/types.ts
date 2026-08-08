@@ -66,10 +66,35 @@ export interface NavigationInteractionDescriptor {
       description?: string;
       id: string;
       label: string;
+      program?: NavigationOperationProgram;
     }>;
   }>;
   range?: number;
   targetFeatureIds: string[];
+}
+
+export interface NavigationOperationMotion {
+  positionOffset?: Vector3Tuple;
+  scaleMultiplier?: Vector3Tuple;
+  targetFeatureIds?: string[];
+  targetGroupId?: string;
+  visible?: boolean;
+}
+
+export interface NavigationOperationStep {
+  durationMs: number;
+  id: string;
+  label: string;
+  motions: NavigationOperationMotion[];
+}
+
+export interface NavigationOperationProgram {
+  collect?: {
+    label: string;
+    status: string;
+    targetGroupId: string;
+  };
+  steps: NavigationOperationStep[];
 }
 
 export interface Viewport3DProps {

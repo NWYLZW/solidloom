@@ -462,6 +462,72 @@ export const modelReferenceInstanceSchema = {
                       id: { type: "string", minLength: 1, maxLength: 120 },
                       label: { type: "string", minLength: 1, maxLength: 120 },
                       description: { type: "string", minLength: 1, maxLength: 240 },
+                      program: {
+                        type: "object",
+                        additionalProperties: false,
+                        required: ["steps"],
+                        properties: {
+                          collect: {
+                            type: "object",
+                            additionalProperties: false,
+                            required: ["label", "status", "targetReferenceId"],
+                            properties: {
+                              label: { type: "string", minLength: 1, maxLength: 120 },
+                              status: { type: "string", minLength: 1, maxLength: 240 },
+                              targetReferenceId: { type: "string", minLength: 1, maxLength: 120 },
+                            },
+                          },
+                          steps: {
+                            type: "array",
+                            minItems: 1,
+                            maxItems: 32,
+                            items: {
+                              type: "object",
+                              additionalProperties: false,
+                              required: ["durationMs", "id", "label", "motions"],
+                              properties: {
+                                durationMs: { type: "number", minimum: 1, maximum: 600000 },
+                                id: { type: "string", minLength: 1, maxLength: 120 },
+                                label: { type: "string", minLength: 1, maxLength: 120 },
+                                motions: {
+                                  type: "array",
+                                  maxItems: 64,
+                                  items: {
+                                    type: "object",
+                                    additionalProperties: false,
+                                    properties: {
+                                      positionOffset: {
+                                        type: "array",
+                                        minItems: 3,
+                                        maxItems: 3,
+                                        items: { type: "number", minimum: -1000000, maximum: 1000000 },
+                                      },
+                                      scaleMultiplier: {
+                                        type: "array",
+                                        minItems: 3,
+                                        maxItems: 3,
+                                        items: { type: "number", minimum: 0.000001, maximum: 1000000 },
+                                      },
+                                      targetFeatureIds: {
+                                        type: "array",
+                                        minItems: 1,
+                                        maxItems: 128,
+                                        items: { type: "string", minLength: 1, maxLength: 240 },
+                                      },
+                                      targetReferenceId: { type: "string", minLength: 1, maxLength: 120 },
+                                      visible: { type: "boolean" },
+                                    },
+                                    anyOf: [
+                                      { required: ["targetFeatureIds"] },
+                                      { required: ["targetReferenceId"] },
+                                    ],
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
                     },
                   },
                 },

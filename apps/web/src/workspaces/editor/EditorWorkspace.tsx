@@ -63,6 +63,7 @@ import {
   resolveModelReferences,
 } from "../../modelReferences";
 import { readTreeUrlState, writeTreeUrlState } from "../../treeUrlState";
+import { resolveNavigationOperationGroups } from "../../sceneRuntimeModel";
 import { BUILTIN_VOXEL_SKIN_URL } from "../../voxelSkin";
 import { EditorDialogs } from "./components/EditorDialogs";
 import { EditorInspectorPanel } from "./components/EditorInspectorPanel";
@@ -260,6 +261,7 @@ export function EditorWorkspace() {
     const groupId = referenceViewportGroupId(reference.id);
     const sourceModel = models.find((model) => model.id === reference.modelId);
     return (reference.interactions ?? []).flatMap((interaction) => {
+      const { operationGroups, ...interactionFields } = interaction;
       const joint = interaction.kind === "articulation"
         ? sourceModel?.featureGraph.joints?.find((candidate) => candidate.id === interaction.jointId)
         : null;
@@ -274,11 +276,14 @@ export function EditorWorkspace() {
           }
         : {};
       return [{
-        ...interaction,
+        ...interactionFields,
         entityLabel: reference.name,
         groupId,
         id: `${reference.id}:${interaction.id}`,
         ...jointDescriptor,
+        ...(operationGroups ? {
+          operationGroups: resolveNavigationOperationGroups(groupId, operationGroups),
+        } : {}),
         targetFeatureIds: interaction.targetFeatureIds?.map((featureId) => `${groupId}:${featureId}`) ?? [],
       }];
     });

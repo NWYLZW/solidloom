@@ -175,6 +175,11 @@
   background: color-mix(in srgb, var(--interaction-color-accent) 8%, var(--color-control));
 }
 
+.interaction-ui-root .interaction-device-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .interaction-ui-root .interaction-device-option-copy {
   display: grid;
   min-width: 0;
@@ -240,6 +245,11 @@
   font: inherit;
   font-size: 11px;
   cursor: pointer;
+}
+
+.interaction-ui-root .interaction-device-primary:disabled {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .interaction-ui-root .interaction-device-primary:hover,
