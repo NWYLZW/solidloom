@@ -1,10 +1,20 @@
 import type { ModelFeature, NavigationSurface } from "@solidloom/shared";
 import * as THREE from "three";
+import {
+  clampNavigationCameraPitch,
+  clampThirdPersonCameraHeight,
+  resolveThirdPersonAvatarOpacity,
+  resolveThirdPersonElevation,
+} from "./navigationCameraMath";
+import { createNavigationCameraCollisionRuntime } from "./navigationCameraCollisionRuntime";
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   collectNavigationPushChain,
+  findNavigationSupportY,
   findNavigationPath,
   isNavigationPointWalkable,
+  navigationObstacleBlocksHeight,
+  navigationObstaclesBlockingHeight,
   type NavigationObstacle,
   type NavigationPoint,
 } from "../navigation";
@@ -20,10 +30,19 @@ import {
   resolveNavigationPathSpeed,
 } from "../navigationMotion";
 import {
+  createNavigationJumpState,
+  resetNavigationJumpState,
+  stepNavigationJump,
+} from "../navigationJump";
+import {
   createNavigationInteractionRuntimes,
   type NavigationDynamicBodyRuntime,
   type NavigationInteractionRuntime,
 } from "./navigationInteractionRuntime";
+import {
+  collectNavigationMeshCollisionObstacles,
+  updateNavigationMeshCollisionObstacles,
+} from "./navigationDynamicBody";
 import { createNavigationSeatPoseResolver } from "./navigationSeat";
 import {
   createNavigationOperationProgramRuntime,
@@ -54,6 +73,7 @@ export interface SavedNavigationRuntimeState {
     position: THREE.Vector3;
     rotationY: number;
     velocity: THREE.Vector3;
+    verticalVelocity?: number;
   } | null;
   dynamicBodies: {
     modelId: string;
@@ -181,6 +201,9 @@ export function createNavigationRuntime({
   const navigationDynamicGroupIds = new Set(navigationDynamicBodies.map((body) => body.groupId));
   const navigationResources: Array<{ dispose: () => void }> = [];
   const navigationSceneObjects: THREE.Object3D[] = [];
+  const navigationCameraCollisionRuntime = navigationMode && navigation?.enabled
+    ? createNavigationCameraCollisionRuntime(featureMeshById.values())
+    : null;
   let navigationAgent: THREE.Group | null = null;
   let navigationAvatar: NavigationAvatar | null = null;
   let navigationAvatarAnimating = false;
@@ -189,13 +212,14 @@ export function createNavigationRuntime({
   let navigationPathIndex = 0;
   let navigationCameraPitch = 0;
   let navigationCameraYaw = 0;
-  const navigationCameraPitchLimit = THREE.MathUtils.degToRad(
-    navigationCameraMode === "first-person" ? 80 : 65,
-  );
   const navigationVelocity = new THREE.Vector3();
   const navigationMotionProfile = navigation
     ? resolveNavigationMotionProfile(navigation.agentHeight)
     : null;
+  const navigationGroundAgentY = navigation
+    ? navigation.floorY + navigation.agentHeight / 2
+    : 0;
+  let navigationJumpState = createNavigationJumpState();
   const navigationGround = navigation
     ? new THREE.Plane(new THREE.Vector3(0, 1, 0), -navigation.floorY)
     : null;
@@ -238,6 +262,8 @@ export function createNavigationRuntime({
       const obstacle = {
         minX: obstacleBounds.min.x,
         maxX: obstacleBounds.max.x,
+        minY: obstacleBounds.min.y,
+        maxY: obstacleBounds.max.y,
         minZ: obstacleBounds.min.z,
         maxZ: obstacleBounds.max.z,
       };
@@ -259,11 +285,15 @@ export function createNavigationRuntime({
       const obstacle = {
         minX: obstacleBounds.min.x,
         maxX: obstacleBounds.max.x,
+        minY: obstacleBounds.min.y,
+        maxY: obstacleBounds.max.y,
         minZ: obstacleBounds.min.z,
         maxZ: obstacleBounds.max.z,
       };
-      navigationObstacles.push(obstacle);
+      const collisionObstacles = collectNavigationMeshCollisionObstacles(object);
+      navigationObstacles.push(...collisionObstacles.map(({ obstacle: meshObstacle }) => meshObstacle));
       navigationDynamicBodyRuntimes.push({
+        collisionObstacles,
         friction: body.friction,
         id: body.groupId,
         linearDamping: body.linearDamping,
@@ -290,6 +320,8 @@ export function createNavigationRuntime({
       interaction.seatObstacle = {
         minX: obstacleBounds.min.x,
         maxX: obstacleBounds.max.x,
+        minY: obstacleBounds.min.y,
+        maxY: obstacleBounds.max.y,
         minZ: obstacleBounds.min.z,
         maxZ: obstacleBounds.max.z,
       };
@@ -333,13 +365,25 @@ export function createNavigationRuntime({
     const savedAgentState = savedState?.agent?.modelId === modelId ? savedState.agent : null;
     navigationAgent.position.copy(savedAgentState?.position ?? new THREE.Vector3(
       navigation.start[0],
-      navigation.floorY + navigation.agentHeight / 2,
+      navigationGroundAgentY,
       navigation.start[1],
     ));
+    navigationJumpState = seatedInteractionId
+      ? createNavigationJumpState()
+      : createNavigationJumpState(
+        navigationAgent.position.y - navigationGroundAgentY,
+        savedAgentState?.verticalVelocity ?? 0,
+      );
+    if (!seatedInteractionId) {
+      navigationAgent.position.y = navigationGroundAgentY + navigationJumpState.verticalOffset;
+    }
     navigationAgent.rotation.y = savedAgentState?.rotationY
       ?? Math.atan2(-navigation.start[0], -navigation.start[1]);
     navigationVelocity.copy(savedAgentState?.velocity ?? new THREE.Vector3());
-    navigationCameraPitch = savedAgentState?.cameraPitch ?? 0;
+    navigationCameraPitch = clampNavigationCameraPitch(
+      navigationCameraMode,
+      savedAgentState?.cameraPitch ?? 0,
+    );
     navigationCameraYaw = savedAgentState?.cameraYaw ?? navigationAgent.rotation.y;
     navigationAgent.castShadow = true;
     navigationAgent.visible = true;
@@ -409,8 +453,11 @@ export function createNavigationRuntime({
     navigationBodyBounds.setFromObject(body.object);
     body.obstacle.minX = navigationBodyBounds.min.x;
     body.obstacle.maxX = navigationBodyBounds.max.x;
+    body.obstacle.minY = navigationBodyBounds.min.y;
+    body.obstacle.maxY = navigationBodyBounds.max.y;
     body.obstacle.minZ = navigationBodyBounds.min.z;
     body.obstacle.maxZ = navigationBodyBounds.max.z;
+    updateNavigationMeshCollisionObstacles(body.collisionObstacles, navigationBodyBounds);
   };
   const translateDynamicBody = (body: NavigationDynamicBodyRuntime, deltaX: number, deltaZ: number) => {
     if (Math.abs(deltaX) + Math.abs(deltaZ) < 0.0001) return;
@@ -426,6 +473,8 @@ export function createNavigationRuntime({
     navigationBodyBounds.setFromObject(mesh);
     obstacle.minX = navigationBodyBounds.min.x;
     obstacle.maxX = navigationBodyBounds.max.x;
+    obstacle.minY = navigationBodyBounds.min.y;
+    obstacle.maxY = navigationBodyBounds.max.y;
     obstacle.minZ = navigationBodyBounds.min.z;
     obstacle.maxZ = navigationBodyBounds.max.z;
   };
@@ -761,16 +810,25 @@ export function createNavigationRuntime({
   };
   const tryPushDynamicBodies = (candidate: THREE.Vector3, displacement: THREE.Vector3) => {
     if (!navigation || displacement.lengthSq() < 0.0001) return false;
+    const agentBottomY = navigation.floorY + navigationJumpState.verticalOffset;
+    const blockingStaticObstacles = navigationObstaclesBlockingHeight(
+      navigationStaticObstacles,
+      agentBottomY,
+      navigation.agentHeight,
+    );
     if (!isNavigationPointWalkable(
       navigation,
-      navigationStaticObstacles,
+      blockingStaticObstacles,
       [candidate.x, candidate.z],
     )) return false;
     const collidedBodies = navigationDynamicBodyRuntimes.filter((body) => (
-      candidate.x >= body.obstacle.minX - navigation.agentRadius
-      && candidate.x <= body.obstacle.maxX + navigation.agentRadius
-      && candidate.z >= body.obstacle.minZ - navigation.agentRadius
-      && candidate.z <= body.obstacle.maxZ + navigation.agentRadius
+      body.collisionObstacles.some(({ obstacle }) => (
+        navigationObstacleBlocksHeight(obstacle, agentBottomY, navigation.agentHeight)
+        && candidate.x >= obstacle.minX - navigation.agentRadius
+        && candidate.x <= obstacle.maxX + navigation.agentRadius
+        && candidate.z >= obstacle.minZ - navigation.agentRadius
+        && candidate.z <= obstacle.maxZ + navigation.agentRadius
+      ))
     ));
     if (collidedBodies.length === 0) return false;
 
@@ -840,11 +898,18 @@ export function createNavigationRuntime({
   const applyNavigationDisplacement = (displacement: THREE.Vector3) => {
     if (!navigation || !navigationAgent || displacement.lengthSq() < 0.0001) return false;
     navigationCandidatePoint.copy(navigationAgent.position).add(displacement);
-    const canOccupyCandidate = () => isNavigationPointWalkable(
-      navigation,
-      navigationObstacles,
-      [navigationCandidatePoint.x, navigationCandidatePoint.z],
-    );
+    const canOccupyCandidate = () => {
+      const agentBottomY = navigation.floorY + navigationJumpState.verticalOffset;
+      return isNavigationPointWalkable(
+        navigation,
+        navigationObstaclesBlockingHeight(
+          navigationObstacles,
+          agentBottomY,
+          navigation.agentHeight,
+        ),
+        [navigationCandidatePoint.x, navigationCandidatePoint.z],
+      );
+    };
     if (canOccupyCandidate()
       || (tryPushDynamicBodies(navigationCandidatePoint, displacement) && canOccupyCandidate())) {
       navigationAgent.position.copy(navigationCandidatePoint);
@@ -1026,19 +1091,77 @@ export function createNavigationRuntime({
     if (yawInput !== 0 || pitchInput !== 0) {
       if (navigationMode && navigationCameraMode !== "god") {
         navigationCameraYaw -= yawInput * THREE.MathUtils.degToRad(132) * deltaSeconds;
-        navigationCameraPitch = THREE.MathUtils.clamp(
+        navigationCameraPitch = clampNavigationCameraPitch(
+          navigationCameraMode,
           navigationCameraPitch - pitchInput * THREE.MathUtils.degToRad(90) * deltaSeconds,
-          -navigationCameraPitchLimit,
-          navigationCameraPitchLimit,
         );
       } else {
         rotateCamera(yawInput * 132 * deltaSeconds, pitchInput * 132 * deltaSeconds);
       }
     }
   };
+  const updateNavigationJump = (
+    deltaSeconds: number,
+    keyboardNavigationKeys: ReadonlySet<string>,
+  ) => {
+    if (!navigationMode || !navigation || !navigationAgent || !navigationMotionProfile) return false;
+    const jumpPressed = keyboardNavigationKeys.has("Space");
+    if (seatedInteractionId) {
+      return resetNavigationJumpState(navigationJumpState, jumpPressed);
+    }
+    const previousOffset = navigationJumpState.verticalOffset;
+    const previousVelocity = navigationJumpState.verticalVelocity;
+    let changed = false;
+    if (navigationJumpState.grounded && previousOffset > 0.001) {
+      const currentSupportY = findNavigationSupportY(
+        navigationObstacles,
+        [navigationAgent.position.x, navigationAgent.position.z],
+        navigation.agentRadius,
+        navigation.floorY + previousOffset + 2,
+      );
+      const currentSupportOffset = currentSupportY === null ? 0 : currentSupportY - navigation.floorY;
+      if (Math.abs(currentSupportOffset - previousOffset) > 2) {
+        navigationJumpState.grounded = false;
+        navigationJumpState.verticalVelocity = 0;
+        changed = true;
+      }
+    }
+    changed = stepNavigationJump(navigationJumpState, {
+      deltaSeconds,
+      gravity: navigationMotionProfile.gravity,
+      jumpPressed,
+      jumpVelocity: navigationMotionProfile.jumpVelocity,
+    }) || changed;
+    const descending = previousVelocity <= 0 || navigationJumpState.verticalVelocity <= 0;
+    if (descending) {
+      const maximumSupportY = navigation.floorY + Math.max(
+        previousOffset,
+        navigationJumpState.verticalOffset,
+      );
+      const supportY = findNavigationSupportY(
+        navigationObstacles,
+        [navigationAgent.position.x, navigationAgent.position.z],
+        navigation.agentRadius,
+        maximumSupportY,
+      );
+      const supportOffset = supportY === null ? 0 : supportY - navigation.floorY;
+      const crossedSupport = supportOffset > 0
+        && supportOffset >= navigationJumpState.verticalOffset - 1
+        && supportOffset <= Math.max(previousOffset, navigationJumpState.verticalOffset) + 1;
+      if (crossedSupport) {
+        navigationJumpState.grounded = true;
+        navigationJumpState.verticalOffset = supportOffset;
+        navigationJumpState.verticalVelocity = 0;
+        changed = true;
+      }
+    }
+    navigationAgent.position.y = navigationGroundAgentY + navigationJumpState.verticalOffset;
+    return changed;
+  };
   const updateNavigationCamera = (deltaSeconds: number) => {
     if (!navigationMode || !navigation || !navigationAgent || navigationCameraMode === "god") return;
     const seated = Boolean(seatedInteractionId);
+    const airborneOffset = seated ? 0 : navigationJumpState.verticalOffset;
     if (navigationCameraMode === "first-person" && !seated) {
       smoothlyRotateNavigationAgent(navigationCameraYaw, deltaSeconds);
     }
@@ -1055,26 +1178,42 @@ export function createNavigationRuntime({
       Math.cos(navigationCameraYaw),
     );
     if (navigationCameraMode === "first-person") {
+      navigationAgent.visible = true;
       navigationAvatar?.getEyePosition(navigationCameraPosition);
       const horizontalScale = Math.cos(navigationCameraPitch) * navigation.agentHeight;
       navigationCameraTarget.copy(navigationCameraPosition)
         .addScaledVector(navigationCameraForward, horizontalScale);
       navigationCameraTarget.y += Math.sin(navigationCameraPitch) * navigation.agentHeight;
     } else {
+      navigationAgent.visible = true;
       navigationCameraTarget.set(
         navigationAgent.position.x,
-        navigation.floorY + navigation.agentHeight * (seated ? 0.42 : 0.58),
+        navigation.floorY + navigation.agentHeight * (seated ? 0.42 : 0.58) + airborneOffset,
         navigationAgent.position.z,
       );
       const followDistance = navigation.agentHeight * 3.14;
-      const elevation = THREE.MathUtils.clamp(
-        THREE.MathUtils.degToRad(17) + navigationCameraPitch,
-        THREE.MathUtils.degToRad(4),
-        THREE.MathUtils.degToRad(72),
-      );
+      const elevation = resolveThirdPersonElevation(navigationCameraPitch);
       navigationCameraPosition.copy(navigationCameraTarget)
         .addScaledVector(navigationCameraForward, -Math.cos(elevation) * followDistance);
       navigationCameraPosition.y += Math.sin(elevation) * followDistance;
+      navigationCameraPosition.y = clampThirdPersonCameraHeight(
+        navigationCameraPosition.y,
+        navigation.floorY,
+        navigation.agentHeight,
+      );
+      navigationCameraCollisionRuntime?.resolvePosition({
+        clearance: Math.max(camera.near * 1.5, navigation.agentRadius * 0.5),
+        idealPosition: navigationCameraPosition,
+        output: navigationCameraPosition,
+        target: navigationCameraTarget,
+      });
+      navigationAvatarAnimating = Boolean(navigationAvatar?.setOpacity(
+        resolveThirdPersonAvatarOpacity(
+          navigationCameraPosition.distanceTo(navigationCameraTarget),
+          navigation.agentHeight,
+        ),
+        deltaSeconds,
+      )) || navigationAvatarAnimating;
     }
     camera.up.copy(worldUp);
     camera.position.copy(navigationCameraPosition);
@@ -1222,6 +1361,7 @@ export function createNavigationRuntime({
     || keyboardNavigationKeys.size > 0
     || navigationPathIndex > 0
     || navigationVelocity.lengthSq() > 1
+    || !navigationJumpState.grounded
     || navigationDynamicBodyRuntimes.some((body) => body.velocity.lengthSq() > 1)
     || navigationInteractionRuntimes.some((interaction) => interaction.deviceProgramPhase === "running")
     || navigationInteractionRuntimes.some((interaction) => (
@@ -1235,6 +1375,7 @@ export function createNavigationRuntime({
     const previousAgentRotationY = navigationAgent?.rotation.y ?? 0;
     const previousAgentScaleY = navigationAgent?.scale.y ?? 1;
     let operationProgramChanged = false;
+    let navigationJumpChanged = false;
     if (navigationAgent) navigationPreviousAgentPosition.copy(navigationAgent.position);
     if (!input.viewTransitionActive) {
       updateNavigationDynamicBodies(input.deltaSeconds);
@@ -1244,6 +1385,7 @@ export function createNavigationRuntime({
       updateKeyboardNavigation(input);
       updateNavigationAgent(input.deltaSeconds);
       syncSeatedNavigationAgent();
+      navigationJumpChanged = updateNavigationJump(input.deltaSeconds, input.keyboardNavigationKeys);
       if (navigationAgent && navigationAvatar) {
         const horizontalDistance = Math.hypot(
           navigationAgent.position.x - navigationPreviousAgentPosition.x,
@@ -1268,6 +1410,7 @@ export function createNavigationRuntime({
       || navigationShadowStateChanged
       || navigationAgentChanged
       || navigationAvatarAnimating
+      || navigationJumpChanged
       || operationProgramChanged;
     navigationShadowStateChanged = false;
     return { navigationObjectChanged };
@@ -1280,6 +1423,7 @@ export function createNavigationRuntime({
       position: navigationAgent.position.clone(),
       rotationY: navigationAgent.rotation.y,
       velocity: navigationVelocity.clone(),
+      verticalVelocity: navigationJumpState.verticalVelocity,
     },
     dynamicBodies: navigationDynamicBodyRuntimes.length === 0 ? null : {
       modelId,
@@ -1295,10 +1439,9 @@ export function createNavigationRuntime({
   return {
     adjustCamera: (yawDelta, pitchDelta) => {
       navigationCameraYaw += yawDelta;
-      navigationCameraPitch = THREE.MathUtils.clamp(
+      navigationCameraPitch = clampNavigationCameraPitch(
+        navigationCameraMode,
         navigationCameraPitch + pitchDelta,
-        -navigationCameraPitchLimit,
-        navigationCameraPitchLimit,
       );
     },
     captureState,
@@ -1319,6 +1462,7 @@ export function createNavigationRuntime({
       navigationPathLine?.removeFromParent();
       navigationAgent?.removeFromParent();
       navigationAvatar?.dispose();
+      navigationCameraCollisionRuntime?.dispose();
       for (const object of navigationSceneObjects) object.removeFromParent();
       for (const resource of navigationResources) resource.dispose();
     },

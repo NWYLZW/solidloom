@@ -1,6 +1,8 @@
 export interface NavigationMotionProfile {
   acceleration: number;
   braking: number;
+  gravity: number;
+  jumpVelocity: number;
   pathSpeed: number;
   runSpeed: number;
   seatedSpeed: number;
@@ -24,12 +26,14 @@ const REFERENCE_AGENT_HEIGHT = 1720;
 export function resolveNavigationMotionProfile(agentHeight: number): NavigationMotionProfile {
   const scale = Math.max(1, agentHeight) / REFERENCE_AGENT_HEIGHT;
   return {
-    acceleration: 4800 * scale,
-    braking: 6800 * scale,
-    pathSpeed: 1500 * scale,
-    runSpeed: 3600 * scale,
+    acceleration: 7500 * scale,
+    braking: 9000 * scale,
+    gravity: 9800 * scale,
+    jumpVelocity: 3100 * scale,
+    pathSpeed: 2100 * scale,
+    runSpeed: 5000 * scale,
     seatedSpeed: 720 * scale,
-    walkSpeed: 1500 * scale,
+    walkSpeed: 2100 * scale,
   };
 }
 

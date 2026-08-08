@@ -3,7 +3,9 @@ import type { NavigationSurface } from "@solidloom/shared";
 import {
   collectNavigationPushChain,
   findNavigationPath,
+  findNavigationSupportY,
   isNavigationPointWalkable,
+  navigationObstaclesBlockingHeight,
   type NavigationObstacle,
 } from "../apps/web/src/navigation";
 
@@ -36,6 +38,29 @@ describe("navigation", () => {
   it("returns no path for an unreachable destination", () => {
     const obstacles: NavigationObstacle[] = [{ minX: 450, maxX: 550, minZ: 0, maxZ: 1000 }];
     expect(findNavigationPath(surface, obstacles, [100, 500], [900, 500])).toEqual([]);
+  });
+
+  it("stops treating a low obstacle as a wall after the agent clears its top", () => {
+    const obstacles: NavigationObstacle[] = [{
+      minX: 400,
+      maxX: 600,
+      minY: 0,
+      maxY: 120,
+      minZ: 400,
+      maxZ: 600,
+    }];
+    expect(navigationObstaclesBlockingHeight(obstacles, 80, surface.agentHeight)).toEqual(obstacles);
+    expect(navigationObstaclesBlockingHeight(obstacles, 120, surface.agentHeight)).toEqual([]);
+  });
+
+  it("finds the highest model surface below the agent feet", () => {
+    const obstacles: NavigationObstacle[] = [
+      { minX: 400, maxX: 600, minY: 0, maxY: 120, minZ: 400, maxZ: 600 },
+      { minX: 450, maxX: 550, minY: 120, maxY: 180, minZ: 450, maxZ: 550 },
+    ];
+    expect(findNavigationSupportY(obstacles, [500, 500], surface.agentRadius, 200)).toBe(180);
+    expect(findNavigationSupportY(obstacles, [500, 500], surface.agentRadius, 150)).toBe(120);
+    expect(findNavigationSupportY(obstacles, [100, 100], surface.agentRadius, 200)).toBeNull();
   });
 
   it("propagates a push through touching dynamic bodies until a static obstacle blocks the chain", () => {

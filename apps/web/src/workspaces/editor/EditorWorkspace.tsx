@@ -159,6 +159,7 @@ export function EditorWorkspace() {
       title: "镜头导航",
       rows: [
         ["W / A / S / D", "前进、左移、后退、右移"],
+        ["空格", "落地时跳跃"],
         ["Q / E", "下降、上升"],
         ["Shift / Option", "加速 / 精细移动"],
         ["方向键", "环绕观察"],
@@ -192,6 +193,7 @@ export function EditorWorkspace() {
       title: "Camera navigation",
       rows: [
         ["W / A / S / D", "Forward, left, backward, right"],
+        ["Space", "Jump while grounded"],
         ["Q / E", "Move down / up"],
         ["Shift / Option", "Fast / precise movement"],
         ["Arrow keys", "Orbit the camera"],

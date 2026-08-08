@@ -124,6 +124,7 @@ export interface NavigationAvatar {
     mode: NavigationFirstPersonAvatarMode,
     cameraPitch: number,
   ) => boolean;
+  setOpacity: (opacity: number, deltaSeconds: number) => boolean;
   update: (speed: number, seated: boolean, deltaSeconds: number) => boolean;
 }
 
@@ -211,6 +212,7 @@ export function createNavigationAvatar({
     target: Set<THREE.Material>,
   ) => {
     target.add(material);
+    if (materialDefaults.has(material)) return;
     materialDefaults.set(material, {
       depthWrite: material.depthWrite,
       opacity: material.opacity,
@@ -339,7 +341,12 @@ export function createNavigationAvatar({
   firstPersonRightArm.scale.y = -1;
   firstPersonObject.traverse((object) => object.layers.set(FIRST_PERSON_RENDER_LAYER));
 
-  const applyMaterialOpacity = (materials: Set<THREE.Material>, opacity: number) => {
+  const applyMaterialOpacity = (
+    materials: Set<THREE.Material>,
+    presentationOpacity: number,
+    avatarOpacity = 1,
+  ) => {
+    const opacity = presentationOpacity * avatarOpacity;
     const clampedOpacity = THREE.MathUtils.clamp(opacity, 0, 1);
     for (const material of materials) {
       const defaults = materialDefaults.get(material);
@@ -358,6 +365,14 @@ export function createNavigationAvatar({
   let currentBodyOpacity = 1;
   let currentHeadOpacity = 1;
   let currentHandsOpacity = 0;
+  let currentAvatarOpacity = 1;
+  let currentFirstPerson = false;
+  const applyPresentation = () => {
+    const avatarOpacity = currentFirstPerson ? 1 : currentAvatarOpacity;
+    applyMaterialOpacity(bodyMaterials, currentBodyOpacity, avatarOpacity);
+    applyMaterialOpacity(headMaterials, currentHeadOpacity, avatarOpacity);
+    applyMaterialOpacity(handMaterials, currentHandsOpacity);
+  };
   const setPresentation: NavigationAvatar["setPresentation"] = (firstPerson, mode, cameraPitch) => {
     const presentation = firstPerson
       ? resolveNavigationAvatarPresentation(mode, cameraPitch)
@@ -365,14 +380,14 @@ export function createNavigationAvatar({
     const headOpacity = firstPerson ? 0 : 1;
     const changed = Math.abs(currentBodyOpacity - presentation.bodyOpacity) > 0.001
       || Math.abs(currentHeadOpacity - headOpacity) > 0.001
-      || Math.abs(currentHandsOpacity - presentation.handsOpacity) > 0.001;
+      || Math.abs(currentHandsOpacity - presentation.handsOpacity) > 0.001
+      || currentFirstPerson !== firstPerson;
     if (!changed) return false;
+    currentFirstPerson = firstPerson;
     currentBodyOpacity = presentation.bodyOpacity;
     currentHeadOpacity = headOpacity;
     currentHandsOpacity = presentation.handsOpacity;
-    applyMaterialOpacity(bodyMaterials, currentBodyOpacity);
-    applyMaterialOpacity(headMaterials, currentHeadOpacity);
-    applyMaterialOpacity(handMaterials, currentHandsOpacity);
+    applyPresentation();
     firstPersonObject.visible = currentHandsOpacity > 0.001;
     return true;
   };
@@ -380,6 +395,17 @@ export function createNavigationAvatar({
   let phase = 0;
   let movementWeight = 0;
   let seatedWeight = 0;
+  const setOpacity: NavigationAvatar["setOpacity"] = (opacity, deltaSeconds) => {
+    const targetOpacity = THREE.MathUtils.clamp(opacity, 0, 1);
+    const previousOpacity = currentAvatarOpacity;
+    currentAvatarOpacity = deltaSeconds > 0
+      ? THREE.MathUtils.damp(currentAvatarOpacity, targetOpacity, 14, deltaSeconds)
+      : targetOpacity;
+    if (Math.abs(currentAvatarOpacity - targetOpacity) < 0.002) currentAvatarOpacity = targetOpacity;
+    if (Math.abs(previousOpacity - currentAvatarOpacity) < 0.0001) return false;
+    if (!currentFirstPerson) applyPresentation();
+    return true;
+  };
   const update = (speed: number, seated: boolean, deltaSeconds: number) => {
     const targetMovementWeight = seated
       ? 0
@@ -423,6 +449,7 @@ export function createNavigationAvatar({
     getEyePosition: (target) => eyeAnchor.getWorldPosition(target),
     object: root,
     setPresentation,
+    setOpacity,
     update,
   };
 }

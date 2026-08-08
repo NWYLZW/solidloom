@@ -95,6 +95,18 @@ describe("navigation avatar", () => {
       avatar.setPresentation(false, "hidden", 0);
       expectMaterialOpacity(avatar.object, "躯干", 1);
       expectMaterialOpacity(avatar.object, "头部", 1);
+
+      avatar.setOpacity(0.5, 0);
+      expectMaterialOpacity(avatar.object, "躯干", 0.5);
+      expectMaterialOpacity(avatar.object, "头部", 0.5);
+
+      avatar.setPresentation(true, "body", 0);
+      expectMaterialOpacity(avatar.object, "躯干", 1);
+      expectMaterialOpacity(avatar.object, "头部", 0);
+
+      avatar.setPresentation(false, "body", 0);
+      expectMaterialOpacity(avatar.object, "躯干", 0.5);
+      expectMaterialOpacity(avatar.object, "头部", 0.5);
     } finally {
       avatar.dispose();
     }
