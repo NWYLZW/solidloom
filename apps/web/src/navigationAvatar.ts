@@ -6,6 +6,7 @@ import type {
   VoxelSkinSegment,
 } from "@solidloom/shared";
 import { disposeFeatureMaterial } from "./featureMaterials";
+import { resolveNavigationMotionProfile } from "./navigationMotion";
 import {
   BUILTIN_VOXEL_SKIN_URL,
   createVoxelSkinMaterialLayers,
@@ -76,6 +77,7 @@ export function createNavigationAvatar({
 }: CreateNavigationAvatarOptions): NavigationAvatar {
   const dimensions = resolveNavigationAvatarDimensions(agentHeight);
   const pixel = dimensions.pixelSize;
+  const motionProfile = resolveNavigationMotionProfile(agentHeight);
   const avatarSkin = skin ?? { model: "classic", url: BUILTIN_VOXEL_SKIN_URL };
   const root = new THREE.Group();
   root.name = "漫游角色";
@@ -164,14 +166,16 @@ export function createNavigationAvatar({
   let movementWeight = 0;
   let seatedWeight = 0;
   const update = (speed: number, seated: boolean, deltaSeconds: number) => {
-    const targetMovementWeight = seated ? 0 : THREE.MathUtils.smoothstep(speed, 24, agentHeight * 0.48);
+    const targetMovementWeight = seated
+      ? 0
+      : THREE.MathUtils.smoothstep(speed, 24, motionProfile.walkSpeed * 0.55);
     const targetSeatedWeight = seated ? 1 : 0;
     const previousMovementWeight = movementWeight;
     const previousSeatedWeight = seatedWeight;
     movementWeight = THREE.MathUtils.damp(movementWeight, targetMovementWeight, 10, deltaSeconds);
     seatedWeight = THREE.MathUtils.damp(seatedWeight, targetSeatedWeight, 12, deltaSeconds);
 
-    const runBlend = THREE.MathUtils.smoothstep(speed, agentHeight * 0.5, agentHeight * 0.92);
+    const runBlend = THREE.MathUtils.smoothstep(speed, motionProfile.walkSpeed, motionProfile.runSpeed);
     const cadence = THREE.MathUtils.lerp(4.7, 8.6, runBlend) * movementWeight;
     phase += cadence * deltaSeconds;
     const stride = Math.sin(phase) * THREE.MathUtils.lerp(0.46, 0.82, runBlend) * movementWeight;
