@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { ORBIT_MAX_POLAR_ANGLE, ORBIT_MIN_POLAR_ANGLE } from "./cameraOrbitMath";
 import type { NavigationCameraMode } from "./types";
 import {
   AXIS_WIDGET_SIZE,
@@ -86,6 +87,8 @@ export function createViewportSceneRuntime({
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
+  controls.minPolarAngle = ORBIT_MIN_POLAR_ANGLE;
+  controls.maxPolarAngle = ORBIT_MAX_POLAR_ANGLE;
   controls.screenSpacePanning = true;
   controls.enabled = !navigationMode || navigationCameraMode === "god";
 

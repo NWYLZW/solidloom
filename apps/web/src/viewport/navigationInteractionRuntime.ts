@@ -3,9 +3,11 @@ import * as THREE from "three";
 import type { NavigationObstacle } from "../navigation";
 import type { NavigationContainerItem } from "../interaction-ui/types";
 import type { ContainerProductDefinition } from "./containerInventory";
+import type { NavigationMeshCollisionObstacle } from "./navigationDynamicBody";
 import type { NavigationInteractionDescriptor } from "./types";
 
 export interface NavigationDynamicBodyRuntime {
+  collisionObstacles: NavigationMeshCollisionObstacle[];
   friction: number;
   id: string;
   linearDamping: number;

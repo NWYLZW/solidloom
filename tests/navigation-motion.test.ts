@@ -8,23 +8,27 @@ import {
 describe("navigation motion", () => {
   it("uses brisk walking and running defaults for the standard avatar", () => {
     expect(resolveNavigationMotionProfile(1720)).toEqual({
-      acceleration: 4800,
-      braking: 6800,
-      pathSpeed: 1500,
-      runSpeed: 3600,
+      acceleration: 7500,
+      braking: 9000,
+      gravity: 9800,
+      jumpVelocity: 3100,
+      pathSpeed: 2100,
+      runSpeed: 5000,
       seatedSpeed: 720,
-      walkSpeed: 1500,
+      walkSpeed: 2100,
     });
   });
 
   it("scales speeds and acceleration with avatar size", () => {
     expect(resolveNavigationMotionProfile(860)).toEqual({
-      acceleration: 2400,
-      braking: 3400,
-      pathSpeed: 750,
-      runSpeed: 1800,
+      acceleration: 3750,
+      braking: 4500,
+      gravity: 4900,
+      jumpVelocity: 1550,
+      pathSpeed: 1050,
+      runSpeed: 2500,
       seatedSpeed: 360,
-      walkSpeed: 750,
+      walkSpeed: 1050,
     });
   });
 
@@ -55,11 +59,11 @@ describe("navigation motion", () => {
   it("accelerates along a path and slows before the destination", () => {
     const profile = resolveNavigationMotionProfile(1720);
     const startingSpeed = resolveNavigationPathSpeed(profile, 0, 4000, true, 0.1);
-    const cruisingSpeed = resolveNavigationPathSpeed(profile, 1500, 4000, true, 0.1);
-    const arrivalSpeed = resolveNavigationPathSpeed(profile, 1500, 100, true, 0.1);
+    const cruisingSpeed = resolveNavigationPathSpeed(profile, 2100, 4000, true, 0.1);
+    const arrivalSpeed = resolveNavigationPathSpeed(profile, 2100, 100, true, 0.1);
 
-    expect(startingSpeed).toBe(480);
-    expect(cruisingSpeed).toBe(1500);
-    expect(arrivalSpeed).toBeCloseTo(Math.sqrt(2 * 6800 * 100));
+    expect(startingSpeed).toBe(750);
+    expect(cruisingSpeed).toBe(2100);
+    expect(arrivalSpeed).toBeCloseTo(Math.sqrt(2 * 9000 * 100));
   });
 });

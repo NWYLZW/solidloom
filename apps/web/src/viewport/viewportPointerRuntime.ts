@@ -1,4 +1,8 @@
 import * as THREE from "three";
+import {
+  NAVIGATION_MOUSE_PITCH_SENSITIVITY,
+  NAVIGATION_MOUSE_YAW_SENSITIVITY,
+} from "./navigationCameraMath";
 import type { NavigationCameraMode } from "./types";
 
 interface CreateViewportPointerRuntimeOptions {
@@ -176,8 +180,8 @@ export function createViewportPointerRuntime({
     fallbackMouseX = event.clientX;
     fallbackMouseY = event.clientY;
     adjustNavigationCamera(
-      -THREE.MathUtils.clamp(movementX, -240, 240) * 0.0024,
-      -THREE.MathUtils.clamp(movementY, -240, 240) * 0.0021,
+      -THREE.MathUtils.clamp(movementX, -240, 240) * NAVIGATION_MOUSE_YAW_SENSITIVITY,
+      -THREE.MathUtils.clamp(movementY, -240, 240) * NAVIGATION_MOUSE_PITCH_SENSITIVITY,
     );
     requestRender();
   };
