@@ -22,19 +22,34 @@ describe("cyber factory examples", () => {
       warehouseCartId: "warehouse-cart-model",
       warehousePalletId: "warehouse-pallet-model",
       warehouseRackId: "warehouse-rack-model",
-      warehouseStackerCraneId: "warehouse-stacker-crane-model",
+      warehouseAutomation: {
+        controlAnchor: [-1_534.4, 640, 1_514],
+        forkAxis: [0, 0, -1],
+        forkBaseLength: 820,
+        forkExtension: 951,
+        homePose: { liftY: 320, travelX: -1_140 },
+        motionFeatureIds: {
+          travel: ["warehouse-stacker-travel-base"],
+          carriage: ["warehouse-stacker-carriage-deck"],
+          forks: ["warehouse-stacker-left-fork", "warehouse-stacker-right-fork"],
+        },
+        slots: [
+          { id: "warehouse-rack-slot-b01-l01", bayIndex: 0, levelIndex: 0, bayX: -1_100, shelfY: 220 },
+          { id: "warehouse-rack-slot-b02-l02", bayIndex: 1, levelIndex: 1, bayX: 0, shelfY: 953.333 },
+          { id: "warehouse-rack-slot-b03-l03", bayIndex: 2, levelIndex: 2, bayX: 1_100, shelfY: 1_686.667 },
+        ],
+      },
       warehouseToteId: "warehouse-tote-model",
     });
     expect(playground.kind).toBe("scene");
     expect(playground.name).toBe("交互试验场");
     expect(playground.featureGraph.features).toEqual([]);
-    expect(playground.featureGraph.references).toHaveLength(17);
+    expect(playground.featureGraph.references).toHaveLength(16);
     expect(playground.featureGraph.references?.map((reference) => reference.modelId)).toEqual(
       expect.arrayContaining([
         "warehouse-cart-model",
         "warehouse-pallet-model",
         "warehouse-rack-model",
-        "warehouse-stacker-crane-model",
         "warehouse-tote-model",
       ]),
     );
