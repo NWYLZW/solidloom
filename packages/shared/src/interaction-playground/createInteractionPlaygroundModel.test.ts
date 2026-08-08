@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionPlaygroundModel } from "./createInteractionPlaygroundModel.js";
+import {
+  createInteractionPlaygroundModel,
+  type InteractionPlaygroundModelIds,
+} from "./createInteractionPlaygroundModel.js";
 
-const ids = {
+const ids: InteractionPlaygroundModelIds = {
   chairId: "chair",
   coffeeMachineId: "coffee-machine",
   deskId: "desk",
@@ -13,7 +16,23 @@ const ids = {
   warehouseCartId: "warehouse-cart",
   warehousePalletId: "warehouse-pallet",
   warehouseRackId: "warehouse-rack",
-  warehouseStackerCraneId: "warehouse-stacker-crane",
+  warehouseAutomation: {
+    controlAnchor: [-1_534.4, 640, 1_514],
+    forkAxis: [0, 0, -1],
+    forkBaseLength: 820,
+    forkExtension: 951,
+    homePose: { liftY: 320, travelX: -1_140 },
+    motionFeatureIds: {
+      travel: ["warehouse-stacker-travel-base"],
+      carriage: ["warehouse-stacker-carriage-deck"],
+      forks: ["warehouse-stacker-left-fork", "warehouse-stacker-right-fork"],
+    },
+    slots: [
+      { id: "warehouse-rack-slot-b01-l01", bayIndex: 0, levelIndex: 0, bayX: -1_100, shelfY: 220 },
+      { id: "warehouse-rack-slot-b02-l02", bayIndex: 1, levelIndex: 1, bayX: 0, shelfY: 953.333 },
+      { id: "warehouse-rack-slot-b03-l03", bayIndex: 2, levelIndex: 2, bayX: 1_100, shelfY: 1_686.667 },
+    ],
+  },
   warehouseToteId: "warehouse-tote",
 };
 
@@ -29,7 +48,6 @@ describe("createInteractionPlaygroundModel", () => {
       "interaction-playground-desk",
       "interaction-playground-lounge",
       "interaction-playground-warehouse-rack",
-      "interaction-playground-warehouse-stacker-crane",
       "interaction-playground-warehouse-cart",
     ];
     const stationXs = stationIds.map((id) => referenceById.get(id)?.position[0]);
@@ -53,7 +71,6 @@ describe("createInteractionPlaygroundModel", () => {
       "interaction-playground-lounge",
       "interaction-playground-desk",
       "interaction-playground-warehouse-rack",
-      "interaction-playground-warehouse-stacker-crane",
       "interaction-playground-warehouse-pallet",
       "interaction-playground-warehouse-tote",
       "interaction-playground-warehouse-cart",
@@ -68,12 +85,12 @@ describe("createInteractionPlaygroundModel", () => {
 
     expect(references.map((reference) => reference.modelId)).toEqual(expect.arrayContaining([
       "warehouse-rack",
-      "warehouse-stacker-crane",
       "warehouse-pallet",
       "warehouse-tote",
       "warehouse-cart",
     ]));
-    expect(references.find((reference) => reference.modelId === "warehouse-rack")?.interactions?.[0]).toMatchObject({
+    const rackReference = references.find((reference) => reference.modelId === "warehouse-rack");
+    expect(rackReference?.interactions?.[0]).toMatchObject({
       kind: "container",
       label: "仓储货架",
       containerCanConfigure: true,
@@ -82,16 +99,17 @@ describe("createInteractionPlaygroundModel", () => {
       bodyType: "dynamic",
       mass: 28,
     });
-    expect(references.find((reference) => reference.modelId === "warehouse-stacker-crane")).toMatchObject({
-      name: "自动取货机",
-      position: [3_600, 0, 240],
+    expect(rackReference).toMatchObject({
+      name: "自动仓储货架",
+      position: [3_600, 0, -740],
       scale: [1, 1, 1],
     });
-    const interaction = references.find((reference) => reference.modelId === "warehouse-stacker-crane")
-      ?.interactions?.[0];
+    expect(references.some(({ id }) => id === "interaction-playground-warehouse-stacker-crane")).toBe(false);
+    const interaction = rackReference?.interactions?.find(({ kind }) => kind === "device");
     expect(interaction).toMatchObject({
       kind: "device",
       label: "自动取货机",
+      anchorPosition: [-1_534.4, 640, 1_514],
       operationExecuteLabel: "开始取货",
       operationGroups: [{
         id: "slot",

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createWarehouseCartDefinition,
   createWarehousePalletDefinition,
+  createWarehouseRackAutomationBinding,
   createWarehouseRackDefinition,
   createWarehouseStackerCrane,
   createWarehouseStackerCraneDefinition,
@@ -22,7 +23,7 @@ import {
 } from "./index.js";
 
 describe("warehouse and internal logistics asset kit", () => {
-  it("publishes five available warehouse assets that satisfy the shared contract", () => {
+  it("publishes four available warehouse assets and keeps the standalone stacker internal", () => {
     expect(warehouseAssetDefinitions.map(({ manifest }) => manifest.id)).toEqual([
       "cyber-factory-warehouse-rack",
       "cyber-factory-warehouse-pallet",
@@ -38,7 +39,7 @@ describe("warehouse and internal logistics asset kit", () => {
       "available",
       "available",
       "available",
-      "available",
+      "planned",
     ]);
   });
 
@@ -76,6 +77,45 @@ describe("warehouse and internal logistics asset kit", () => {
     expect(picks.every(({ position }) => position[2] > defaultWarehouseRackParameters.depth / 2)).toBe(true);
     expect(restocks.every(({ position }) => position[2] < -defaultWarehouseRackParameters.depth / 2)).toBe(true);
     expect(definition.manifest.colliders.every(({ groupId }) => groupId !== warehouseGroupIds.rackStorage)).toBe(true);
+  });
+
+  it("binds the optional stacker crane to rack-derived slots, axes and control anchors", () => {
+    const definition = createWarehouseRackDefinition({ bayCount: 4, levelCount: 5 });
+    const graph = definition.createModel().featureGraph!;
+    const binding = createWarehouseRackAutomationBinding({ bayCount: 4, levelCount: 5 });
+
+    expect(graph.features.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      "warehouse-rack-shelf-b04-l05",
+      "warehouse-stacker-left-rail",
+      "warehouse-stacker-single-mast",
+      "warehouse-stacker-left-fork",
+    ]));
+    expect(definition.manifest.parameters.find(({ id }) => id === "stacker-crane")).toMatchObject({
+      label: "绑定堆垛机",
+      defaultValue: true,
+    });
+    expect(definition.manifest.anchors.find(({ id }) => id === "warehouse-rack-automation-slot")?.position)
+      .toEqual(binding.stackerOffset);
+    expect(binding.crane.railLength).toBe(4 * defaultWarehouseRackParameters.bayWidth + 500);
+    expect(binding.slots).toHaveLength(20);
+    expect(binding.stackerOffset[2]).toBeGreaterThan(defaultWarehouseRackParameters.depth / 2);
+    expect(binding.forkAxis).toEqual([0, 0, -1]);
+    expect(binding.slots.find(({ id }) => id === "warehouse-rack-slot-b04-l05")).toMatchObject({
+      bayIndex: 3,
+      levelIndex: 4,
+      bayX: warehouseRackBayX({ ...defaultWarehouseRackParameters, bayCount: 4, levelCount: 5 }, 3),
+      shelfY: warehouseRackShelfY({ ...defaultWarehouseRackParameters, bayCount: 4, levelCount: 5 }, 4),
+    });
+    expect(binding.stackerOffset[2]).toBeGreaterThan(defaultWarehouseRackParameters.depth / 2);
+  });
+
+  it("can generate the same rack without its bound automation option", () => {
+    const definition = createWarehouseRackDefinition({}, { stackerCrane: false });
+    const featureIds = definition.createModel().featureGraph!.features.map(({ id }) => id);
+
+    expect(featureIds.some((id) => id.startsWith("warehouse-stacker-"))).toBe(false);
+    expect(definition.manifest.anchors.some(({ id }) => id === "warehouse-rack-automation-slot")).toBe(false);
+    expect(definition.manifest.parameters.find(({ id }) => id === "stacker-crane")?.defaultValue).toBe(false);
   });
 
   it("keeps the pick face open and aligns every steel beam with its shelf top", () => {

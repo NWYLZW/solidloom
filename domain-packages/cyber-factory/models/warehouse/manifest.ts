@@ -7,12 +7,14 @@ import type {
 import {
   createWarehouseCart,
   createWarehousePallet,
-  createWarehouseRack,
+  createWarehouseRackAutomationBinding,
+  createWarehouseRackSystem,
   createWarehouseStackerCrane,
   createWarehouseTote,
   defaultWarehouseCartParameters,
   defaultWarehousePalletParameters,
   defaultWarehouseRackParameters,
+  defaultWarehouseRackAutomationOptions,
   defaultWarehouseStackerCraneParameters,
   defaultWarehouseToteParameters,
   normalizeWarehouseCartParameters,
@@ -27,6 +29,7 @@ import {
   type WarehouseCartParameters,
   type WarehousePalletParameters,
   type WarehouseRackParameters,
+  type WarehouseRackAutomationOptions,
   type WarehouseStackerCraneParameters,
   type WarehouseToteParameters,
 } from "./model.js";
@@ -50,17 +53,20 @@ function fixedPlacement(): ModelAssetManifest["placement"] {
 
 export function createWarehouseRackManifest(
   input: Partial<WarehouseRackParameters> = {},
+  automationInput: Partial<WarehouseRackAutomationOptions> = {},
 ): ModelAssetManifest {
   const parameters = normalizeWarehouseRackParameters(input);
-  const model = createWarehouseRack(parameters);
+  const automation = { ...defaultWarehouseRackAutomationOptions, ...automationInput };
+  const model = createWarehouseRackSystem(parameters, automation);
   const graph = model.featureGraph!;
   const allIds = featureIds(graph.features);
-  const detailIds = allIds.filter((id) => id.includes("back-brace"));
-  const coreIds = allIds.filter((id) => !detailIds.includes(id));
+  const rackIds = allIds.filter((id) => id.startsWith("warehouse-rack-"));
+  const detailIds = rackIds.filter((id) => id.includes("back-brace"));
+  const coreIds = allIds.filter((id) => !detailIds.includes(id) && !id.includes("wheel"));
   const collidable = boxFeatures(graph.features).filter((feature) => (
     feature.id.includes("upright") || feature.id.includes("shelf-") || feature.id.includes("level-beam")
   ));
-  const colliders = collidable.map((feature) => ({
+  const colliders: ModelAssetManifest["colliders"] = collidable.map((feature) => ({
     id: `${feature.id}-collider`,
     label: `${feature.name}碰撞体`,
     shape: "box" as const,
@@ -79,6 +85,44 @@ export function createWarehouseRackManifest(
     groupId: warehouseGroupIds.rackStructure,
     tags: ["navigation", "warehouse", "front"],
   }];
+  let stackerMaterials: ModelAssetManifest["materials"] = [];
+  if (automation.stackerCrane) {
+    const binding = createWarehouseRackAutomationBinding(
+      parameters,
+      automation.stackerCraneParameters,
+    );
+    const stackerManifest = createWarehouseStackerCraneManifest(binding.crane);
+    colliders.push(...stackerManifest.colliders.map((collider) => ({
+      ...collider,
+      position: [
+        collider.position[0] + binding.stackerOffset[0],
+        collider.position[1] + binding.stackerOffset[1],
+        collider.position[2] + binding.stackerOffset[2],
+      ] as [number, number, number],
+    })));
+    anchors.push(
+      {
+        id: "warehouse-rack-automation-slot",
+        label: "货架自动化设备绑定位",
+        kind: "socket",
+        position: binding.stackerOffset,
+        rotation: [0, 0, 0],
+        range: 1_200,
+        groupId: warehouseGroupIds.rackStructure,
+        tags: ["warehouse", "automation", "bound-option"],
+      },
+      ...stackerManifest.anchors.map((anchor) => ({
+        ...anchor,
+        position: [
+          anchor.position[0] + binding.stackerOffset[0],
+          anchor.position[1] + binding.stackerOffset[1],
+          anchor.position[2] + binding.stackerOffset[2],
+        ] as [number, number, number],
+        tags: [...(anchor.tags ?? []), "rack-bound"],
+      })),
+    );
+    stackerMaterials = stackerManifest.materials;
+  }
   for (let bay = 0; bay < parameters.bayCount; bay += 1) {
     for (let level = 0; level < parameters.levelCount; level += 1) {
       const suffix = `b${String(bay + 1).padStart(2, "0")}-l${String(level + 1).padStart(2, "0")}`;
@@ -122,7 +166,7 @@ export function createWarehouseRackManifest(
     schemaVersion: 1,
     id: "cyber-factory-warehouse-rack",
     displayName: "参数化仓储货架",
-    description: "可按跨数与层数生成稳定货位、取货位和补货位的金属仓储货架。",
+    description: "可按跨数与层数生成稳定货位，并可将堆垛机作为货架选项绑定到统一轨道轴和取货面。",
     version: "1.0.0",
     kind: "asset",
     modelUnit: "mm",
@@ -132,8 +176,12 @@ export function createWarehouseRackManifest(
       { id: "bay-width", label: "单跨宽度", type: "number", defaultValue: parameters.bayWidth, unit: "mm", minimum: 800, maximum: 1_400, step: 50 },
       { id: "height", label: "货架高度", type: "number", defaultValue: parameters.height, unit: "mm", minimum: 1_800, maximum: 3_600, step: 100 },
       { id: "depth", label: "货架深度", type: "number", defaultValue: parameters.depth, unit: "mm", minimum: 600, maximum: 1_200, step: 50 },
+      { id: "stacker-crane", label: "绑定堆垛机", type: "boolean", defaultValue: automation.stackerCrane },
     ],
-    materials: [{ id: "rack-metal", label: "镀锌金属货架", material: "metal", color: "#71858E", featureIds: allIds }],
+    materials: [
+      { id: "rack-metal", label: "镀锌金属货架", material: "metal", color: "#71858E", featureIds: rackIds },
+      ...stackerMaterials,
+    ],
     placement: fixedPlacement(),
     colliders,
     anchors,
@@ -151,7 +199,13 @@ export function createWarehouseRackManifest(
       { device: "desktop", cameraPosition: [4_800, 3_500, 5_900], cameraTarget: [0, 1_300, 0], background: "dark" },
       { device: "mobile", cameraPosition: [6_300, 3_700, 7_500], cameraTarget: [0, 1_250, 0], background: "dark" },
     ],
-    tags: ["cyber-factory", "warehouse", "rack", "storage"],
+    tags: [
+      "cyber-factory",
+      "warehouse",
+      "rack",
+      "storage",
+      ...(automation.stackerCrane ? ["stacker-crane", "bound-automation"] : []),
+    ],
   };
 }
 
@@ -409,9 +463,16 @@ export function createWarehouseStackerCraneManifest(
   };
 }
 
-export function createWarehouseRackDefinition(input: Partial<WarehouseRackParameters> = {}): ModelAssetDefinition {
+export function createWarehouseRackDefinition(
+  input: Partial<WarehouseRackParameters> = {},
+  automationInput: Partial<WarehouseRackAutomationOptions> = {},
+): ModelAssetDefinition {
   const parameters = normalizeWarehouseRackParameters(input);
-  return { manifest: createWarehouseRackManifest(parameters), createModel: () => createWarehouseRack(parameters) };
+  const automation = { ...defaultWarehouseRackAutomationOptions, ...automationInput };
+  return {
+    manifest: createWarehouseRackManifest(parameters, automation),
+    createModel: () => createWarehouseRackSystem(parameters, automation),
+  };
 }
 
 export function createWarehousePalletDefinition(input: Partial<WarehousePalletParameters> = {}): ModelAssetDefinition {

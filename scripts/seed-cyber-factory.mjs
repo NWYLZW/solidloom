@@ -3,6 +3,7 @@ import {
   createInteractionPlaygroundModel,
   cyberFactoryModelModules,
 } from "@solidloom/shared";
+import { createWarehouseRackAutomationBinding } from "../domain-packages/cyber-factory/models/warehouse/model.ts";
 import { readdir } from "node:fs/promises";
 
 const domainModelsUrl = new URL("../domain-packages/cyber-factory/models/", import.meta.url);
@@ -83,6 +84,13 @@ function hasLegacyWarehouseStackerOrientation(model) {
   );
 }
 
+function hasUnboundWarehouseRack(model) {
+  if (model?.name !== "参数化仓储货架") return false;
+  return !(model.featureGraph?.features ?? []).some(
+    (feature) => feature.id === "warehouse-stacker-left-rail",
+  );
+}
+
 function preserveImportedAvatarSkin(specification, existing) {
   if (!existing || specification.name !== "原创方块角色") return specification;
   const importedSkin = existing.featureGraph.features
@@ -119,6 +127,7 @@ const existingByName = new Map(existingModels.items.map((item) => [item.name, it
 const replaceExisting = process.argv.includes("--replace");
 const created = [];
 const replaced = [];
+const retired = [];
 const skipped = [];
 const modelModules = await discoverDomainModelModules();
 const availableModels = modelModules.filter((module) => module.status === "available");
@@ -127,6 +136,29 @@ const availableSpecifications = new Map();
 for (const module of availableModels) {
   const specification = module.createModel();
   availableSpecifications.set(specification.name, specification);
+}
+
+// 堆垛机已经成为货架的绑定选项。只清理由种子脚本生成、且仍保持已知结构的旧顶层模型；
+// 用户修改过的同名模型不会被自动删除。
+const standaloneStackerModule = modelModules.find(
+  (module) => module.id === "cyber-factory-warehouse-stacker-crane",
+);
+if (replaceExisting && standaloneStackerModule) {
+  const standaloneSpecification = standaloneStackerModule.createModel();
+  for (const legacyName of ["参数化巷道堆垛机", "参数化巷道堆垛机（规划中）"]) {
+    const existing = existingByName.get(legacyName);
+    if (!existing) continue;
+    const isKnownSeededModel = (
+      canonicalJson(existing.featureGraph) === canonicalJson(standaloneSpecification.featureGraph)
+      || hasLegacyWarehouseStackerOrientation(existing)
+    );
+    if (!isKnownSeededModel) continue;
+    await request(`/api/models/${encodeURIComponent(existing.id)}?expectedRevision=${existing.revision}`, {
+      method: "DELETE",
+    });
+    existingByName.delete(legacyName);
+    retired.push({ id: existing.id, name: existing.name, revision: existing.revision });
+  }
 }
 
 const legacyStacker = existingByName.get("参数化巷道堆垛机（规划中）");
@@ -151,7 +183,10 @@ if (replaceExisting && legacyStacker && !existingByName.has("参数化巷道堆�
 for (const sourceSpecification of [...availableSpecifications.values()].reverse()) {
   const existing = existingByName.get(sourceSpecification.name);
   const specification = preserveImportedAvatarSkin(sourceSpecification, existing);
-  const requiresKnownMigration = hasLegacyWarehouseStackerOrientation(existing);
+  const requiresKnownMigration = (
+    hasLegacyWarehouseStackerOrientation(existing)
+    || hasUnboundWarehouseRack(existing)
+  );
   if (existing && !replaceExisting && !requiresKnownMigration) {
     skipped.push(specification.name);
     continue;
@@ -201,11 +236,10 @@ const coffeeMachine = sourceByName.get("参数化咖啡机");
 const waterDispenser = sourceByName.get("参数化下置桶饮水机");
 const lounge = sourceByName.get("现代休息区资产套件");
 const warehouseRack = sourceByName.get("参数化仓储货架");
-const warehouseStackerCrane = sourceByName.get("参数化巷道堆垛机");
 const warehousePallet = sourceByName.get("参数化仓储托盘");
 const warehouseTote = sourceByName.get("参数化仓储周转箱");
 const warehouseCart = sourceByName.get("参数化仓储推车");
-if (!room || !desk || !monitor || !laptop || !chair || !snackCabinet || !coffeeMachine || !waterDispenser || !lounge || !warehouseRack || !warehouseStackerCrane || !warehousePallet || !warehouseTote || !warehouseCart) {
+if (!room || !desk || !monitor || !laptop || !chair || !snackCabinet || !coffeeMachine || !waterDispenser || !lounge || !warehouseRack || !warehousePallet || !warehouseTote || !warehouseCart) {
   throw new Error("创建场景前必须先存在房间、办公资产、补给设备、休息区和可用仓储物流模型。");
 }
 
@@ -258,7 +292,7 @@ const playgroundSpecification = createInteractionPlaygroundModel({
   warehouseCartId: warehouseCart.id,
   warehousePalletId: warehousePallet.id,
   warehouseRackId: warehouseRack.id,
-  warehouseStackerCraneId: warehouseStackerCrane.id,
+  warehouseAutomation: createWarehouseRackAutomationBinding(),
   warehouseToteId: warehouseTote.id,
 });
 const existingPlayground = sourceByName.get(playgroundSpecification.name);
@@ -297,5 +331,6 @@ process.stdout.write(`${JSON.stringify({
   planned: plannedModels,
   created,
   replaced,
+  retired,
   skipped,
 }, null, 2)}\n`);

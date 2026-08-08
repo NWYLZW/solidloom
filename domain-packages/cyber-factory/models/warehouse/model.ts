@@ -50,6 +50,34 @@ export interface WarehouseStackerCranePose {
   forkExtension: number;
 }
 
+export interface WarehouseRackAutomationOptions {
+  stackerCrane: boolean;
+  stackerCraneParameters?: Partial<WarehouseStackerCraneParameters>;
+}
+
+export interface WarehouseRackAutomationBinding {
+  crane: WarehouseStackerCraneParameters;
+  homePose: WarehouseStackerCranePose;
+  rack: WarehouseRackParameters;
+  stackerOffset: Vector3Tuple;
+  controlAnchor: Vector3Tuple;
+  forkAxis: Vector3Tuple;
+  forkBaseLength: number;
+  forkExtension: number;
+  motionFeatureIds: {
+    travel: string[];
+    carriage: string[];
+    forks: string[];
+  };
+  slots: Array<{
+    id: string;
+    bayIndex: number;
+    levelIndex: number;
+    bayX: number;
+    shelfY: number;
+  }>;
+}
+
 export interface WarehouseRetrievalStep {
   id: "reserve" | "travel" | "lift" | "extend" | "capture" | "retract" | "lower" | "deliver" | "release";
   label: string;
@@ -150,6 +178,10 @@ export const defaultWarehouseStackerCranePose: WarehouseStackerCranePose = {
   ),
   liftY: 320,
   forkExtension: 0,
+};
+
+export const defaultWarehouseRackAutomationOptions: WarehouseRackAutomationOptions = {
+  stackerCrane: true,
 };
 
 export const warehouseGroupIds = {
@@ -561,6 +593,84 @@ export function warehouseStackerRackAssemblyZ(
   return -(rack.depth / 2 + crane.carriageDepth * warehouseStackerTravelBaseDepthScale / 2);
 }
 
+function warehouseRackBoundStackerParameters(
+  rack: WarehouseRackParameters,
+  input: Partial<WarehouseStackerCraneParameters> = {},
+) {
+  return normalizeWarehouseStackerCraneParameters({
+    railLength: rack.bayCount * rack.bayWidth + 500,
+    mastHeight: rack.height,
+    ...input,
+  });
+}
+
+export function createWarehouseRackAutomationBinding(
+  rackInput: Partial<WarehouseRackParameters> = {},
+  craneInput: Partial<WarehouseStackerCraneParameters> = {},
+): WarehouseRackAutomationBinding {
+  const rack = normalizeWarehouseRackParameters(rackInput);
+  const crane = warehouseRackBoundStackerParameters(rack, craneInput);
+  const homePose = normalizeWarehouseStackerCranePose(crane);
+  const stackerOffset: Vector3Tuple = [0, 0, -warehouseStackerRackAssemblyZ(rack, crane)];
+  const firstReachablePlan = planWarehouseRetrieval(
+    "warehouse-rack-slot-b01-l01",
+    rack,
+    crane,
+  );
+  if (firstReachablePlan.valid === false) {
+    throw new Error(`货架绑定的堆垛机无法到达首个货位：${firstReachablePlan.message}`);
+  }
+  const slots: WarehouseRackAutomationBinding["slots"] = [];
+  for (let bayIndex = 0; bayIndex < rack.bayCount; bayIndex += 1) {
+    for (let levelIndex = 0; levelIndex < rack.levelCount; levelIndex += 1) {
+      slots.push({
+        id: `warehouse-rack-slot-b${String(bayIndex + 1).padStart(2, "0")}-l${String(levelIndex + 1).padStart(2, "0")}`,
+        bayIndex,
+        levelIndex,
+        bayX: warehouseRackBayX(rack, bayIndex),
+        shelfY: warehouseRackShelfY(rack, levelIndex),
+      });
+    }
+  }
+  return {
+    rack,
+    crane,
+    homePose,
+    stackerOffset,
+    controlAnchor: [
+      homePose.travelX - crane.carriageWidth * 0.34,
+      640,
+      stackerOffset[2] + crane.carriageDepth * 0.65,
+    ],
+    // 货架取货面朝向 +Z，绑定的堆垛机位于 +Z 一侧，因此货叉只沿 -Z 伸入货位。
+    forkAxis: [0, 0, -1],
+    forkBaseLength: crane.carriageDepth - 80,
+    forkExtension: firstReachablePlan.targetPose.forkExtension,
+    motionFeatureIds: {
+      travel: [
+        "warehouse-stacker-travel-base",
+        "warehouse-stacker-single-mast",
+        "warehouse-stacker-mast-guide",
+        "warehouse-stacker-mast-cap",
+        "warehouse-stacker-control-cabinet",
+        "warehouse-stacker-wheel-left-rear",
+        "warehouse-stacker-wheel-left-front",
+        "warehouse-stacker-wheel-right-rear",
+        "warehouse-stacker-wheel-right-front",
+      ],
+      carriage: [
+        "warehouse-stacker-carriage-deck",
+        "warehouse-stacker-carriage-back",
+        "warehouse-stacker-carriage-left-guard",
+        "warehouse-stacker-carriage-right-guard",
+        "warehouse-stacker-fork-crosshead",
+      ],
+      forks: ["warehouse-stacker-left-fork", "warehouse-stacker-right-fork"],
+    },
+    slots,
+  };
+}
+
 export function normalizeWarehouseStackerCranePose(
   parameters: WarehouseStackerCraneParameters,
   input: Partial<WarehouseStackerCranePose> = {},
@@ -649,6 +759,57 @@ export function createWarehouseStackerCrane(
   };
 }
 
+function translateFeature(feature: ModelFeature, offset: Vector3Tuple): ModelFeature {
+  return {
+    ...feature,
+    position: [
+      feature.position[0] + offset[0],
+      feature.position[1] + offset[1],
+      feature.position[2] + offset[2],
+    ],
+  } as ModelFeature;
+}
+
+export function createWarehouseRackSystem(
+  rackInput: Partial<WarehouseRackParameters> = {},
+  automationInput: Partial<WarehouseRackAutomationOptions> = {},
+): CreateModelInput {
+  const rack = normalizeWarehouseRackParameters(rackInput);
+  const automation = {
+    ...defaultWarehouseRackAutomationOptions,
+    ...automationInput,
+  };
+  const rackModel = createWarehouseRack(rack);
+  if (!automation.stackerCrane) return rackModel;
+
+  const binding = createWarehouseRackAutomationBinding(
+    rack,
+    automation.stackerCraneParameters,
+  );
+  const stackerModel = createWarehouseStackerCrane(binding.crane, binding.homePose);
+  const stackerFeatures = stackerModel.featureGraph!.features.map((feature) => (
+    translateFeature(feature, binding.stackerOffset)
+  ));
+  return {
+    ...rackModel,
+    name: "参数化仓储货架",
+    description: "货架可选择绑定堆垛机；轨道、取货面、停靠位和运动方向由货架参数统一生成。",
+    featureGraph: {
+      ...rackModel.featureGraph!,
+      features: [...rackModel.featureGraph!.features, ...stackerFeatures],
+      groups: [
+        ...(rackModel.featureGraph!.groups ?? []),
+        ...(stackerModel.featureGraph!.groups ?? []),
+      ],
+      variables: [
+        ...(rackModel.featureGraph!.variables ?? []),
+        ...(stackerModel.featureGraph!.variables ?? []),
+        { id: "--stacker-enabled", label: "绑定堆垛机", value: 1 },
+      ],
+    },
+  };
+}
+
 export function parseWarehouseRackSlotId(slotId: string) {
   const match = /^warehouse-rack-slot-b(0*[1-9][0-9]*)-l(0*[1-9][0-9]*)$/.exec(slotId);
   if (!match) return null;
@@ -725,7 +886,7 @@ export function planWarehouseRestock(
   craneInput: Partial<WarehouseStackerCraneParameters> = {},
 ): WarehouseRestockPlan {
   const retrieval = planWarehouseRetrieval(slotId, rackInput, craneInput);
-  if (!retrieval.valid) return retrieval;
+  if (retrieval.valid === false) return retrieval;
 
   const home = { ...retrieval.steps[0]!.pose };
   const targetPose = { ...retrieval.targetPose };

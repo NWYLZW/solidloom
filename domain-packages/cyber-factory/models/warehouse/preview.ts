@@ -342,16 +342,7 @@ function renderOverview() {
   const pallet = createWarehousePalletDefinition(defaultWarehousePalletParameters);
   const tote = createWarehouseToteDefinition(defaultWarehouseToteParameters);
   const cart = createWarehouseCartDefinition(defaultWarehouseCartParameters);
-  const stacker = createWarehouseStackerCraneDefinition(defaultWarehouseStackerCraneParameters);
   const rackPosition: Vector3Tuple = [-500, 0, -180];
-  const stackerPosition: Vector3Tuple = [
-    rackPosition[0],
-    0,
-    rackPosition[2] - warehouseStackerRackAssemblyZ(
-      defaultWarehouseRackParameters,
-      defaultWarehouseStackerCraneParameters,
-    ),
-  ];
   let drawUnits = buildAsset(rack, rackPosition);
   drawUnits += buildAsset(pallet, [
     rackPosition[0] + warehouseRackBayX(defaultWarehouseRackParameters, 0),
@@ -371,7 +362,6 @@ function renderOverview() {
   const cartPosition: Vector3Tuple = quality === "mobile" ? [1_450, 0, 260] : [2_300, 0, 420];
   drawUnits += buildAsset(cart, cartPosition);
   if (quality === "desktop") drawUnits += buildAsset(pallet, [2_150, 0, -1_050]);
-  drawUnits += buildAsset(stacker, stackerPosition, true);
   placeRepresentativeAnchors(cart, cartPosition);
   setCamera([7_000, 4_600, 8_000], [0, 1_300, 100], 4_200, 20_000);
   return drawUnits;
@@ -436,7 +426,7 @@ function renderStackerScene(
   clearLayer(markerLayer);
   const rackParameters = parameterValues.rack as unknown as WarehouseRackParameters;
   const stackerParameters = parameterValues.stacker as unknown as WarehouseStackerCraneParameters;
-  const rack = createWarehouseRackDefinition(rackParameters);
+  const rack = createWarehouseRackDefinition(rackParameters, { stackerCrane: false });
   const stacker = stackerDefinitionAtPose(pose);
   const pallet = createWarehousePalletDefinition(defaultWarehousePalletParameters);
   const plan = activeStackerPlan();

@@ -17,8 +17,31 @@ export interface InteractionPlaygroundModelIds {
   warehouseCartId: string;
   warehousePalletId: string;
   warehouseRackId: string;
-  warehouseStackerCraneId: string;
+  warehouseAutomation: InteractionPlaygroundWarehouseAutomation;
   warehouseToteId: string;
+}
+
+export interface InteractionPlaygroundWarehouseAutomation {
+  controlAnchor: [number, number, number];
+  forkAxis: [number, number, number];
+  forkBaseLength: number;
+  forkExtension: number;
+  homePose: {
+    liftY: number;
+    travelX: number;
+  };
+  motionFeatureIds: {
+    carriage: string[];
+    forks: string[];
+    travel: string[];
+  };
+  slots: Array<{
+    bayIndex: number;
+    bayX: number;
+    id: string;
+    levelIndex: number;
+    shelfY: number;
+  }>;
 }
 
 const galleryLayout = {
@@ -33,70 +56,57 @@ const galleryLayout = {
     warehouse: 3_600,
     warehouseCart: 8_000,
   },
-  warehouseStackerZ: 240,
 } as const;
 
-const stackerHomeX = -1_140;
-const stackerHomeLiftY = 320;
-const stackerForkExtension = 761;
-const stackerForkScaleZ = (820 + stackerForkExtension) / 820;
-const stackerTravelFeatureIds = [
-  "warehouse-stacker-travel-base",
-  "warehouse-stacker-single-mast",
-  "warehouse-stacker-mast-guide",
-  "warehouse-stacker-mast-cap",
-  "warehouse-stacker-control-cabinet",
-  "warehouse-stacker-wheel-left-rear",
-  "warehouse-stacker-wheel-left-front",
-  "warehouse-stacker-wheel-right-rear",
-  "warehouse-stacker-wheel-right-front",
-];
-const stackerCarriageFeatureIds = [
-  "warehouse-stacker-carriage-deck",
-  "warehouse-stacker-carriage-back",
-  "warehouse-stacker-carriage-left-guard",
-  "warehouse-stacker-carriage-right-guard",
-  "warehouse-stacker-fork-crosshead",
-];
-const stackerForkFeatureIds = [
-  "warehouse-stacker-left-fork",
-  "warehouse-stacker-right-fork",
-];
-
 function stackerMotion(
+  automation: InteractionPlaygroundWarehouseAutomation,
   featureIds: string[],
   x: number,
   y = 0,
   forkExtension = false,
 ): ModelReferenceOperationMotion {
+  const forkScaleZ = (
+    automation.forkBaseLength + automation.forkExtension
+  ) / automation.forkBaseLength;
   return {
-    positionOffset: [x, y, forkExtension ? -stackerForkExtension / 2 : 0],
-    ...(forkExtension ? { scaleMultiplier: [1, 1, stackerForkScaleZ] as [number, number, number] } : {}),
+    positionOffset: [
+      x + (forkExtension ? automation.forkAxis[0] * automation.forkExtension / 2 : 0),
+      y + (forkExtension ? automation.forkAxis[1] * automation.forkExtension / 2 : 0),
+      forkExtension ? automation.forkAxis[2] * automation.forkExtension / 2 : 0,
+    ],
+    ...(forkExtension ? { scaleMultiplier: [1, 1, forkScaleZ] as [number, number, number] } : {}),
     targetFeatureIds: featureIds,
   };
 }
 
 function createWarehouseRetrievalProgram({
+  automation,
   bayX,
   cargoReferenceId,
   shelfY,
 }: {
+  automation: InteractionPlaygroundWarehouseAutomation;
   bayX: number;
   cargoReferenceId: string;
   shelfY: number;
 }): ModelReferenceOperationProgram {
-  const travelX = bayX - stackerHomeX;
-  const liftY = shelfY + 52 - stackerHomeLiftY;
-  const captureLiftY = shelfY + 72 - stackerHomeLiftY;
+  const travelX = bayX - automation.homePose.travelX;
+  const liftY = shelfY + 52 - automation.homePose.liftY;
+  const captureLiftY = shelfY + 72 - automation.homePose.liftY;
   const cargoDeliveryOffset: [number, number, number] = [
-    stackerHomeX - bayX,
+    automation.homePose.travelX - bayX,
     290 - (shelfY + 22),
-    stackerForkExtension,
+    -automation.forkAxis[2] * automation.forkExtension,
+  ];
+  const cargoRetractOffset: [number, number, number] = [
+    -automation.forkAxis[0] * automation.forkExtension,
+    -automation.forkAxis[1] * automation.forkExtension,
+    -automation.forkAxis[2] * automation.forkExtension,
   ];
   const craneAt = (x: number, y: number, forkExtension = false) => [
-    stackerMotion(stackerTravelFeatureIds, x),
-    stackerMotion(stackerCarriageFeatureIds, x, y),
-    stackerMotion(stackerForkFeatureIds, x, y, forkExtension),
+    stackerMotion(automation, automation.motionFeatureIds.travel, x),
+    stackerMotion(automation, automation.motionFeatureIds.carriage, x, y),
+    stackerMotion(automation, automation.motionFeatureIds.forks, x, y, forkExtension),
   ];
   const cargoAt = (positionOffset: [number, number, number]): ModelReferenceOperationMotion => ({
     positionOffset,
@@ -123,13 +133,21 @@ function createWarehouseRetrievalProgram({
         id: "retract",
         label: "收回货叉",
         durationMs: 700,
-        motions: [...craneAt(travelX, captureLiftY), cargoAt([0, 20, stackerForkExtension])],
+        motions: [...craneAt(travelX, captureLiftY), cargoAt([
+          cargoRetractOffset[0],
+          cargoRetractOffset[1] + 20,
+          cargoRetractOffset[2],
+        ])],
       },
       {
         id: "lower",
         label: "下降到出库高度",
         durationMs: 850,
-        motions: [...craneAt(travelX, 0), cargoAt([0, cargoDeliveryOffset[1], stackerForkExtension])],
+        motions: [...craneAt(travelX, 0), cargoAt([
+          cargoRetractOffset[0],
+          cargoDeliveryOffset[1],
+          cargoRetractOffset[2],
+        ])],
       },
       {
         id: "deliver",
@@ -150,6 +168,36 @@ function createWarehouseRetrievalProgram({
 export function createInteractionPlaygroundModel(
   ids: InteractionPlaygroundModelIds,
 ): CreateModelInput {
+  const warehouseReferencePosition: [number, number, number] = [
+    galleryLayout.stations.warehouse,
+    0,
+    galleryLayout.displayZ - 120,
+  ];
+  const warehouseSlot = (id: string) => {
+    const slot = ids.warehouseAutomation.slots.find((candidate) => candidate.id === id);
+    if (!slot) throw new Error(`货架未提供交互试验场需要的货位：${id}`);
+    return slot;
+  };
+  const warehouseCargo = [
+    {
+      cargoReferenceId: "interaction-playground-warehouse-cargo-a",
+      name: "标准组件 A",
+      optionId: "component-a",
+      slot: warehouseSlot("warehouse-rack-slot-b01-l01"),
+    },
+    {
+      cargoReferenceId: "interaction-playground-warehouse-cargo-b",
+      name: "标准组件 B",
+      optionId: "component-b",
+      slot: warehouseSlot("warehouse-rack-slot-b02-l02"),
+    },
+    {
+      cargoReferenceId: "interaction-playground-warehouse-cargo-maintenance",
+      name: "维护套件",
+      optionId: "maintenance-kit",
+      slot: warehouseSlot("warehouse-rack-slot-b03-l03"),
+    },
+  ];
   const references: ModelReferenceInstance[] = [
     {
       id: "interaction-playground-room",
@@ -404,118 +452,79 @@ export function createInteractionPlaygroundModel(
     },
     {
       id: "interaction-playground-warehouse-rack",
-      name: "仓储货架",
+      name: "自动仓储货架",
       modelId: ids.warehouseRackId,
-      position: [galleryLayout.stations.warehouse, 0, galleryLayout.displayZ - 120],
+      position: warehouseReferencePosition,
       rotation: [0, 0, 0],
       scale: [1, 1, 1],
-      interactions: [{
-        id: "warehouse-stock",
-        kind: "container",
-        label: "仓储货架",
-        range: 1180,
-        targetFeatureIds: [
-          "warehouse-rack-upright-01-front",
-          "warehouse-rack-upright-04-front",
-          "warehouse-rack-shelf-b01-l01",
-        ],
-        containerCapacity: 96,
-        containerCanConfigure: true,
-        containerProducts: [
-          { id: "component-a", name: "标准组件 A", unitPrice: 24 },
-          { id: "component-b", name: "标准组件 B", unitPrice: 38 },
-          { id: "maintenance-kit", name: "维护套件", unitPrice: 65 },
-        ],
-        containerItems: [
-          { id: "component-a-1", name: "标准组件 A", productId: "component-a" },
-          { id: "component-a-2", name: "标准组件 A", productId: "component-a" },
-          { id: "component-b-1", name: "标准组件 B", productId: "component-b" },
-          { id: "maintenance-kit-1", name: "维护套件", productId: "maintenance-kit" },
-        ],
-      }],
-    },
-    {
-      id: "interaction-playground-warehouse-stacker-crane",
-      name: "自动取货机",
-      modelId: ids.warehouseStackerCraneId,
-      position: [galleryLayout.stations.warehouse, 0, galleryLayout.warehouseStackerZ],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-      interactions: [{
-        id: "warehouse-retrieval",
-        kind: "device",
-        activateLabel: "操作自动取货机",
-        anchorPosition: [stackerHomeX, 920, 760],
-        label: "自动取货机",
-        range: 2_200,
-        targetFeatureIds: [
-          "warehouse-stacker-control-cabinet",
-          "warehouse-stacker-carriage-deck",
-        ],
-        operationExecuteLabel: "开始取货",
-        operationCompleteLabel: "{selection} 已送达出库位，可以领取。",
-        operationGroups: [{
-          id: "slot",
-          label: "选择货位",
-          options: [
-            {
-              id: "component-a",
-              label: "标准组件 A",
-              description: "第 1 列 · 第 1 层",
-              program: createWarehouseRetrievalProgram({
-                bayX: -1_100,
-                cargoReferenceId: "interaction-playground-warehouse-cargo-a",
-                shelfY: 220,
-              }),
-            },
-            {
-              id: "component-b",
-              label: "标准组件 B",
-              description: "第 2 列 · 第 2 层",
-              program: createWarehouseRetrievalProgram({
-                bayX: 0,
-                cargoReferenceId: "interaction-playground-warehouse-cargo-b",
-                shelfY: 953.333,
-              }),
-            },
-            {
-              id: "maintenance-kit",
-              label: "维护套件",
-              description: "第 3 列 · 第 3 层",
-              program: createWarehouseRetrievalProgram({
-                bayX: 1_100,
-                cargoReferenceId: "interaction-playground-warehouse-cargo-maintenance",
-                shelfY: 1_686.667,
-              }),
-            },
+      interactions: [
+        {
+          id: "warehouse-stock",
+          kind: "container",
+          label: "仓储货架",
+          range: 1180,
+          targetFeatureIds: [
+            "warehouse-rack-upright-01-front",
+            "warehouse-rack-upright-04-front",
+            "warehouse-rack-shelf-b01-l01",
           ],
-        }],
-      }],
+          containerCapacity: 96,
+          containerCanConfigure: true,
+          containerProducts: [
+            { id: "component-a", name: "标准组件 A", unitPrice: 24 },
+            { id: "component-b", name: "标准组件 B", unitPrice: 38 },
+            { id: "maintenance-kit", name: "维护套件", unitPrice: 65 },
+          ],
+          containerItems: [
+            { id: "component-a-1", name: "标准组件 A", productId: "component-a" },
+            { id: "component-a-2", name: "标准组件 A", productId: "component-a" },
+            { id: "component-b-1", name: "标准组件 B", productId: "component-b" },
+            { id: "maintenance-kit-1", name: "维护套件", productId: "maintenance-kit" },
+          ],
+        },
+        {
+          id: "warehouse-retrieval",
+          kind: "device",
+          activateLabel: "操作自动取货机",
+          anchorPosition: ids.warehouseAutomation.controlAnchor,
+          label: "自动取货机",
+          range: 2_200,
+          targetFeatureIds: [
+            "warehouse-stacker-control-cabinet",
+            "warehouse-stacker-carriage-deck",
+          ],
+          operationExecuteLabel: "开始取货",
+          operationCompleteLabel: "{selection} 已送达出库位，可以领取。",
+          operationGroups: [{
+            id: "slot",
+            label: "选择货位",
+            options: warehouseCargo.map(({ cargoReferenceId, name, optionId, slot }) => ({
+              id: optionId,
+              label: name,
+              description: `第 ${slot.bayIndex + 1} 列 · 第 ${slot.levelIndex + 1} 层`,
+              program: createWarehouseRetrievalProgram({
+                automation: ids.warehouseAutomation,
+                bayX: slot.bayX,
+                cargoReferenceId,
+                shelfY: slot.shelfY,
+              }),
+            })),
+          }],
+        },
+      ],
     },
-    {
-      id: "interaction-playground-warehouse-cargo-a",
-      name: "第 1 列第 1 层 · 标准组件 A",
+    ...warehouseCargo.map(({ cargoReferenceId, name, slot }) => ({
+      id: cargoReferenceId,
+      name: `第 ${slot.bayIndex + 1} 列第 ${slot.levelIndex + 1} 层 · ${name}`,
       modelId: ids.warehouseToteId,
-      position: [galleryLayout.stations.warehouse - 1_100, 242, galleryLayout.displayZ - 120],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-    },
-    {
-      id: "interaction-playground-warehouse-cargo-b",
-      name: "第 2 列第 2 层 · 标准组件 B",
-      modelId: ids.warehouseToteId,
-      position: [galleryLayout.stations.warehouse, 975.333, galleryLayout.displayZ - 120],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-    },
-    {
-      id: "interaction-playground-warehouse-cargo-maintenance",
-      name: "第 3 列第 3 层 · 维护套件",
-      modelId: ids.warehouseToteId,
-      position: [galleryLayout.stations.warehouse + 1_100, 1_708.667, galleryLayout.displayZ - 120],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-    },
+      position: [
+        warehouseReferencePosition[0] + slot.bayX,
+        warehouseReferencePosition[1] + slot.shelfY + 22,
+        warehouseReferencePosition[2],
+      ] as [number, number, number],
+      rotation: [0, 0, 0] as [number, number, number],
+      scale: [1, 1, 1] as [number, number, number],
+    })),
     {
       id: "interaction-playground-warehouse-pallet",
       name: "仓储托盘",
