@@ -30,6 +30,7 @@ interface CreateNavigationAvatarOptions {
 export interface NavigationAvatar {
   dispose: () => void;
   object: THREE.Group;
+  setOpacity: (opacity: number, deltaSeconds: number) => boolean;
   update: (speed: number, seated: boolean, deltaSeconds: number) => boolean;
 }
 
@@ -88,6 +89,19 @@ export function createNavigationAvatar({
   root.add(visual);
 
   const resources = new Set<THREE.BufferGeometry | THREE.Material>();
+  const fadeMaterials = new Map<THREE.Material, {
+    depthWrite: boolean;
+    opacity: number;
+    transparent: boolean;
+  }>();
+  const trackFadeMaterial = (material: THREE.Material) => {
+    if (fadeMaterials.has(material)) return;
+    fadeMaterials.set(material, {
+      depthWrite: material.depthWrite,
+      opacity: material.opacity,
+      transparent: material.transparent,
+    });
+  };
   const addPart = (
     parent: THREE.Object3D,
     id: string,
@@ -112,8 +126,14 @@ export function createNavigationAvatar({
     parent.add(mesh);
     resources.add(geometry);
     if (layers) {
-      layers.base.forEach((entry) => resources.add(entry));
-      layers.overlay.forEach((entry) => resources.add(entry));
+      layers.base.forEach((entry) => {
+        resources.add(entry);
+        trackFadeMaterial(entry);
+      });
+      layers.overlay.forEach((entry) => {
+        resources.add(entry);
+        trackFadeMaterial(entry);
+      });
       const overlayDimensions = resolveVoxelSkinOverlayDimensions(feature);
       if (overlayDimensions) {
         const overlayGeometry = new THREE.BoxGeometry(...overlayDimensions);
@@ -125,6 +145,7 @@ export function createNavigationAvatar({
       }
     } else {
       resources.add(fallbackMaterial!);
+      trackFadeMaterial(fallbackMaterial!);
     }
     return mesh;
   };
@@ -165,6 +186,27 @@ export function createNavigationAvatar({
   let phase = 0;
   let movementWeight = 0;
   let seatedWeight = 0;
+  let currentOpacity = 1;
+  const setOpacity = (opacity: number, deltaSeconds: number) => {
+    const targetOpacity = THREE.MathUtils.clamp(opacity, 0, 1);
+    const previousOpacity = currentOpacity;
+    currentOpacity = deltaSeconds > 0
+      ? THREE.MathUtils.damp(currentOpacity, targetOpacity, 14, deltaSeconds)
+      : targetOpacity;
+    if (Math.abs(currentOpacity - targetOpacity) < 0.002) currentOpacity = targetOpacity;
+    if (Math.abs(previousOpacity - currentOpacity) < 0.0001) return false;
+    for (const [material, original] of fadeMaterials) {
+      const faded = currentOpacity < 0.999;
+      const transparent = original.transparent || faded;
+      if (material.transparent !== transparent) {
+        material.transparent = transparent;
+        material.needsUpdate = true;
+      }
+      material.depthWrite = faded ? false : original.depthWrite;
+      material.opacity = original.opacity * currentOpacity;
+    }
+    return true;
+  };
   const update = (speed: number, seated: boolean, deltaSeconds: number) => {
     const targetMovementWeight = seated
       ? 0
@@ -202,6 +244,7 @@ export function createNavigationAvatar({
       }
     },
     object: root,
+    setOpacity,
     update,
   };
 }

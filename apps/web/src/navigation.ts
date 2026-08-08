@@ -4,8 +4,54 @@ export type NavigationPoint = [number, number];
 export interface NavigationObstacle {
   minX: number;
   maxX: number;
+  minY?: number;
+  maxY?: number;
   minZ: number;
   maxZ: number;
+}
+
+const NAVIGATION_VERTICAL_EPSILON = 1;
+
+export function navigationObstacleBlocksHeight(
+  obstacle: NavigationObstacle,
+  agentBottomY: number,
+  agentHeight: number,
+) {
+  if (obstacle.minY === undefined || obstacle.maxY === undefined) return true;
+  const agentTopY = agentBottomY + agentHeight;
+  return agentBottomY < obstacle.maxY - NAVIGATION_VERTICAL_EPSILON
+    && agentTopY > obstacle.minY + NAVIGATION_VERTICAL_EPSILON;
+}
+
+export function navigationObstaclesBlockingHeight(
+  obstacles: NavigationObstacle[],
+  agentBottomY: number,
+  agentHeight: number,
+) {
+  return obstacles.filter((obstacle) => navigationObstacleBlocksHeight(
+    obstacle,
+    agentBottomY,
+    agentHeight,
+  ));
+}
+
+export function findNavigationSupportY(
+  obstacles: NavigationObstacle[],
+  point: NavigationPoint,
+  agentRadius: number,
+  maximumSupportY: number,
+) {
+  let supportY: number | null = null;
+  for (const obstacle of obstacles) {
+    if (obstacle.maxY === undefined || obstacle.maxY > maximumSupportY + NAVIGATION_VERTICAL_EPSILON) continue;
+    const overlapsFootprint = point[0] >= obstacle.minX - agentRadius
+      && point[0] <= obstacle.maxX + agentRadius
+      && point[1] >= obstacle.minZ - agentRadius
+      && point[1] <= obstacle.maxZ + agentRadius;
+    if (!overlapsFootprint || (supportY !== null && obstacle.maxY <= supportY)) continue;
+    supportY = obstacle.maxY;
+  }
+  return supportY;
 }
 
 export interface NavigationPushBody {

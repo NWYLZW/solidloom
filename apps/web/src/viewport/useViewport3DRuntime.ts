@@ -85,7 +85,6 @@ export function useViewport3DRuntime({
   const savedViewRef = useRef<{
     modelId: string;
     position: THREE.Vector3;
-    quaternion: THREE.Quaternion;
     target: THREE.Vector3;
   } | null>(null);
   const savedNavigationStateRef = useRef<SavedNavigationRuntimeState | null>(null);
@@ -368,7 +367,6 @@ export function useViewport3DRuntime({
         savedViewRef.current = {
           modelId,
           position: camera.position.clone(),
-          quaternion: camera.quaternion.clone(),
           target: controls.target.clone(),
         };
       }

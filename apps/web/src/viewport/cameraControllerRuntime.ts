@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { clampOrbitDirection, rotateOrbitOffset } from "./cameraOrbitMath";
 import type { createViewCubeRuntime } from "./viewCubeRuntime";
 
 interface SavedCameraView {
   position: THREE.Vector3;
-  quaternion: THREE.Quaternion;
   target: THREE.Vector3;
 }
 
@@ -35,7 +35,6 @@ interface CreateCameraControllerRuntimeOptions {
 interface ViewTransition {
   endPosition: THREE.Vector3;
   endQuaternion: THREE.Quaternion;
-  endUp: THREE.Vector3;
   startedAt: number;
   startPosition: THREE.Vector3;
   startQuaternion: THREE.Quaternion;
@@ -137,19 +136,16 @@ export function createCameraControllerRuntime({
 
   let viewTransition: ViewTransition | null = null;
   const switchToView = (direction: THREE.Vector3) => {
-    const endUp = Math.abs(direction.dot(new THREE.Vector3(0, 1, 0))) > 0.92
-      ? new THREE.Vector3(0, 0, direction.y > 0 ? -1 : 1)
-      : new THREE.Vector3(0, 1, 0);
+    const orbitDirection = clampOrbitDirection(direction);
     const distance = Math.max(camera.position.distanceTo(controls.target), maximumDimension * 1.4);
-    const endPosition = controls.target.clone().addScaledVector(direction, distance);
+    const endPosition = controls.target.clone().addScaledVector(orbitDirection, distance);
     const targetCamera = camera.clone();
     targetCamera.position.copy(endPosition);
-    targetCamera.up.copy(endUp);
+    targetCamera.up.set(0, 1, 0);
     targetCamera.lookAt(controls.target);
     viewTransition = {
       endPosition,
       endQuaternion: targetCamera.quaternion.clone(),
-      endUp: endUp.clone(),
       startedAt: performance.now(),
       startPosition: camera.position.clone(),
       startQuaternion: camera.quaternion.clone(),
@@ -192,14 +188,8 @@ export function createCameraControllerRuntime({
   };
   const rotateCamera = (deltaX: number, deltaY: number) => {
     const offset = camera.position.clone().sub(controls.target);
-    const yawAxis = camera.up.clone().normalize();
-    const rightAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
-    const yaw = new THREE.Quaternion().setFromAxisAngle(yawAxis, -deltaX * 0.008);
-    rightAxis.applyQuaternion(yaw);
-    offset.applyQuaternion(yaw);
-    const pitch = new THREE.Quaternion().setFromAxisAngle(rightAxis, -deltaY * 0.008);
-    offset.applyQuaternion(pitch);
-    camera.up.applyQuaternion(pitch).normalize();
+    rotateOrbitOffset(offset, deltaX, deltaY);
+    camera.up.set(0, 1, 0);
     camera.position.copy(controls.target).add(offset);
     camera.lookAt(controls.target);
     controls.update();
@@ -288,6 +278,7 @@ export function createCameraControllerRuntime({
   const keyboardNavigationKeys = new Set<string>();
   const navigationCodes = new Set([
     "KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE",
+    "Space",
     "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
     "ShiftLeft", "ShiftRight", "AltLeft", "AltRight",
   ]);
@@ -346,8 +337,8 @@ export function createCameraControllerRuntime({
     camera.aspect = width / height;
     if (!cameraFitted) {
       if (savedView) {
+        camera.up.set(0, 1, 0);
         camera.position.copy(savedView.position);
-        camera.quaternion.copy(savedView.quaternion);
       } else {
         const verticalFov = THREE.MathUtils.degToRad(camera.fov);
         const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
@@ -375,7 +366,7 @@ export function createCameraControllerRuntime({
       easedProgress,
     );
     if (progress >= 1) {
-      camera.up.copy(viewTransition.endUp);
+      camera.up.set(0, 1, 0);
       viewTransition = null;
       controls.update();
     }
