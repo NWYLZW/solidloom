@@ -8,7 +8,12 @@ import {
   type NavigationObstacle,
   type NavigationPoint,
 } from "../navigation";
-import { createNavigationAvatar, type NavigationAvatar, type NavigationAvatarSkin } from "../navigationAvatar";
+import {
+  createNavigationAvatar,
+  type NavigationAvatar,
+  type NavigationAvatarSkin,
+  type NavigationFirstPersonAvatarMode,
+} from "../navigationAvatar";
 import {
   moveNavigationVelocityToward,
   resolveNavigationMotionProfile,
@@ -102,6 +107,7 @@ interface CreateNavigationRuntimeOptions extends NavigationSystemContext {
   navigationCameraMode: NavigationCameraMode;
   navigationCanConfigureInteractions: boolean;
   navigationDynamicBodies: Viewport3DProps["navigationDynamicBodies"];
+  navigationFirstPersonAvatarMode: NavigationFirstPersonAvatarMode;
   navigationInteractionLabels: Viewport3DProps["navigationInteractionLabels"];
   navigationInteractions: NavigationInteractionDescriptor[];
   navigationMode: boolean;
@@ -139,6 +145,7 @@ export function createNavigationRuntime({
   navigationCameraMode,
   navigationCanConfigureInteractions,
   navigationDynamicBodies,
+  navigationFirstPersonAvatarMode,
   navigationInteractionLabels,
   navigationInteractions,
   navigationMode,
@@ -182,6 +189,9 @@ export function createNavigationRuntime({
   let navigationPathIndex = 0;
   let navigationCameraPitch = 0;
   let navigationCameraYaw = 0;
+  const navigationCameraPitchLimit = THREE.MathUtils.degToRad(
+    navigationCameraMode === "first-person" ? 80 : 65,
+  );
   const navigationVelocity = new THREE.Vector3();
   const navigationMotionProfile = navigation
     ? resolveNavigationMotionProfile(navigation.agentHeight)
@@ -332,8 +342,14 @@ export function createNavigationRuntime({
     navigationCameraPitch = savedAgentState?.cameraPitch ?? 0;
     navigationCameraYaw = savedAgentState?.cameraYaw ?? navigationAgent.rotation.y;
     navigationAgent.castShadow = true;
-    navigationAgent.visible = navigationCameraMode !== "first-person";
+    navigationAgent.visible = true;
     navigationAgent.userData.navigationAgent = true;
+    navigationAvatar.setPresentation(
+      navigationCameraMode === "first-person",
+      navigationFirstPersonAvatarMode,
+      navigationCameraPitch,
+    );
+    camera.add(navigationAvatar.firstPersonObject);
     scene.add(navigationAgent);
   }
 
@@ -976,7 +992,8 @@ export function createNavigationRuntime({
         } else {
           moved = applyNavigationDisplacement(navigationDisplacement);
         }
-        if (!seatedInteraction && moved && navigationVelocity.lengthSq() > 400) {
+        if (!seatedInteraction && navigationCameraMode !== "first-person"
+          && moved && navigationVelocity.lengthSq() > 400) {
           smoothlyRotateNavigationAgent(
             Math.atan2(navigationVelocity.x, navigationVelocity.z),
             deltaSeconds,
@@ -1011,28 +1028,34 @@ export function createNavigationRuntime({
         navigationCameraYaw -= yawInput * THREE.MathUtils.degToRad(132) * deltaSeconds;
         navigationCameraPitch = THREE.MathUtils.clamp(
           navigationCameraPitch - pitchInput * THREE.MathUtils.degToRad(90) * deltaSeconds,
-          THREE.MathUtils.degToRad(-65),
-          THREE.MathUtils.degToRad(65),
+          -navigationCameraPitchLimit,
+          navigationCameraPitchLimit,
         );
       } else {
         rotateCamera(yawInput * 132 * deltaSeconds, pitchInput * 132 * deltaSeconds);
       }
     }
   };
-  const updateNavigationCamera = () => {
+  const updateNavigationCamera = (deltaSeconds: number) => {
     if (!navigationMode || !navigation || !navigationAgent || navigationCameraMode === "god") return;
     const seated = Boolean(seatedInteractionId);
+    if (navigationCameraMode === "first-person" && !seated) {
+      smoothlyRotateNavigationAgent(navigationCameraYaw, deltaSeconds);
+    }
+    if (navigationAvatar) {
+      navigationAvatarAnimating = navigationAvatar.setPresentation(
+        navigationCameraMode === "first-person",
+        navigationFirstPersonAvatarMode,
+        navigationCameraPitch,
+      ) || navigationAvatarAnimating;
+    }
     navigationCameraForward.set(
       Math.sin(navigationCameraYaw),
       0,
       Math.cos(navigationCameraYaw),
     );
     if (navigationCameraMode === "first-person") {
-      navigationCameraPosition.set(
-        navigationAgent.position.x,
-        navigation.floorY + navigation.agentHeight * (seated ? 0.58 : 0.86),
-        navigationAgent.position.z,
-      );
+      navigationAvatar?.getEyePosition(navigationCameraPosition);
       const horizontalScale = Math.cos(navigationCameraPitch) * navigation.agentHeight;
       navigationCameraTarget.copy(navigationCameraPosition)
         .addScaledVector(navigationCameraForward, horizontalScale);
@@ -1233,7 +1256,7 @@ export function createNavigationRuntime({
           input.deltaSeconds,
         );
       }
-      updateNavigationCamera();
+      updateNavigationCamera(input.deltaSeconds);
     }
     updateNavigationInteractionPrompt();
     const navigationAgentChanged = Boolean(navigationAgent && (
@@ -1274,8 +1297,8 @@ export function createNavigationRuntime({
       navigationCameraYaw += yawDelta;
       navigationCameraPitch = THREE.MathUtils.clamp(
         navigationCameraPitch + pitchDelta,
-        THREE.MathUtils.degToRad(-65),
-        THREE.MathUtils.degToRad(65),
+        -navigationCameraPitchLimit,
+        navigationCameraPitchLimit,
       );
     },
     captureState,

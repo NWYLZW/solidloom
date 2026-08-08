@@ -1,0 +1,3 @@
+export const WORLD_RENDER_LAYER = 0;
+export const FIRST_PERSON_RENDER_LAYER = 1;
+export const MINECRAFT_FIRST_PERSON_FOV = 70;

@@ -7,6 +7,7 @@ import type { Viewport3DProps } from "./viewport/types";
 
 export type {
   NavigationCameraMode,
+  NavigationFirstPersonAvatarMode,
   NavigationInteractionDescriptor,
   TransformCommit,
   TransformMode,

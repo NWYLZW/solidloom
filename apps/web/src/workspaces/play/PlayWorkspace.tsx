@@ -4,9 +4,12 @@ import {
   Viewport3D,
   type InteractionPresentation,
   type NavigationCameraMode,
+  type NavigationFirstPersonAvatarMode,
 } from "../../Viewport3D";
+import { NAVIGATION_FIRST_PERSON_AVATAR_MODES } from "../../navigationAvatar";
 import "../../styles/Viewport3D.css";
 import { copyByLocale, type EditorLocale } from "../editor/editorCopy";
+import { readPreference } from "../editor/workspacePreferences";
 import { playCopyByLocale } from "./playCopy";
 import { usePlayScene } from "./usePlayScene";
 import { createPlayInteractionUI } from "./playInteractionUI";
@@ -17,12 +20,21 @@ interface PlayWorkspaceProps {
   sceneId: string;
 }
 
+const FIRST_PERSON_AVATAR_MODE_KEY = "solidloom.play.firstPersonAvatarMode.v1";
+
 export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
   const locale = (window.localStorage.getItem("solidloom.locale") === "en" ? "en" : "zh-CN") as EditorLocale;
   const copy = copyByLocale[locale];
   const playCopy = playCopyByLocale[locale];
   const { error, loading, runtimeModel, scene } = usePlayScene(sceneId);
   const [cameraMode, setCameraMode] = useState<NavigationCameraMode>("third-person");
+  const [firstPersonAvatarMode, setFirstPersonAvatarMode] = useState<NavigationFirstPersonAvatarMode>(() => (
+    readPreference(
+      FIRST_PERSON_AVATAR_MODE_KEY,
+      NAVIGATION_FIRST_PERSON_AVATAR_MODES,
+      "automatic",
+    )
+  ));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const theme = window.localStorage.getItem("solidloom.theme");
   const interactionPresentation = useMemo<InteractionPresentation>(() => {
@@ -44,6 +56,14 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
     document.title = scene ? `${scene.name} · ${playCopy.runtime}` : playCopy.runtime;
     return () => document.body.classList.remove("play-workspace-active");
   }, [locale, playCopy.runtime, scene, theme]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FIRST_PERSON_AVATAR_MODE_KEY, firstPersonAvatarMode);
+    } catch {
+      // 浏览器禁用本机存储时，设置仍在当前会话内生效。
+    }
+  }, [firstPersonAvatarMode]);
 
   const interactionLabels = useMemo(() => ({
     articulationClose: copy.interactionArticulationClose,
@@ -118,6 +138,7 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
           navigationCameraMode={cameraMode}
           navigationCameraControlsVisible={false}
           navigationCanConfigureInteractions={false}
+          navigationFirstPersonAvatarMode={firstPersonAvatarMode}
           navigationDynamicBodies={runtimeModel.dynamicBodies}
           navigationInteractionLabels={interactionLabels}
           navigationInteractions={runtimeModel.interactions}
@@ -164,9 +185,11 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
           "third-person": copy.navigationThirdPerson,
         }}
         cameraMode={cameraMode}
+        firstPersonAvatarMode={firstPersonAvatarMode}
         locale={locale}
         open={settingsOpen}
         onCameraModeChange={setCameraMode}
+        onFirstPersonAvatarModeChange={setFirstPersonAvatarMode}
         onOpenChange={setSettingsOpen}
       />
     </main>

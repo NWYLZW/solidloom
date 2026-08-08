@@ -2004,6 +2004,7 @@ export function EditorWorkspace() {
             navigationCameraMode={navigationCameraMode}
             navigationCameraControlsVisible
             navigationCanConfigureInteractions
+            navigationFirstPersonAvatarMode="automatic"
             navigationDynamicBodies={navigationDynamicBodies}
             navigationInteractions={navigationInteractions}
             navigationInteractionLabels={navigationInteractionLabels}
