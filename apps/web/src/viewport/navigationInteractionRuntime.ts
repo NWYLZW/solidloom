@@ -25,6 +25,9 @@ export interface NavigationInteractionRuntime extends NavigationInteractionDescr
   containerItems: NavigationContainerItem[];
   containerProducts: ContainerProductDefinition[];
   deviceSelections: Record<string, string>;
+  deviceCollectedOptionIds: Set<string>;
+  deviceProgramOptionId: string | null;
+  deviceProgramPhase: "idle" | "running" | "ready";
   deviceStatus: string | null;
   doorPivot: THREE.Group | null;
   dynamicBody: NavigationDynamicBodyRuntime | null;
@@ -175,6 +178,9 @@ export function createNavigationInteractionRuntimes({
       deviceSelections: savedDeviceSelections?.get(interaction.id) ?? Object.fromEntries(
         (interaction.operationGroups ?? []).map((group) => [group.id, group.options[0]?.id ?? ""]),
       ),
+      deviceCollectedOptionIds: new Set(),
+      deviceProgramOptionId: null,
+      deviceProgramPhase: "idle",
       deviceStatus: savedDeviceStatuses?.get(interaction.id) ?? null,
       doorPivot,
       dynamicBody: null,

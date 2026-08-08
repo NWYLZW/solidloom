@@ -580,7 +580,7 @@ export function createWarehouseStackerCrane(
   const parameters = normalizeWarehouseStackerCraneParameters(input);
   const pose = normalizeWarehouseStackerCranePose(parameters, poseInput);
   const railOffsetZ = parameters.carriageDepth * 0.52;
-  const mastZ = -parameters.carriageDepth * 0.58;
+  const mastZ = parameters.carriageDepth * 0.58;
   const mastBottom = 230;
   const railFeatures: ModelFeature[] = [
     box("warehouse-stacker-left-rail", "堆垛机左轨", [parameters.railLength, 72, 96], [0, 36, -railOffsetZ], metalAppearance, 12),
@@ -591,9 +591,9 @@ export function createWarehouseStackerCrane(
   const travelFeatures: ModelFeature[] = [
     box("warehouse-stacker-travel-base", "紧凑型行走底座", [parameters.carriageWidth + 160, 150, parameters.carriageDepth * warehouseStackerTravelBaseDepthScale], [pose.travelX, 140, 0], stackerFrameAppearance, 24),
     box("warehouse-stacker-single-mast", "堆垛机单立柱", [150, parameters.mastHeight, 180], [pose.travelX, mastBottom + parameters.mastHeight / 2, mastZ], stackerFrameAppearance, 14),
-    box("warehouse-stacker-mast-guide", "单立柱升降导轨", [58, parameters.mastHeight - 220, 34], [pose.travelX, mastBottom + parameters.mastHeight / 2 - 40, mastZ + 107], metalAppearance, 10),
+    box("warehouse-stacker-mast-guide", "单立柱升降导轨", [58, parameters.mastHeight - 220, 34], [pose.travelX, mastBottom + parameters.mastHeight / 2 - 40, mastZ - 107], metalAppearance, 10),
     box("warehouse-stacker-mast-cap", "单立柱顶帽", [280, 100, 210], [pose.travelX, mastBottom + parameters.mastHeight, mastZ], stackerFrameAppearance, 14),
-    box("warehouse-stacker-control-cabinet", "紧凑型控制柜", [240, 560, 260], [pose.travelX - parameters.carriageWidth * 0.34, 500, -parameters.carriageDepth * 0.46], stackerCarriageAppearance, 18),
+    box("warehouse-stacker-control-cabinet", "紧凑型控制柜", [240, 560, 260], [pose.travelX - parameters.carriageWidth * 0.34, 500, parameters.carriageDepth * 0.46], stackerCarriageAppearance, 18),
   ];
   for (const xSign of [-1, 1]) {
     for (const zSign of [-1, 1]) {
@@ -610,17 +610,17 @@ export function createWarehouseStackerCrane(
   }
   const carriageFeatures: ModelFeature[] = [
     box("warehouse-stacker-carriage-deck", "升降载货台", [parameters.carriageWidth, 110, parameters.carriageDepth], [pose.travelX, pose.liftY - 86, 0], stackerCarriageAppearance, 18),
-    box("warehouse-stacker-carriage-back", "载货台背板", [parameters.carriageWidth, 540, 72], [pose.travelX, pose.liftY + 150, -parameters.carriageDepth / 2 + 36], stackerFrameAppearance, 12),
+    box("warehouse-stacker-carriage-back", "载货台背板", [parameters.carriageWidth, 540, 72], [pose.travelX, pose.liftY + 150, parameters.carriageDepth / 2 - 36], stackerFrameAppearance, 12),
     box("warehouse-stacker-carriage-left-guard", "载货台左护栏", [54, 330, parameters.carriageDepth], [pose.travelX - parameters.carriageWidth / 2 + 27, pose.liftY + 75, 0], stackerFrameAppearance, 10),
     box("warehouse-stacker-carriage-right-guard", "载货台右护栏", [54, 330, parameters.carriageDepth], [pose.travelX + parameters.carriageWidth / 2 - 27, pose.liftY + 75, 0], stackerFrameAppearance, 10),
   ];
   const forkLength = parameters.carriageDepth + pose.forkExtension - 80;
-  const forkZ = pose.forkExtension / 2 + 40;
+  const forkZ = -pose.forkExtension / 2 - 40;
   const forkOffsetX = parameters.carriageWidth * 0.23;
   const forkFeatures: ModelFeature[] = [
     box("warehouse-stacker-left-fork", "左伸缩货叉", [94, 58, forkLength], [pose.travelX - forkOffsetX, pose.liftY, forkZ], stackerForkAppearance, 10),
     box("warehouse-stacker-right-fork", "右伸缩货叉", [94, 58, forkLength], [pose.travelX + forkOffsetX, pose.liftY, forkZ], stackerForkAppearance, 10),
-    box("warehouse-stacker-fork-crosshead", "载货台内固定货叉横梁", [parameters.carriageWidth * 0.72, 90, 120], [pose.travelX, pose.liftY + 12, -parameters.carriageDepth / 2 + 140], stackerForkAppearance, 12),
+    box("warehouse-stacker-fork-crosshead", "载货台内固定货叉横梁", [parameters.carriageWidth * 0.72, 90, 120], [pose.travelX, pose.liftY + 12, parameters.carriageDepth / 2 - 140], stackerForkAppearance, 12),
   ];
   return {
     name: "参数化巷道堆垛机",

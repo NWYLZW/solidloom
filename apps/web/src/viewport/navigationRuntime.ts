@@ -16,6 +16,10 @@ import {
 } from "./navigationInteractionRuntime";
 import { createNavigationSeatPoseResolver } from "./navigationSeat";
 import {
+  createNavigationOperationProgramRuntime,
+  type SavedNavigationOperationProgramState,
+} from "./navigationOperationProgramRuntime";
+import {
   createContainerProductState,
   reconcileContainerInventory,
   type ContainerProductDefinition,
@@ -54,6 +58,7 @@ export interface SavedNavigationRuntimeState {
     }>;
     containerItems: Map<string, Array<{ id: string; name: string; productId?: string }>>;
     deviceSelections: Map<string, Record<string, string>>;
+    deviceProgramStates: Map<string, SavedNavigationOperationProgramState>;
     deviceStatuses: Map<string, string | null>;
     modelId: string;
     seatedInteractionId: string | null;
@@ -155,6 +160,7 @@ export function createNavigationRuntime({
     savedDeviceStatuses: savedInteractionState?.deviceStatuses,
     savedStates: savedInteractionState?.states,
   });
+  let navigationOperationProgramRuntime: ReturnType<typeof createNavigationOperationProgramRuntime> | null = null;
   const navigationSeatPoseResolver = createNavigationSeatPoseResolver();
   const navigationObstacles: NavigationObstacle[] = [];
   const navigationStaticObstacles: NavigationObstacle[] = [];
@@ -495,6 +501,7 @@ export function createNavigationRuntime({
     deviceSelections: new Map(navigationInteractionRuntimes
       .filter((interaction) => interaction.kind === "device")
       .map((interaction) => [interaction.id, { ...interaction.deviceSelections }])),
+    deviceProgramStates: navigationOperationProgramRuntime?.captureStates() ?? new Map(),
     deviceStatuses: new Map(navigationInteractionRuntimes
       .filter((interaction) => interaction.kind === "device")
       .map((interaction) => [interaction.id, interaction.deviceStatus])),
@@ -527,10 +534,19 @@ export function createNavigationRuntime({
       return;
     }
     onDevicePanelChange({
-      executeLabel: interaction.operationExecuteLabel ?? navigationInteractionLabels.deviceExecute,
+      busy: navigationOperationProgramRuntime?.isBusy(interaction) ?? false,
+      executeDisabled: navigationOperationProgramRuntime?.executeDisabled(interaction) ?? false,
+      executeLabel: navigationOperationProgramRuntime?.executeLabel(interaction)
+        ?? interaction.operationExecuteLabel
+        ?? navigationInteractionLabels.deviceExecute,
       groups: (interaction.operationGroups ?? []).map((group) => ({
         ...group,
-        options: group.options.map((option) => ({ ...option })),
+        options: group.options.map((option) => ({
+          ...(option.description ? { description: option.description } : {}),
+          disabled: navigationOperationProgramRuntime?.isOptionDisabled(interaction, option.id) ?? false,
+          id: option.id,
+          label: option.label,
+        })),
         selectedOptionId: interaction.deviceSelections[group.id] ?? group.options[0]?.id ?? "",
       })),
       interactionId: interaction.id,
@@ -538,6 +554,19 @@ export function createNavigationRuntime({
       title: interaction.label ?? interaction.entityLabel,
     });
   };
+  navigationOperationProgramRuntime = createNavigationOperationProgramRuntime({
+    featureGroupById,
+    featureMeshById,
+    interactions: navigationInteractionRuntimes,
+    onChange: (interaction) => {
+      navigationShadowStateChanged = true;
+      if (interaction.active) publishDevicePanel(interaction);
+      requestRender();
+    },
+    ...(savedInteractionState?.deviceProgramStates
+      ? { savedStates: savedInteractionState.deviceProgramStates }
+      : {}),
+  });
   const syncSeatedNavigationAgent = () => {
     if (!navigation || !navigationAgent || !seatedInteractionId) return;
     const seat = navigationInteractionRuntimes.find((interaction) => interaction.id === seatedInteractionId);
@@ -676,8 +705,10 @@ export function createNavigationRuntime({
       interaction.active = false;
       publishDevicePanel(null);
     } else if (operation.type === "select") {
+      if (navigationOperationProgramRuntime?.isBusy(interaction)) return;
       const group = interaction.operationGroups?.find((candidate) => candidate.id === operation.groupId);
       if (!group?.options.some((option) => option.id === operation.optionId)) return;
+      if (navigationOperationProgramRuntime?.isOptionDisabled(interaction, operation.optionId)) return;
       interaction.deviceSelections = {
         ...interaction.deviceSelections,
         [operation.groupId]: operation.optionId,
@@ -685,12 +716,15 @@ export function createNavigationRuntime({
       interaction.deviceStatus = null;
       publishDevicePanel(interaction);
     } else if (operation.type === "execute") {
-      const selection = (interaction.operationGroups ?? []).map((group) => (
-        group.options.find((option) => option.id === interaction.deviceSelections[group.id])?.label
-      )).filter((label): label is string => Boolean(label)).join(" · ");
-      const completion = interaction.operationCompleteLabel ?? navigationInteractionLabels.deviceReady;
-      interaction.deviceStatus = completion.replace("{selection}", selection);
-      publishDevicePanel(interaction);
+      const handled = navigationOperationProgramRuntime?.execute(interaction) ?? false;
+      if (!handled) {
+        const selection = (interaction.operationGroups ?? []).map((group) => (
+          group.options.find((option) => option.id === interaction.deviceSelections[group.id])?.label
+        )).filter((label): label is string => Boolean(label)).join(" · ");
+        const completion = interaction.operationCompleteLabel ?? navigationInteractionLabels.deviceReady;
+        interaction.deviceStatus = completion.replace("{selection}", selection);
+        publishDevicePanel(interaction);
+      }
     }
     lastNavigationInteractionPromptKey = "";
     requestRender();
@@ -1147,6 +1181,7 @@ export function createNavigationRuntime({
     || navigationPathIndex > 0
     || navigationVelocity.lengthSq() > 1
     || navigationDynamicBodyRuntimes.some((body) => body.velocity.lengthSq() > 1)
+    || navigationInteractionRuntimes.some((interaction) => interaction.deviceProgramPhase === "running")
     || navigationInteractionRuntimes.some((interaction) => (
       interaction.kind === "articulation"
       && Math.abs(interaction.articulationCurrentValue - interaction.articulationTargetValue) > 0.01
@@ -1157,10 +1192,12 @@ export function createNavigationRuntime({
     navigationShadowStateChanged = false;
     const previousAgentRotationY = navigationAgent?.rotation.y ?? 0;
     const previousAgentScaleY = navigationAgent?.scale.y ?? 1;
+    let operationProgramChanged = false;
     if (navigationAgent) navigationPreviousAgentPosition.copy(navigationAgent.position);
     if (!input.viewTransitionActive) {
       updateNavigationDynamicBodies(input.deltaSeconds);
       updateNavigationArticulations(input.deltaSeconds);
+      operationProgramChanged = navigationOperationProgramRuntime?.update(input.deltaSeconds) ?? false;
       syncSeatedNavigationAgent();
       updateKeyboardNavigation(input);
       updateNavigationAgent(input.deltaSeconds);
@@ -1188,7 +1225,8 @@ export function createNavigationRuntime({
     const navigationObjectChanged = previousShadowStateChanged
       || navigationShadowStateChanged
       || navigationAgentChanged
-      || navigationAvatarAnimating;
+      || navigationAvatarAnimating
+      || operationProgramChanged;
     navigationShadowStateChanged = false;
     return { navigationObjectChanged };
   };

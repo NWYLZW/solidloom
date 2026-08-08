@@ -35,6 +35,7 @@ export type NavigationContainerOperation =
 
 export interface NavigationDeviceOption {
   description?: string;
+  disabled?: boolean;
   id: string;
   label: string;
 }
@@ -47,6 +48,8 @@ export interface NavigationDeviceOperationGroup {
 }
 
 export interface NavigationDevicePanelState {
+  busy: boolean;
+  executeDisabled: boolean;
   executeLabel: string;
   groups: NavigationDeviceOperationGroup[];
   interactionId: string;

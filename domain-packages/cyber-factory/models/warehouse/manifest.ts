@@ -341,7 +341,7 @@ export function createWarehouseStackerCraneManifest(
 ): ModelAssetManifest {
   const parameters = normalizeWarehouseStackerCraneParameters(input);
   const homePose = normalizeWarehouseStackerCranePose(parameters);
-  const outboundCargoZ = parameters.carriageDepth / 2 - Math.min(
+  const outboundCargoZ = -parameters.carriageDepth / 2 + Math.min(
     defaultWarehousePalletParameters.depth / 2 + 30,
     defaultWarehouseRackParameters.depth / 2 - 30,
   );
@@ -391,10 +391,10 @@ export function createWarehouseStackerCraneManifest(
     placement: fixedPlacement(),
     colliders,
     anchors: [
-      { id: "warehouse-stacker-fork-load-socket", label: "货叉装载位", kind: "socket", position: [homePose.travelX, homePose.liftY - 30, outboundCargoZ], rotation: [0, 0, 0], range: 620, groupId: warehouseGroupIds.stackerForks, tags: ["warehouse", "cargo", "planned-attachment"] },
-      { id: "warehouse-stacker-control-panel", label: "堆垛机控制面板", kind: "interaction", position: [homePose.travelX - parameters.carriageWidth * 0.34, 640, -parameters.carriageDepth * 0.65], rotation: [0, 0, 0], range: 720, featureId: "warehouse-stacker-control-cabinet", tags: ["warehouse", "automation", "planned-control"] },
-      { id: "warehouse-stacker-outbound-socket", label: "载货台内出库放置位", kind: "placement", position: [homePose.travelX, homePose.liftY - 30, outboundCargoZ], rotation: [0, 180, 0], range: 620, groupId: warehouseGroupIds.stackerCarriage, tags: ["warehouse", "outbound", "planned-attachment"] },
-      { id: "warehouse-stacker-maintenance-approach", label: "堆垛机维护接近位", kind: "approach", position: [homePose.travelX, 0, -parameters.carriageDepth * 1.1], rotation: [0, 0, 0], range: 900, groupId: warehouseGroupIds.stackerTravelFrame, tags: ["warehouse", "maintenance", "navigation"] },
+      { id: "warehouse-stacker-fork-load-socket", label: "货叉装载位", kind: "socket", position: [homePose.travelX, homePose.liftY - 30, outboundCargoZ], rotation: [0, 0, 0], range: 620, groupId: warehouseGroupIds.stackerForks, tags: ["warehouse", "cargo", "runtime-attachment"] },
+      { id: "warehouse-stacker-control-panel", label: "堆垛机控制面板", kind: "interaction", position: [homePose.travelX - parameters.carriageWidth * 0.34, 640, parameters.carriageDepth * 0.65], rotation: [0, 180, 0], range: 720, featureId: "warehouse-stacker-control-cabinet", tags: ["warehouse", "automation", "runtime-control"] },
+      { id: "warehouse-stacker-outbound-socket", label: "载货台内出库放置位", kind: "placement", position: [homePose.travelX, homePose.liftY - 30, outboundCargoZ], rotation: [0, 180, 0], range: 620, groupId: warehouseGroupIds.stackerCarriage, tags: ["warehouse", "outbound", "runtime-attachment"] },
+      { id: "warehouse-stacker-maintenance-approach", label: "堆垛机维护接近位", kind: "approach", position: [homePose.travelX, 0, parameters.carriageDepth * 1.1], rotation: [0, 180, 0], range: 900, groupId: warehouseGroupIds.stackerTravelFrame, tags: ["warehouse", "maintenance", "navigation"] },
     ],
     joints: [],
     lod: [
@@ -405,7 +405,7 @@ export function createWarehouseStackerCraneManifest(
       { device: "desktop", cameraPosition: [5_800, 4_200, 6_200], cameraTarget: [0, 1_500, 500], background: "dark" },
       { device: "mobile", cameraPosition: [7_000, 5_000, 7_800], cameraTarget: [0, 1_450, 500], background: "dark" },
     ],
-    tags: ["cyber-factory", "warehouse", "stacker-crane", "automated-storage", "retrieval", "planned"],
+    tags: ["cyber-factory", "warehouse", "stacker-crane", "automated-storage", "retrieval"],
   };
 }
 
