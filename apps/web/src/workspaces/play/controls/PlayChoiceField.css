@@ -1,0 +1,101 @@
+.play-choice-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--play-choice-text-color, var(--color-text));
+}
+
+.play-choice-accessible-legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.play-choice-options {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--play-choice-border-color, var(--color-border));
+  border-radius: var(--play-choice-radius, 6px);
+  background: var(--play-choice-background, transparent);
+}
+
+.play-choice-options label {
+  display: grid;
+  min-width: 0;
+  min-height: var(--play-choice-row-height, 48px);
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--control-padding-x);
+  padding: var(--control-padding-y) var(--control-padding-x);
+  border-bottom: 1px solid var(--play-choice-border-color, var(--color-border));
+  background: transparent;
+  cursor: pointer;
+}
+
+.play-choice-options label:last-child {
+  border-bottom: 0;
+}
+
+.play-choice-options label:hover {
+  background: var(--play-choice-hover-background, var(--color-control-muted));
+}
+
+.play-choice-options label[data-selected="true"] {
+  background: var(--play-choice-selected-background, var(--color-control-selected));
+}
+
+.play-choice-options input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.play-choice-indicator {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid var(--play-choice-border-color, var(--color-border));
+  border-radius: 50%;
+  background: var(--play-choice-background, var(--color-panel));
+}
+
+.play-choice-options input:checked + .play-choice-indicator {
+  border: 5px solid var(--play-choice-accent-color, var(--play-accent-color));
+}
+
+.play-choice-options input:focus-visible + .play-choice-indicator {
+  outline: 2px solid var(--play-choice-focus-color, var(--play-accent-color));
+  outline-offset: 2px;
+}
+
+.play-choice-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.play-choice-copy strong,
+.play-choice-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.play-choice-copy strong {
+  font-size: 13px;
+}
+
+.play-choice-copy small {
+  color: var(--play-choice-muted-color, var(--color-muted));
+  font-size: 11px;
+  line-height: 1.4;
+}

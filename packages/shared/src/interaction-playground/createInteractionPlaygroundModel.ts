@@ -576,6 +576,9 @@ export function createInteractionPlaygroundModel(
         agentHeight: 1720,
         start: [-11_250, 900],
       },
+      runtimeUI: {
+        menuItems: ["resume", "character", "settings", "return-workshop"],
+      },
     },
   };
 }

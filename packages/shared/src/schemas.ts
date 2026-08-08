@@ -593,6 +593,21 @@ export const featureGraphSchema = {
       items: modelReferenceInstanceSchema,
       maxItems: 64,
     },
+    runtimeUI: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        menuItems: {
+          type: "array",
+          uniqueItems: true,
+          maxItems: 4,
+          items: {
+            type: "string",
+            enum: ["resume", "character", "settings", "return-workshop"],
+          },
+        },
+      },
+    },
     variables: {
       type: "array",
       maxItems: 128,

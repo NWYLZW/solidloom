@@ -211,6 +211,12 @@ export interface NavigationSurface {
   start: [number, number];
 }
 
+export type RuntimeMenuItem = "resume" | "character" | "settings" | "return-workshop";
+
+export interface RuntimeUIConfiguration {
+  menuItems?: RuntimeMenuItem[];
+}
+
 export interface ModelReferencePhysics {
   bodyType: "static" | "dynamic";
   mass?: number;
@@ -306,6 +312,7 @@ export interface FeatureGraph {
   locomotion?: ArticulationLocomotionProfile;
   navigation?: NavigationSurface;
   references?: ModelReferenceInstance[];
+  runtimeUI?: RuntimeUIConfiguration;
   variables?: ModelVariable[];
 }
 

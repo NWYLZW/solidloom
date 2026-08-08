@@ -1,0 +1,58 @@
+.play-range-field {
+  cursor: pointer;
+}
+
+.play-range-field output {
+  min-width: 48px;
+  color: var(--play-setting-muted-color, var(--color-muted));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  text-align: right;
+}
+
+.play-range-control {
+  grid-template-columns: minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: var(--control-padding-x);
+}
+
+.play-range-control input {
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--play-range-accent-color, var(--play-accent-color)) 0,
+    var(--play-range-accent-color, var(--play-accent-color)) var(--play-range-progress, 0%),
+    var(--play-range-track-color, var(--color-control-muted)) var(--play-range-progress, 0%),
+    var(--play-range-track-color, var(--color-control-muted)) 100%
+  );
+  accent-color: var(--play-range-accent-color, var(--play-accent-color));
+  cursor: pointer;
+}
+
+.play-range-control input::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--play-range-thumb-size, 16px);
+  height: var(--play-range-thumb-size, 16px);
+  border: 1px solid var(--play-range-thumb-border-color, var(--color-border));
+  border-radius: 50%;
+  background: var(--play-range-thumb-color, var(--play-range-accent-color, var(--play-accent-color)));
+  box-shadow: 0 1px 3px rgba(18, 21, 17, 0.2);
+}
+
+.play-range-control input::-moz-range-thumb {
+  width: var(--play-range-thumb-size, 16px);
+  height: var(--play-range-thumb-size, 16px);
+  border: 1px solid var(--play-range-thumb-border-color, var(--color-border));
+  border-radius: 50%;
+  background: var(--play-range-thumb-color, var(--play-range-accent-color, var(--play-accent-color)));
+  box-shadow: 0 1px 3px rgba(18, 21, 17, 0.2);
+}
+
+.play-range-control input:focus-visible {
+  outline: 2px solid var(--play-range-focus-color, var(--play-accent-color));
+  outline-offset: 3px;
+}

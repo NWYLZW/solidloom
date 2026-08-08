@@ -1,0 +1,54 @@
+.play-toggle-field {
+  cursor: pointer;
+}
+
+.play-toggle-control-column {
+  justify-items: end;
+}
+
+.play-toggle-field input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.play-toggle-control {
+  position: relative;
+  width: var(--play-toggle-width, 38px);
+  height: var(--play-toggle-height, 22px);
+  border: 1px solid var(--play-toggle-border-color, var(--color-border));
+  border-radius: 999px;
+  background: var(--play-toggle-background, var(--color-control-muted));
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.play-toggle-control::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(var(--play-toggle-height, 22px) - 6px);
+  height: calc(var(--play-toggle-height, 22px) - 6px);
+  border-radius: 50%;
+  background: var(--play-toggle-thumb-color, var(--color-panel));
+  box-shadow: 0 1px 2px rgba(18, 21, 17, 0.18);
+  content: "";
+  transition: transform 140ms ease;
+}
+
+.play-toggle-field input:checked + .play-toggle-control {
+  border-color: var(--play-toggle-accent-color, var(--play-accent-color));
+  background: var(--play-toggle-accent-color, var(--play-accent-color));
+}
+
+.play-toggle-field input:checked + .play-toggle-control::after {
+  transform: translateX(calc(var(--play-toggle-width, 38px) - var(--play-toggle-height, 22px)));
+}
+
+.play-toggle-field input:focus-visible + .play-toggle-control {
+  outline: 2px solid var(--play-toggle-focus-color, var(--play-accent-color));
+  outline-offset: 2px;
+}
