@@ -64,6 +64,25 @@ function canonicalJson(value) {
   return JSON.stringify(normalize(value));
 }
 
+function hasLegacyWarehouseStackerOrientation(model) {
+  if (model?.name !== "参数化巷道堆垛机") return false;
+  // 旧修订把立柱和载货台放在货架背面，货叉同时朝外伸出。
+  // 只识别这一组完整特征，避免种子同步覆盖用户后续修改过的模型。
+  const featureById = new Map(
+    (model.featureGraph?.features ?? []).map((feature) => [feature.id, feature]),
+  );
+  const mast = featureById.get("warehouse-stacker-single-mast");
+  const carriageBack = featureById.get("warehouse-stacker-carriage-back");
+  const forkCrosshead = featureById.get("warehouse-stacker-fork-crosshead");
+  const leftFork = featureById.get("warehouse-stacker-left-fork");
+  return (
+    mast?.position?.[2] < 0
+    && carriageBack?.position?.[2] < 0
+    && forkCrosshead?.position?.[2] < 0
+    && leftFork?.position?.[2] > 0
+  );
+}
+
 function preserveImportedAvatarSkin(specification, existing) {
   if (!existing || specification.name !== "原创方块角色") return specification;
   const importedSkin = existing.featureGraph.features
@@ -132,7 +151,8 @@ if (replaceExisting && legacyStacker && !existingByName.has("参数化巷道堆�
 for (const sourceSpecification of [...availableSpecifications.values()].reverse()) {
   const existing = existingByName.get(sourceSpecification.name);
   const specification = preserveImportedAvatarSkin(sourceSpecification, existing);
-  if (existing && !replaceExisting) {
+  const requiresKnownMigration = hasLegacyWarehouseStackerOrientation(existing);
+  if (existing && !replaceExisting && !requiresKnownMigration) {
     skipped.push(specification.name);
     continue;
   }
