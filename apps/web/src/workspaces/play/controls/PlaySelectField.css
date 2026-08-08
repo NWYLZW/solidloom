@@ -1,0 +1,37 @@
+.play-select-control-shell {
+  position: relative;
+  min-width: 0;
+}
+
+.play-select-field select {
+  appearance: none;
+  width: 100%;
+  min-height: var(--play-setting-control-height, 36px);
+  padding: var(--control-padding-y) calc(var(--control-padding-x) + 22px) var(--control-padding-y) var(--control-padding-x);
+  border: 1px solid var(--play-select-border-color, var(--color-border));
+  border-radius: var(--play-select-radius, 6px);
+  color: var(--play-select-text-color, var(--color-text));
+  background: var(--play-select-background, var(--color-control));
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.play-select-control-shell > svg {
+  position: absolute;
+  top: 50%;
+  right: var(--control-padding-x);
+  color: var(--play-setting-muted-color, var(--color-muted));
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.play-select-field select:hover {
+  border-color: var(--play-select-hover-border-color, var(--color-muted));
+}
+
+.play-select-field select:focus-visible {
+  border-color: var(--play-select-focus-color, var(--play-accent-color));
+  outline: 2px solid color-mix(in srgb, var(--play-select-focus-color, var(--play-accent-color)) 28%, transparent);
+  outline-offset: 1px;
+}

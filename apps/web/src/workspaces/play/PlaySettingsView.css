@@ -1,0 +1,140 @@
+.play-settings-view {
+  display: grid;
+  min-height: 100%;
+  grid-template-rows: 58px minmax(0, 1fr);
+  --play-settings-edge-inset: var(--panel-edge-inset);
+}
+
+.play-settings-view-layout {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: var(--play-settings-sidebar-width, 200px) minmax(0, 1fr);
+}
+
+.play-settings-view-categories {
+  padding: 0;
+  border-right: 1px solid var(--play-settings-border-color, var(--color-border));
+  background: var(--play-settings-sidebar-background, var(--color-control-muted));
+}
+
+.play-settings-view-categories button {
+  display: grid;
+  width: 100%;
+  min-height: var(--play-settings-category-height, 44px);
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 0 var(--play-settings-edge-inset);
+  border: 0;
+  color: var(--play-settings-muted-color, var(--color-muted));
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.play-settings-view-categories button:hover,
+.play-settings-view-categories button:focus-visible {
+  color: var(--play-settings-text-color, var(--color-text));
+  background: var(--play-settings-category-hover-background, var(--color-control));
+  outline: none;
+}
+
+.play-settings-view-categories button[aria-current="page"] {
+  color: var(--play-settings-text-color, var(--color-text));
+  background: var(--play-settings-category-selected-background, var(--color-control-selected));
+  font-weight: 650;
+}
+
+.play-settings-category-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: currentColor;
+}
+
+.play-settings-view-categories button > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.play-settings-view-content {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: var(--play-settings-edge-inset);
+  --play-setting-column-gap: clamp(20px, 3vw, 40px);
+  --play-setting-control-height: 36px;
+}
+
+.play-settings-view-heading {
+  min-width: 0;
+}
+
+.play-settings-view-heading h2,
+.play-settings-view-heading p {
+  margin: 0;
+}
+
+.play-settings-view-heading h2 {
+  font-size: clamp(19px, 2vw, 24px);
+}
+
+.play-settings-view-heading p {
+  margin-top: 5px;
+  color: var(--play-settings-muted-color, var(--color-muted));
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.play-settings-fields {
+  display: grid;
+  margin-top: 18px;
+}
+
+.play-settings-fields > * {
+  padding: 0;
+}
+
+.play-settings-fields > * + * {
+  margin-top: 0;
+  border-top: 1px solid var(--play-settings-border-color, var(--color-border));
+}
+
+@media (max-width: 680px) {
+  .play-settings-view-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .play-settings-view-categories {
+    display: grid;
+    overflow-x: auto;
+    grid-auto-columns: minmax(104px, 1fr);
+    grid-auto-flow: column;
+    padding: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--play-settings-border-color, var(--color-border));
+  }
+
+  .play-settings-view-categories button {
+    min-height: 52px;
+    grid-template-columns: 24px minmax(0, 1fr);
+    padding: 0 10px;
+    border: 0;
+  }
+
+  .play-settings-view-categories button[aria-current="page"] {
+    background: var(--play-settings-category-selected-background, var(--color-control-selected));
+  }
+
+  .play-settings-category-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .play-settings-view-content {
+    padding: var(--play-settings-edge-inset);
+  }
+}

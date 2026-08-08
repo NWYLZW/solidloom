@@ -74,6 +74,12 @@ export function useViewport3DRuntime({
   const updateCutPlaneRef = useRef<((plane: Viewport3DProps["cutPlane"], featureIds: string[], groupId: string | null) => void) | null>(null);
   const playJointAnimationRef = useRef<((request: JointAnimationRequest | null) => void) | null>(null);
   const performNavigationInteractionRef = useRef<((interactionId: string) => boolean) | null>(null);
+  const setNavigationFirstPersonAvatarModeRef = useRef<((
+    mode: Viewport3DProps["navigationFirstPersonAvatarMode"],
+  ) => void) | null>(null);
+  const setNavigationInteractionLabelsRef = useRef<((
+    labels: Viewport3DProps["navigationInteractionLabels"],
+  ) => void) | null>(null);
   const viewportPointerRuntimeRef = useRef<ViewportPointerRuntime | null>(null);
   const performNavigationContainerOperationRef = useRef<((
     interactionId: string,
@@ -206,6 +212,8 @@ export function useViewport3DRuntime({
       scene,
     }));
     performNavigationInteractionRef.current = navigationRuntime.performInteraction;
+    setNavigationFirstPersonAvatarModeRef.current = navigationRuntime.setFirstPersonAvatarMode;
+    setNavigationInteractionLabelsRef.current = navigationRuntime.setInteractionLabels;
     performNavigationContainerOperationRef.current = navigationRuntime.performContainerOperation;
     performNavigationDeviceOperationRef.current = navigationRuntime.performDeviceOperation;
 
@@ -367,6 +375,12 @@ export function useViewport3DRuntime({
       if (performNavigationInteractionRef.current === navigationRuntime.performInteraction) {
         performNavigationInteractionRef.current = null;
       }
+      if (setNavigationFirstPersonAvatarModeRef.current === navigationRuntime.setFirstPersonAvatarMode) {
+        setNavigationFirstPersonAvatarModeRef.current = null;
+      }
+      if (setNavigationInteractionLabelsRef.current === navigationRuntime.setInteractionLabels) {
+        setNavigationInteractionLabelsRef.current = null;
+      }
       if (performNavigationContainerOperationRef.current === navigationRuntime.performContainerOperation) {
         performNavigationContainerOperationRef.current = null;
       }
@@ -395,8 +409,6 @@ export function useViewport3DRuntime({
     navigationCanConfigureInteractions,
     navigationCameraMode,
     navigationDynamicBodies,
-    navigationFirstPersonAvatarMode,
-    navigationInteractionLabels,
     navigationInteractions,
     navigationMode,
     theme,
@@ -406,6 +418,14 @@ export function useViewport3DRuntime({
   useEffect(() => {
     playJointAnimationRef.current?.(jointAnimation);
   }, [jointAnimation]);
+
+  useEffect(() => {
+    setNavigationFirstPersonAvatarModeRef.current?.(navigationFirstPersonAvatarMode);
+  }, [navigationFirstPersonAvatarMode]);
+
+  useEffect(() => {
+    setNavigationInteractionLabelsRef.current?.(navigationInteractionLabels);
+  }, [navigationInteractionLabels]);
 
   useEffect(() => {
     updateSelectionRef.current?.(selectedFeatureIds, selectedGroupId);

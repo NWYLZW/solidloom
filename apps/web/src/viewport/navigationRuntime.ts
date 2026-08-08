@@ -146,6 +146,8 @@ export interface NavigationRuntime extends RuntimeDisposable {
   performContainerOperation: (interactionId: string, operation: NavigationContainerOperation) => void;
   performDeviceOperation: (interactionId: string, operation: NavigationDeviceOperation) => void;
   performInteraction: (interactionId: string) => boolean;
+  setFirstPersonAvatarMode: (mode: NavigationFirstPersonAvatarMode) => void;
+  setInteractionLabels: (labels: Viewport3DProps["navigationInteractionLabels"]) => void;
   setDestination: (event: { clientX: number; clientY: number }) => boolean;
   update: (input: NavigationFrameInput) => NavigationFrameResult;
 }
@@ -177,6 +179,8 @@ export function createNavigationRuntime({
   savedState,
   scene,
 }: CreateNavigationRuntimeOptions): NavigationRuntime {
+  let currentFirstPersonAvatarMode = navigationFirstPersonAvatarMode;
+  let currentInteractionLabels = navigationInteractionLabels;
   const savedInteractionState = savedState?.interactions?.modelId === modelId
     ? savedState.interactions
     : null;
@@ -390,7 +394,7 @@ export function createNavigationRuntime({
     navigationAgent.userData.navigationAgent = true;
     navigationAvatar.setPresentation(
       navigationCameraMode === "first-person",
-      navigationFirstPersonAvatarMode,
+      currentFirstPersonAvatarMode,
       navigationCameraPitch,
     );
     camera.add(navigationAvatar.firstPersonObject);
@@ -483,24 +487,24 @@ export function createNavigationRuntime({
     if (customLabel) return customLabel;
     if (interaction.kind === "articulation") {
       return interaction.active
-        ? navigationInteractionLabels.articulationClose
-        : navigationInteractionLabels.articulationOpen;
+        ? currentInteractionLabels.articulationClose
+        : currentInteractionLabels.articulationOpen;
     }
     if (interaction.kind === "power") {
-      return interaction.active ? navigationInteractionLabels.powerOff : navigationInteractionLabels.powerOn;
+      return interaction.active ? currentInteractionLabels.powerOff : currentInteractionLabels.powerOn;
     }
     if (interaction.kind === "door") {
-      return interaction.active ? navigationInteractionLabels.doorClose : navigationInteractionLabels.doorOpen;
+      return interaction.active ? currentInteractionLabels.doorClose : currentInteractionLabels.doorOpen;
     }
     if (interaction.kind === "container") {
-      return interaction.active ? navigationInteractionLabels.containerClose : navigationInteractionLabels.containerOpen;
+      return interaction.active ? currentInteractionLabels.containerClose : currentInteractionLabels.containerOpen;
     }
     if (interaction.kind === "device") {
-      return interaction.active ? navigationInteractionLabels.deviceClose : navigationInteractionLabels.deviceOpen;
+      return interaction.active ? currentInteractionLabels.deviceClose : currentInteractionLabels.deviceOpen;
     }
     return seatedInteractionId === interaction.id
-      ? navigationInteractionLabels.stand
-      : navigationInteractionLabels.sit;
+      ? currentInteractionLabels.stand
+      : currentInteractionLabels.sit;
   };
   const applyNavigationInteractionVisualState = (interaction: NavigationInteractionRuntime) => {
     if (interaction.kind === "door" && interaction.doorPivot) {
@@ -601,7 +605,7 @@ export function createNavigationRuntime({
       executeDisabled: navigationOperationProgramRuntime?.executeDisabled(interaction) ?? false,
       executeLabel: navigationOperationProgramRuntime?.executeLabel(interaction)
         ?? interaction.operationExecuteLabel
-        ?? navigationInteractionLabels.deviceExecute,
+        ?? currentInteractionLabels.deviceExecute,
       groups: (interaction.operationGroups ?? []).map((group) => ({
         ...group,
         options: group.options.map((option) => ({
@@ -784,7 +788,7 @@ export function createNavigationRuntime({
         const selection = (interaction.operationGroups ?? []).map((group) => (
           group.options.find((option) => option.id === interaction.deviceSelections[group.id])?.label
         )).filter((label): label is string => Boolean(label)).join(" · ");
-        const completion = interaction.operationCompleteLabel ?? navigationInteractionLabels.deviceReady;
+        const completion = interaction.operationCompleteLabel ?? currentInteractionLabels.deviceReady;
         interaction.deviceStatus = completion.replace("{selection}", selection);
         publishDevicePanel(interaction);
       }
@@ -1168,7 +1172,7 @@ export function createNavigationRuntime({
     if (navigationAvatar) {
       navigationAvatarAnimating = navigationAvatar.setPresentation(
         navigationCameraMode === "first-person",
-        navigationFirstPersonAvatarMode,
+        currentFirstPersonAvatarMode,
         navigationCameraPitch,
       ) || navigationAvatarAnimating;
     }
@@ -1450,6 +1454,31 @@ export function createNavigationRuntime({
     performContainerOperation,
     performDeviceOperation,
     performInteraction,
+    setFirstPersonAvatarMode: (mode) => {
+      if (currentFirstPersonAvatarMode === mode) return;
+      currentFirstPersonAvatarMode = mode;
+      if (!navigationAvatar) return;
+      navigationAvatarAnimating = navigationAvatar.setPresentation(
+        navigationCameraMode === "first-person",
+        currentFirstPersonAvatarMode,
+        navigationCameraPitch,
+      ) || navigationAvatarAnimating;
+      requestRender();
+    },
+    setInteractionLabels: (labels) => {
+      currentInteractionLabels = labels;
+      lastNavigationInteractionPromptKey = "";
+      updateNavigationInteractionPrompt();
+      const activeContainer = navigationInteractionRuntimes.find((interaction) => (
+        interaction.kind === "container" && interaction.active
+      ));
+      const activeDevice = navigationInteractionRuntimes.find((interaction) => (
+        interaction.kind === "device" && interaction.active
+      ));
+      publishContainerPanel(activeContainer ?? null);
+      publishDevicePanel(activeDevice ?? null);
+      requestRender();
+    },
     setDestination,
     update,
     dispose: () => {

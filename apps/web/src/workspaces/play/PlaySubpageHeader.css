@@ -1,0 +1,38 @@
+.play-subpage-header {
+  display: grid;
+  height: 58px;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: var(--panel-edge-inset);
+  padding: 0 var(--panel-edge-inset);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-panel);
+}
+
+.play-subpage-header > strong {
+  overflow: hidden;
+  font-size: 15px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.play-subpage-back {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--color-text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.play-subpage-back:hover,
+.play-subpage-back:focus-visible {
+  border-color: var(--color-border);
+  background: var(--color-control);
+  outline: none;
+}

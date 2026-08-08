@@ -1,9 +1,8 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import type { VoxelSkinModel } from "@solidloom/shared";
+import { MAX_SKIN_FILE_BYTES, readVoxelSkinFile } from "../skinFile";
 import { BUILTIN_VOXEL_SKIN_URL } from "../voxelSkin";
 import "./VoxelSkinPanel.css";
-
-const MAX_SKIN_FILE_BYTES = 256 * 1024;
 
 interface VoxelSkinPanelProps {
   labels: {
@@ -26,26 +25,6 @@ interface VoxelSkinPanelProps {
   skinUrl: string;
 }
 
-function readSkinFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read"));
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        reject(new Error("read"));
-        return;
-      }
-      const image = new Image();
-      image.onerror = () => reject(new Error("dimensions"));
-      image.onload = () => image.naturalWidth === 64 && image.naturalHeight === 64
-        ? resolve(reader.result as string)
-        : reject(new Error("dimensions"));
-      image.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
 export function VoxelSkinPanel({ labels, model, onModelChange, onSkinUrlChange, skinUrl }: VoxelSkinPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
@@ -62,7 +41,7 @@ export function VoxelSkinPanel({ labels, model, onModelChange, onSkinUrlChange, 
       return;
     }
     try {
-      const url = await readSkinFile(file);
+      const url = await readVoxelSkinFile(file);
       setError("");
       onSkinUrlChange(url);
     } catch {

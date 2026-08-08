@@ -1,0 +1,43 @@
+.play-setting-field {
+  display: grid;
+  min-width: 0;
+  min-height: var(--play-setting-row-height, 58px);
+  grid-template-columns:
+    var(--play-setting-label-column, minmax(220px, 0.7fr))
+    var(--play-setting-control-column, minmax(320px, 1fr));
+  align-items: center;
+  gap: var(--play-setting-column-gap, 24px);
+  color: var(--play-setting-text-color, var(--color-text));
+}
+
+.play-setting-field-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.play-setting-field-copy strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.play-setting-field-copy small,
+.play-setting-control-help {
+  color: var(--play-setting-muted-color, var(--color-muted));
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.play-setting-field-control {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+@media (max-width: 760px) {
+  .play-setting-field {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--control-padding-y);
+  }
+}

@@ -1,0 +1,23 @@
+.play-character-preview-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+
+.play-character-preview-canvas:active {
+  cursor: grabbing;
+}
+
+.play-character-preview-canvas:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--play-accent-color);
+}
+
+@media (max-width: 720px) {
+  .play-character-preview-canvas {
+    min-height: 220px;
+  }
+}

@@ -3,6 +3,8 @@ body.play-workspace-active {
 }
 
 .play-workspace {
+  --play-accent-color: #607340;
+
   position: relative;
   width: 100vw;
   height: 100dvh;
@@ -11,28 +13,21 @@ body.play-workspace-active {
   background: var(--color-viewport);
 }
 
-.play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .play-workspace-controls,
-.play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .play-settings-root,
+:root[data-theme="dark"] .play-workspace {
+  --play-accent-color: #b8d56d;
+}
+
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .play-menu-root,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .navigation-mode-banner,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .navigation-interaction-prompts,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .navigation-aim-target,
-.play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .play-workspace-controls,
-.play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .play-settings-root,
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .play-menu-root,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .navigation-mode-banner,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .navigation-interaction-prompts,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .navigation-aim-target {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
-}
-
-.play-workspace-controls {
-  position: absolute;
-  z-index: 10;
-  top: var(--panel-edge-inset);
-  left: var(--panel-edge-inset);
-  display: flex;
-  align-items: center;
 }
 
 .play-icon-button {
@@ -43,16 +38,15 @@ body.play-workspace-active {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   color: var(--color-text);
-  background: color-mix(in srgb, var(--color-panel) 94%, transparent);
+  background: var(--color-panel);
   box-shadow: 0 8px 24px rgba(18, 21, 17, 0.16);
   cursor: pointer;
-  backdrop-filter: blur(12px);
 }
 
 .play-icon-button:hover,
 .play-icon-button:focus-visible {
   border-color: var(--color-muted);
-  background: color-mix(in srgb, var(--color-control) 94%, transparent);
+  background: var(--color-control);
   outline: none;
 }
 

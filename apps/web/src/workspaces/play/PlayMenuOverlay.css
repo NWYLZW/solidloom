@@ -1,0 +1,124 @@
+.play-menu-root {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  pointer-events: none;
+}
+
+.play-menu-trigger {
+  position: absolute;
+  top: var(--panel-edge-inset);
+  right: var(--panel-edge-inset);
+  background: var(--color-panel);
+  backdrop-filter: none;
+  pointer-events: auto;
+}
+
+.play-menu-screen {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  overflow: auto;
+  color: var(--color-text);
+  background: var(--color-panel);
+  pointer-events: auto;
+}
+
+.play-menu-home {
+  display: grid;
+  width: min(420px, calc(100% - 28px));
+  min-height: 100%;
+  align-content: center;
+  gap: clamp(22px, 4vh, 36px);
+  margin: 0 auto;
+  padding: clamp(28px, 5vh, 52px) 0;
+}
+
+.play-menu-home header {
+  min-width: 0;
+}
+
+.play-menu-home header > span {
+  display: block;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.play-menu-home h1,
+.play-menu-home p {
+  margin: 0;
+}
+
+.play-menu-home h1 {
+  margin-top: 6px;
+  font-size: clamp(32px, 5vw, 46px);
+  letter-spacing: -0.04em;
+}
+
+.play-menu-home p {
+  margin-top: 7px;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.play-menu-actions {
+  display: grid;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.play-menu-action {
+  display: grid;
+  min-height: 50px;
+  grid-template-columns: 26px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 var(--panel-edge-inset);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  color: var(--color-text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.play-menu-action:last-child {
+  border-bottom: 0;
+}
+
+.play-menu-action:hover,
+.play-menu-action:focus-visible {
+  background: var(--color-control-selected);
+  outline: none;
+}
+
+.play-menu-action > svg:first-child {
+  color: var(--color-muted);
+}
+
+.play-menu-action > svg:last-child {
+  color: var(--color-muted);
+}
+
+.play-menu-action span {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .play-menu-home {
+    align-content: end;
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+
+  .play-menu-action { min-height: 50px; }
+}

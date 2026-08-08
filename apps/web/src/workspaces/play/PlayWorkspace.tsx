@@ -1,42 +1,49 @@
-import { ArrowLeft, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { NavigationAvatarSkin } from "../../navigationAvatar";
 import {
   Viewport3D,
   type InteractionPresentation,
-  type NavigationCameraMode,
-  type NavigationFirstPersonAvatarMode,
 } from "../../Viewport3D";
-import { NAVIGATION_FIRST_PERSON_AVATAR_MODES } from "../../navigationAvatar";
 import "../../styles/Viewport3D.css";
 import { copyByLocale, type EditorLocale } from "../editor/editorCopy";
-import { readPreference } from "../editor/workspacePreferences";
 import { playCopyByLocale } from "./playCopy";
 import { usePlayScene } from "./usePlayScene";
 import { createPlayInteractionUI } from "./playInteractionUI";
-import { PlaySettingsPanel } from "./PlaySettingsPanel";
+import { PlayMenuOverlay } from "./PlayMenuOverlay";
+import { resolvePlayMenuItems } from "./playMenu";
+import {
+  publishPlayAudioPreferences,
+  readPlayAudioPreferences,
+  readPlayLocale,
+  readPlayTheme,
+  savePlayAudioPreferences,
+  type PlayTheme,
+} from "./playPreferences";
+import { usePlayUrlState } from "./usePlayUrlState";
 import "./PlayWorkspace.css";
 
 interface PlayWorkspaceProps {
   sceneId: string;
 }
 
-const FIRST_PERSON_AVATAR_MODE_KEY = "solidloom.play.firstPersonAvatarMode.v1";
-
 export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
-  const locale = (window.localStorage.getItem("solidloom.locale") === "en" ? "en" : "zh-CN") as EditorLocale;
+  const [locale, setLocale] = useState<EditorLocale>(readPlayLocale);
+  const [theme, setTheme] = useState<PlayTheme>(readPlayTheme);
+  const [audioPreferences, setAudioPreferences] = useState(readPlayAudioPreferences);
   const copy = copyByLocale[locale];
   const playCopy = playCopyByLocale[locale];
   const { error, loading, runtimeModel, scene } = usePlayScene(sceneId);
-  const [cameraMode, setCameraMode] = useState<NavigationCameraMode>("third-person");
-  const [firstPersonAvatarMode, setFirstPersonAvatarMode] = useState<NavigationFirstPersonAvatarMode>(() => (
-    readPreference(
-      FIRST_PERSON_AVATAR_MODE_KEY,
-      NAVIGATION_FIRST_PERSON_AVATAR_MODES,
-      "automatic",
-    )
-  ));
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const theme = window.localStorage.getItem("solidloom.theme");
+  const [avatarSkin, setAvatarSkin] = useState<NavigationAvatarSkin | null>(null);
+  const {
+    closeMenu,
+    openMenuView,
+    returnToMenu,
+    setCameraMode,
+    setFirstPersonAvatarMode,
+    setSettingsCategory,
+    state: { cameraMode, firstPersonAvatarMode, menuView, settingsCategory },
+  } = usePlayUrlState();
   const interactionPresentation = useMemo<InteractionPresentation>(() => {
     const requested = new URLSearchParams(window.location.search).get("interaction-ui");
     return requested === "quick" || requested === "panel" || requested === "modal"
@@ -48,22 +55,51 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
     () => createPlayInteractionUI(interactionPresentation),
     [interactionPresentation],
   );
+  const menuItems = useMemo(
+    () => resolvePlayMenuItems(scene?.featureGraph.runtimeUI?.menuItems),
+    [scene?.featureGraph.runtimeUI?.menuItems],
+  );
 
   useEffect(() => {
     document.body.classList.add("play-workspace-active");
-    document.documentElement.lang = locale;
-    if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
-    document.title = scene ? `${scene.name} · ${playCopy.runtime}` : playCopy.runtime;
     return () => document.body.classList.remove("play-workspace-active");
-  }, [locale, playCopy.runtime, scene, theme]);
+  }, []);
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(FIRST_PERSON_AVATAR_MODE_KEY, firstPersonAvatarMode);
+      window.localStorage.setItem("solidloom.locale", locale);
     } catch {
-      // 浏览器禁用本机存储时，设置仍在当前会话内生效。
+      // 本机存储不可用时，当前运行会话中的语言仍然有效。
     }
-  }, [firstPersonAvatarMode]);
+    document.documentElement.lang = locale;
+    document.title = scene ? `${scene.name} · ${playCopy.runtime}` : playCopy.runtime;
+  }, [locale, playCopy.runtime, scene]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const applyTheme = () => {
+      document.documentElement.dataset.theme = theme === "system"
+        ? (media.matches ? "dark" : "light")
+        : theme;
+    };
+    try {
+      window.localStorage.setItem("solidloom.theme", theme);
+    } catch {
+      // 本机存储不可用时，当前运行会话中的主题仍然有效。
+    }
+    applyTheme();
+    media.addEventListener("change", applyTheme);
+    return () => media.removeEventListener("change", applyTheme);
+  }, [theme]);
+
+  useEffect(() => {
+    savePlayAudioPreferences(audioPreferences);
+    publishPlayAudioPreferences(audioPreferences);
+  }, [audioPreferences]);
+
+  useEffect(() => {
+    setAvatarSkin(runtimeModel?.avatarSkin ?? null);
+  }, [runtimeModel?.avatarSkin?.model, runtimeModel?.avatarSkin?.url]);
 
   const interactionLabels = useMemo(() => ({
     articulationClose: copy.interactionArticulationClose,
@@ -129,7 +165,7 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
           modelId={scene.id}
           modelName={scene.name}
           navigation={scene.featureGraph.navigation ?? null}
-          navigationAvatarSkin={runtimeModel.avatarSkin}
+          navigationAvatarSkin={avatarSkin}
           navigationCameraLabels={{
             god: copy.navigationGodCamera,
             "first-person": copy.navigationFirstPerson,
@@ -154,7 +190,7 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
           rendererReloadLabel={copy.reloadViewport}
           selectedFeatureIds={[]}
           selectedGroupId={null}
-          theme={theme === "light" || theme === "dark" ? theme : "system"}
+          theme={theme}
           transformMode={null}
           viewCubeLabel={copy.viewCube}
           viewLabels={[copy.viewRight, copy.viewLeft, copy.viewTop, copy.viewBottom, copy.viewFront, copy.viewBack]}
@@ -167,18 +203,9 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
         </div>
       )}
 
-      <nav className="play-workspace-controls" aria-label={playCopy.runtime}>
-        <button
-          aria-label={playCopy.back}
-          className="play-icon-button play-workspace-back"
-          title={playCopy.back}
-          type="button"
-          onClick={() => window.location.assign("/")}
-        >
-          <ArrowLeft aria-hidden="true" size={17} />
-        </button>
-      </nav>
-      <PlaySettingsPanel
+      <PlayMenuOverlay
+        audioPreferences={audioPreferences}
+        avatarSkin={avatarSkin}
         cameraLabels={{
           god: copy.navigationGodCamera,
           "first-person": copy.navigationFirstPerson,
@@ -186,11 +213,25 @@ export function PlayWorkspace({ sceneId }: PlayWorkspaceProps) {
         }}
         cameraMode={cameraMode}
         firstPersonAvatarMode={firstPersonAvatarMode}
+        items={menuItems}
         locale={locale}
-        open={settingsOpen}
+        onAudioPreferencesChange={setAudioPreferences}
+        onAvatarSkinChange={setAvatarSkin}
+        onAvatarSkinReset={() => setAvatarSkin(runtimeModel?.avatarSkin ?? null)}
         onCameraModeChange={setCameraMode}
         onFirstPersonAvatarModeChange={setFirstPersonAvatarMode}
-        onOpenChange={setSettingsOpen}
+        onLocaleChange={setLocale}
+        onClose={closeMenu}
+        onReturnWorkshop={() => window.location.assign("/")}
+        onSettingsCategoryChange={setSettingsCategory}
+        onThemeChange={setTheme}
+        onViewBack={returnToMenu}
+        onViewChange={openMenuView}
+        sceneAvatarSkin={runtimeModel?.avatarSkin ?? null}
+        sceneName={scene?.name ?? playCopy.runtime}
+        settingsCategory={settingsCategory}
+        theme={theme}
+        view={menuView}
       />
     </main>
   );

@@ -1,0 +1,26 @@
+.play-character-skin-thumbnail {
+  display: block;
+  width: 100%;
+  height: 132px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--color-control-muted);
+}
+
+.play-character-skin-thumbnail.loading {
+  background:
+    linear-gradient(100deg, transparent 35%, color-mix(in srgb, var(--color-text) 7%, transparent) 50%, transparent 65%),
+    var(--color-control-muted);
+  background-size: 220% 100%;
+  animation: play-character-thumbnail-loading 1.2s linear infinite;
+}
+
+@keyframes play-character-thumbnail-loading {
+  to { background-position-x: -220%; }
+}
+
+@media (max-width: 720px) {
+  .play-character-skin-thumbnail {
+    height: 116px;
+  }
+}
