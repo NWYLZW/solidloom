@@ -7,6 +7,7 @@ export * from "./examples.js";
 export * from "./models/index.js";
 export * from "./modelGenerators.js";
 export * from "./parameterExpressions.js";
+export * from "./query/index.js";
 export * from "./registry/index.js";
 export * from "./runtime/index.js";
 export * from "./schemas.js";
