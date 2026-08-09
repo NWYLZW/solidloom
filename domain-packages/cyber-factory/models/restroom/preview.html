@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>模块化厕所区域资产套件 · 独立预览</title>
+    <link rel="stylesheet" href="./preview.css" />
+  </head>
+  <body>
+    <main id="preview-root">
+      <canvas id="preview-canvas" aria-label="模块化厕所区域资产套件三维预览"></canvas>
+
+      <section class="brand" aria-label="资产信息">
+        <div class="eyebrow">赛博工厂 · 独立资产预览</div>
+        <h1>模块化厕所区域套件</h1>
+        <p>隔断、隔间门、坐便器、小便器与挡板、洗手台和镜面均来自可单独引用的参数工厂。</p>
+        <div class="badges">
+          <span class="badge" id="device-badge">桌面完整层级</span>
+          <span class="badge">真实毫米尺度</span>
+          <span class="badge">墙面 / Y=0 基准</span>
+          <span class="badge" data-accent="true">状态：规划中</span>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="预览参数与显示选项">
+        <h2>组合参数</h2>
+        <p class="control-note">拖动旋转、滚轮缩放；参数更新会同时重建几何、碰撞体和锚点。</p>
+        <div class="control-grid">
+          <label class="control-row" for="urinal-count">
+            <span>小便器数量</span>
+            <input id="urinal-count" type="range" min="1" max="4" step="1" value="3" />
+            <output id="urinal-count-output">3 个</output>
+          </label>
+          <label class="control-row" for="urinal-spacing">
+            <span>中心距</span>
+            <input id="urinal-spacing" type="range" min="650" max="850" step="10" value="700" />
+            <output id="urinal-spacing-output">700 mm</output>
+          </label>
+        </div>
+        <div class="select-row">
+          <label>预览层级
+            <select id="device">
+              <option value="auto">跟随屏幕</option>
+              <option value="desktop">桌面</option>
+              <option value="mobile">手机</option>
+            </select>
+          </label>
+          <label>小便器挡板
+            <select id="divider-enabled">
+              <option value="true">显示</option>
+              <option value="false">隐藏</option>
+            </select>
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="door-toggle" type="button" aria-pressed="true">关闭隔间门</button>
+          <button id="anchor-toggle" type="button" aria-pressed="true">隐藏锚点</button>
+          <button id="collider-toggle" type="button" aria-pressed="false">显示碰撞体</button>
+        </div>
+        <div class="metrics" aria-live="polite">
+          <span id="spacing-metric">器具净距 320 mm</span>
+          <span id="door-metric">门洞净宽 850 mm</span>
+        </div>
+      </section>
+
+      <aside class="legend" aria-label="预览图例">
+        <span><i data-kind="use"></i>使用 / 交互</span>
+        <span><i data-kind="approach"></i>接近 / 动线</span>
+        <span><i data-kind="maintenance"></i>维护</span>
+      </aside>
+    </main>
+    <script type="module" src="./preview.ts"></script>
+  </body>
+</html>
