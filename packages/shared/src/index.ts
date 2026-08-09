@@ -10,4 +10,5 @@ export * from "./parameterExpressions.js";
 export * from "./registry/index.js";
 export * from "./runtime/index.js";
 export * from "./schemas.js";
+export * from "./simulation/index.js";
 export * from "./types.js";
