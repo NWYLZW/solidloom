@@ -104,16 +104,6 @@
   transform: scale(0.82);
 }
 
-.play-touch-menu {
-  position: absolute;
-  z-index: 4;
-  top: max(14px, env(safe-area-inset-top));
-  right: max(14px, env(safe-area-inset-right));
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-}
-
 .play-touch-controls:not([data-input-context="gameplay"]) .play-touch-look-surface,
 .play-touch-controls:not([data-input-context="gameplay"]) .play-touch-joystick,
 .play-touch-controls:not([data-input-context="gameplay"]) .play-touch-actions {
