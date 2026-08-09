@@ -1,0 +1,62 @@
+.play-runtime-state {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  width: min(420px, calc(100% - 2 * var(--panel-edge-inset)));
+  height: max-content;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px 12px;
+  margin: auto;
+  padding: var(--panel-edge-inset);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text);
+  background: var(--color-panel);
+}
+
+.play-runtime-state h1,
+.play-runtime-state p {
+  margin: 0;
+}
+
+.play-runtime-state h1 {
+  font-size: 16px;
+}
+
+.play-runtime-state p {
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.play-runtime-state button {
+  display: inline-flex;
+  min-height: 36px;
+  grid-column: 2;
+  align-items: center;
+  justify-self: start;
+  gap: 7px;
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-text);
+  background: var(--color-control);
+  cursor: pointer;
+}
+
+.play-runtime-state button:hover,
+.play-runtime-state button:focus-visible {
+  border-color: var(--play-accent-color);
+  outline: none;
+}
+
+.play-runtime-state .is-loading {
+  animation: play-runtime-spin 0.9s linear infinite;
+}
+
+@keyframes play-runtime-spin {
+  to { transform: rotate(1turn); }
+}
