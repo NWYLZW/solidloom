@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "epicIssue": 2,
+  "baseBranch": "main",
+  "branchPrefix": "codex/issue-",
+  "verificationCommands": [
+    "npm run typecheck",
+    "npm test",
+    "npm run build"
+  ],
+  "visualEvidenceLabels": [
+    "area:react-ui",
+    "area:3d",
+    "area:model"
+  ]
+}

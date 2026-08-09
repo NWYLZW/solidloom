@@ -17,8 +17,12 @@
     "dev:server": "npm run build:packages && npm run dev -w @solidloom/server",
     "dev:web": "npm run build:packages && npm run dev -w @solidloom/web",
     "seed:cyber-factory": "npm run build:packages && tsx scripts/seed-cyber-factory.mjs",
+    "collab:status": "node scripts/collaboration/cli.mjs status",
+    "collab:claim": "node scripts/collaboration/cli.mjs claim",
+    "collab:handoff": "node scripts/collaboration/cli.mjs handoff",
+    "test:collaboration": "node --test scripts/collaboration/lib.node-test.mjs",
     "cli": "npm run build:packages && npm run dev -w @solidloom/cli --",
-    "test": "npm run build:packages && vitest run",
+    "test": "npm run build:packages && npm run test:collaboration && vitest run",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present"
   },
