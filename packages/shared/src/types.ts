@@ -224,10 +224,13 @@ export interface ModelReferencePhysics {
   linearDamping?: number;
 }
 
+export type ModelReferenceMovementPolicy = "lock" | "close-on-move" | "allow";
+
 export interface ModelReferenceInteraction {
   id: string;
   kind: "power" | "seat" | "door" | "articulation" | "container" | "device";
   label?: string;
+  movementPolicy?: ModelReferenceMovementPolicy;
   activateLabel?: string;
   deactivateLabel?: string;
   anchorPosition?: Vector3Tuple;

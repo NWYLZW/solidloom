@@ -1,6 +1,10 @@
 import type { ModelFeature, NavigationSurface } from "@solidloom/shared";
 import * as THREE from "three";
 import {
+  resolveMovementIntent,
+  type NavigationSemanticFrame,
+} from "../input";
+import {
   clampNavigationCameraPitch,
   clampThirdPersonCameraHeight,
   resolveThirdPersonAvatarOpacity,
@@ -96,9 +100,8 @@ export interface SavedNavigationRuntimeState {
   } | null;
 }
 
-export interface NavigationFrameInput {
+export interface NavigationFrameInput extends NavigationSemanticFrame {
   deltaSeconds: number;
-  keyboardNavigationKeys: ReadonlySet<string>;
   rotateCamera: (deltaX: number, deltaY: number) => void;
   viewTransitionActive: boolean;
 }
@@ -142,7 +145,7 @@ export interface NavigationRuntime extends RuntimeDisposable {
   adjustCamera: (yawDelta: number, pitchDelta: number) => void;
   captureState: () => SavedNavigationRuntimeState;
   getActiveInteractionId: () => string | null;
-  needsContinuousRendering: (keyboardNavigationKeys: ReadonlySet<string>) => boolean;
+  needsContinuousRendering: (input: NavigationSemanticFrame) => boolean;
   performContainerOperation: (interactionId: string, operation: NavigationContainerOperation) => void;
   performDeviceOperation: (interactionId: string, operation: NavigationDeviceOperation) => void;
   performInteraction: (interactionId: string) => boolean;
@@ -981,17 +984,37 @@ export function createNavigationRuntime({
     );
     navigationCameraYaw = navigationAgent.rotation.y;
   };
-  const updateKeyboardNavigation = ({
+  const updateSemanticNavigation = ({
     deltaSeconds,
-    keyboardNavigationKeys,
+    context,
+    crouch,
+    look,
+    move,
+    precise,
     rotateCamera,
+    sprint,
+    vertical,
   }: NavigationFrameInput) => {
-    const forwardInput = Number(keyboardNavigationKeys.has("KeyW")) - Number(keyboardNavigationKeys.has("KeyS"));
-    const rightInput = Number(keyboardNavigationKeys.has("KeyD")) - Number(keyboardNavigationKeys.has("KeyA"));
-    const verticalInput = Number(keyboardNavigationKeys.has("KeyE")) - Number(keyboardNavigationKeys.has("KeyQ"));
+    const activePanel = navigationInteractionRuntimes.find((interaction) => (
+      (interaction.kind === "container" || interaction.kind === "device") && interaction.active
+    )) ?? null;
+    const movementResolution = resolveMovementIntent(
+      context,
+      activePanel ? (activePanel.movementPolicy ?? "close-on-move") : null,
+      move,
+    );
+    if (movementResolution.closePanel && activePanel) {
+      activePanel.active = false;
+      if (activePanel.kind === "container") publishContainerPanel(null);
+      else publishDevicePanel(null);
+      lastNavigationInteractionPromptKey = "";
+      requestRender();
+    }
+    const forwardInput = movementResolution.movement.y;
+    const rightInput = movementResolution.movement.x;
+    const verticalInput = context === "gameplay" ? vertical : 0;
     const hasHorizontalInput = forwardInput !== 0 || rightInput !== 0;
-    const fast = keyboardNavigationKeys.has("ShiftLeft") || keyboardNavigationKeys.has("ShiftRight");
-    const precise = keyboardNavigationKeys.has("AltLeft") || keyboardNavigationKeys.has("AltRight");
+    const fast = sprint;
 
     if (navigationMode && navigation && navigationAgent && navigationMotionProfile) {
       const seatedInteraction = seatedInteractionId
@@ -1022,7 +1045,7 @@ export function createNavigationRuntime({
           ? navigationMotionProfile.seatedSpeed * (fast ? 1.55 : 1)
           : fast ? navigationMotionProfile.runSpeed : navigationMotionProfile.walkSpeed;
         const directionMultiplier = forwardInput < 0 ? 0.74 : 1;
-        const speedMultiplier = (precise ? 0.42 : 1) * directionMultiplier;
+        const speedMultiplier = (precise ? 0.42 : 1) * directionMultiplier * (crouch ? 0.56 : 1);
         navigationDesiredVelocity.copy(keyboardMovement).multiplyScalar(movementSpeed * speedMultiplier);
         const changingDirection = hasHorizontalInput
           && navigationVelocity.lengthSq() > 1
@@ -1090,8 +1113,8 @@ export function createNavigationRuntime({
       controls.target.add(keyboardMovement);
     }
 
-    const yawInput = Number(keyboardNavigationKeys.has("ArrowRight")) - Number(keyboardNavigationKeys.has("ArrowLeft"));
-    const pitchInput = Number(keyboardNavigationKeys.has("ArrowDown")) - Number(keyboardNavigationKeys.has("ArrowUp"));
+    const yawInput = look.x;
+    const pitchInput = look.y;
     if (yawInput !== 0 || pitchInput !== 0) {
       if (navigationMode && navigationCameraMode !== "god") {
         navigationCameraYaw -= yawInput * THREE.MathUtils.degToRad(132) * deltaSeconds;
@@ -1106,10 +1129,9 @@ export function createNavigationRuntime({
   };
   const updateNavigationJump = (
     deltaSeconds: number,
-    keyboardNavigationKeys: ReadonlySet<string>,
+    jumpPressed: boolean,
   ) => {
     if (!navigationMode || !navigation || !navigationAgent || !navigationMotionProfile) return false;
-    const jumpPressed = keyboardNavigationKeys.has("Space");
     if (seatedInteractionId) {
       return resetNavigationJumpState(navigationJumpState, jumpPressed);
     }
@@ -1360,9 +1382,14 @@ export function createNavigationRuntime({
     onPromptsChange(prompts);
   };
 
-  const needsContinuousRendering = (keyboardNavigationKeys: ReadonlySet<string>) => Boolean(navigationMode && (
+  const needsContinuousRendering = (input: NavigationSemanticFrame) => Boolean(navigationMode && (
     navigationAvatarAnimating
-    || keyboardNavigationKeys.size > 0
+    || Math.hypot(input.move.x, input.move.y) > 0.001
+    || Math.hypot(input.look.x, input.look.y) > 0.001
+    || input.jump
+    || input.crouch
+    || input.sprint
+    || input.vertical !== 0
     || navigationPathIndex > 0
     || navigationVelocity.lengthSq() > 1
     || !navigationJumpState.grounded
@@ -1386,10 +1413,13 @@ export function createNavigationRuntime({
       updateNavigationArticulations(input.deltaSeconds);
       operationProgramChanged = navigationOperationProgramRuntime?.update(input.deltaSeconds) ?? false;
       syncSeatedNavigationAgent();
-      updateKeyboardNavigation(input);
+      updateSemanticNavigation(input);
+      if (navigationAgent && !seatedInteractionId) {
+        navigationAgent.scale.y = input.crouch ? 0.72 : 1;
+      }
       updateNavigationAgent(input.deltaSeconds);
       syncSeatedNavigationAgent();
-      navigationJumpChanged = updateNavigationJump(input.deltaSeconds, input.keyboardNavigationKeys);
+      navigationJumpChanged = updateNavigationJump(input.deltaSeconds, input.jump);
       if (navigationAgent && navigationAvatar) {
         const horizontalDistance = Math.hypot(
           navigationAgent.position.x - navigationPreviousAgentPosition.x,

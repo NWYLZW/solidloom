@@ -1,0 +1,18 @@
+.play-input-device-notice {
+  position: absolute;
+  z-index: 35;
+  right: var(--panel-edge-inset);
+  bottom: var(--panel-edge-inset);
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 var(--control-padding-x);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  background: var(--color-panel);
+  box-shadow: 0 8px 22px rgba(18, 21, 17, 0.16);
+  font-size: 12px;
+  pointer-events: none;
+}
