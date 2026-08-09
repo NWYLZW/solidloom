@@ -1,6 +1,6 @@
 export type InputContext = "gameplay" | "device" | "menu";
 
-export type InputDeviceKind = "keyboard-mouse" | "gamepad";
+export type InputDeviceKind = "keyboard-mouse" | "gamepad" | "touch";
 
 export type InputDigitalAction =
   | "move-forward"
@@ -129,6 +129,13 @@ export interface SemanticInputEvent {
   value: number;
 }
 
+export interface ExternalSemanticInputState {
+  actions?: Partial<Record<InputDigitalAction, number>>;
+  device: InputDeviceKind;
+  lookDelta?: { x: number; y: number };
+  move?: { x: number; y: number };
+}
+
 export type PhysicalInputEvent =
   | {
       code: string;
@@ -156,6 +163,8 @@ export type PhysicalInputListener = (event: PhysicalInputEvent) => boolean | voi
 
 export interface SemanticInputRuntime {
   activateContext: (context: Exclude<InputContext, "gameplay">) => () => void;
+  clearExternalInput: (sourceId: string) => void;
+  consumeLookDelta: () => { x: number; y: number };
   dispose: () => void;
   getPreferences: () => InputPreferences;
   getSnapshot: () => SemanticInputSnapshot;
@@ -163,4 +172,5 @@ export interface SemanticInputRuntime {
   subscribe: (listener: InputChangeListener) => () => void;
   subscribeAction: (listener: InputActionListener) => () => void;
   subscribePhysicalInput: (listener: PhysicalInputListener) => () => void;
+  updateExternalInput: (sourceId: string, state: ExternalSemanticInputState) => void;
 }

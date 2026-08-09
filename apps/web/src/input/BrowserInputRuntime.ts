@@ -18,6 +18,7 @@ import type {
   InputContext,
   InputDeviceKind,
   InputDigitalAction,
+  ExternalSemanticInputState,
   InputPreferences,
   PhysicalInputListener,
   SemanticInputRuntime,
@@ -97,6 +98,7 @@ export class BrowserInputRuntime implements SemanticInputRuntime {
   private attached = false;
   private changeListeners = new Set<InputChangeListener>();
   private contextStack: Array<{ context: Exclude<InputContext, "gameplay">; token: symbol }> = [];
+  private externalInputs = new Map<string, ExternalSemanticInputState>();
   private frameRequest = 0;
   private gamepads: Gamepad[] = [];
   private heldSince = new Map<InputDigitalAction, number>();
@@ -106,6 +108,7 @@ export class BrowserInputRuntime implements SemanticInputRuntime {
   private nativeEvent: Event | null = null;
   private nextNoticeSequence = 1;
   private nextRepeatAt = new Map<InputDigitalAction, number>();
+  private pendingLookDelta = { x: 0, y: 0 };
   private physicalListeners = new Set<PhysicalInputListener>();
   private preferences: InputPreferences;
   private sequence = 0;
@@ -160,6 +163,30 @@ export class BrowserInputRuntime implements SemanticInputRuntime {
 
   getSnapshot() {
     return this.snapshot;
+  }
+
+  consumeLookDelta() {
+    const delta = this.pendingLookDelta;
+    this.pendingLookDelta = { x: 0, y: 0 };
+    return delta;
+  }
+
+  updateExternalInput(sourceId: string, state: ExternalSemanticInputState) {
+    const lookDelta = state.lookDelta ?? { x: 0, y: 0 };
+    this.pendingLookDelta.x += lookDelta.x;
+    this.pendingLookDelta.y += lookDelta.y;
+    const { lookDelta: _transientLookDelta, ...persistentState } = state;
+    this.externalInputs.set(sourceId, persistentState);
+    const isActive = Math.hypot(state.move?.x ?? 0, state.move?.y ?? 0) > 0.001
+      || Math.hypot(lookDelta.x, lookDelta.y) > 0.001
+      || Object.values(state.actions ?? {}).some((value) => (value ?? 0) > 0.001);
+    if (isActive) this.lastActiveDevice = state.device;
+    this.recompute(performance.now());
+  }
+
+  clearExternalInput(sourceId: string) {
+    if (!this.externalInputs.delete(sourceId)) return;
+    this.recompute(performance.now());
   }
 
   setPreferences(preferences: InputPreferences) {
@@ -249,10 +276,12 @@ export class BrowserInputRuntime implements SemanticInputRuntime {
     this.actionListeners.clear();
     this.changeListeners.clear();
     this.contextStack = [];
+    this.externalInputs.clear();
     this.physicalListeners.clear();
     this.keyboardCodes.clear();
     this.gamepads = [];
     this.lastGamepadStates.clear();
+    this.pendingLookDelta = { x: 0, y: 0 };
   }
 
   private currentContext(): InputContext {
@@ -284,6 +313,25 @@ export class BrowserInputRuntime implements SemanticInputRuntime {
       }
     }
     return value;
+  }
+
+  private readExternalAction(action: InputDigitalAction) {
+    let value = 0;
+    for (const state of this.externalInputs.values()) {
+      value = Math.max(value, state.actions?.[action] ?? 0);
+    }
+    return value;
+  }
+
+  private readExternalMove() {
+    let move = { x: 0, y: 0 };
+    for (const state of this.externalInputs.values()) {
+      const candidate = state.move;
+      if (candidate && Math.hypot(candidate.x, candidate.y) > Math.hypot(move.x, move.y)) {
+        move = candidate;
+      }
+    }
+    return move;
   }
 
   private readLookVector() {
@@ -321,7 +369,8 @@ export class BrowserInputRuntime implements SemanticInputRuntime {
       const allowed = ACTION_CONTEXTS[action].includes(context);
       const keyboardValue = allowed ? this.readKeyboardAction(action) : 0;
       const gamepadValue = allowed ? this.readGamepadAction(action) : 0;
-      actionValues[action] = Math.max(keyboardValue, gamepadValue);
+      const externalValue = allowed ? this.readExternalAction(action) : 0;
+      actionValues[action] = Math.max(keyboardValue, gamepadValue, externalValue);
     }
     if (context === "menu" && actionValues["open-menu"] > 0.5) {
       actionValues["ui-back"] = 0;
@@ -349,6 +398,11 @@ export class BrowserInputRuntime implements SemanticInputRuntime {
     const moveSensitivity = clamp(this.preferences.moveSensitivity, 0.1, 2);
     let moveX = (actionValues["move-right"] - actionValues["move-left"]) * moveSensitivity;
     let moveY = (actionValues["move-forward"] - actionValues["move-backward"]) * moveSensitivity;
+    const externalMove = context === "gameplay" ? this.readExternalMove() : { x: 0, y: 0 };
+    if (Math.hypot(externalMove.x, externalMove.y) > Math.hypot(moveX, moveY)) {
+      moveX = externalMove.x * moveSensitivity;
+      moveY = externalMove.y * moveSensitivity;
+    }
     const moveMagnitude = Math.hypot(moveX, moveY);
     if (moveMagnitude > 1) {
       moveX /= moveMagnitude;

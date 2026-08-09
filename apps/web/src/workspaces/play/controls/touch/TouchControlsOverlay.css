@@ -1,0 +1,140 @@
+.play-touch-controls {
+  --play-touch-control-size: 54px;
+  --play-touch-control-gap: 10px;
+  --play-touch-control-color: color-mix(in srgb, var(--color-panel) 82%, transparent);
+  --play-touch-control-border: color-mix(in srgb, var(--color-text) 20%, transparent);
+
+  display: none;
+  position: absolute;
+  z-index: 12;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.play-touch-look-surface {
+  position: absolute;
+  z-index: 1;
+  inset: 0 0 0 44%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.play-touch-joystick {
+  position: absolute;
+  z-index: 2;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  left: max(18px, env(safe-area-inset-left));
+  width: 132px;
+  height: 132px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.play-touch-joystick-ring,
+.play-touch-joystick-knob {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  border: 1px solid var(--play-touch-control-border);
+  border-radius: 50%;
+  background: var(--play-touch-control-color);
+}
+
+.play-touch-joystick-ring {
+  width: 100%;
+  height: 100%;
+}
+
+.play-touch-joystick-knob {
+  width: 52px;
+  height: 52px;
+  background: color-mix(in srgb, var(--color-panel) 94%, transparent);
+  will-change: transform;
+}
+
+.play-touch-actions {
+  position: absolute;
+  z-index: 3;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(2, var(--play-touch-control-size));
+  gap: var(--play-touch-control-gap);
+  pointer-events: none;
+}
+
+.play-touch-action {
+  display: grid;
+  width: var(--play-touch-control-size);
+  height: var(--play-touch-control-size);
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--play-touch-control-border);
+  border-radius: 50%;
+  color: var(--color-text);
+  background: var(--play-touch-control-color);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.play-touch-action svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.8;
+}
+
+.play-touch-action:active,
+.play-touch-action[data-touch-action="primary"]:active {
+  color: var(--color-panel);
+  background: var(--play-accent-color);
+  transform: scale(0.94);
+}
+
+.play-touch-action-primary {
+  border-color: color-mix(in srgb, var(--play-accent-color) 76%, var(--play-touch-control-border));
+}
+
+.play-touch-action-secondary {
+  transform: scale(0.88);
+}
+
+.play-touch-action-secondary:active {
+  transform: scale(0.82);
+}
+
+.play-touch-menu {
+  position: absolute;
+  z-index: 4;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+.play-touch-controls:not([data-input-context="gameplay"]) .play-touch-look-surface,
+.play-touch-controls:not([data-input-context="gameplay"]) .play-touch-joystick,
+.play-touch-controls:not([data-input-context="gameplay"]) .play-touch-actions {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .play-touch-controls {
+    display: block;
+  }
+}
+
+@media (max-width: 520px) {
+  .play-touch-controls {
+    --play-touch-control-size: 50px;
+    --play-touch-control-gap: 8px;
+  }
+
+  .play-touch-joystick {
+    width: 116px;
+    height: 116px;
+  }
+}

@@ -989,6 +989,7 @@ export function createNavigationRuntime({
     context,
     crouch,
     look,
+    lookDelta,
     move,
     precise,
     rotateCamera,
@@ -1115,15 +1116,20 @@ export function createNavigationRuntime({
 
     const yawInput = look.x;
     const pitchInput = look.y;
-    if (yawInput !== 0 || pitchInput !== 0) {
+    if (yawInput !== 0 || pitchInput !== 0 || lookDelta.x !== 0 || lookDelta.y !== 0) {
       if (navigationMode && navigationCameraMode !== "god") {
-        navigationCameraYaw -= yawInput * THREE.MathUtils.degToRad(132) * deltaSeconds;
+        navigationCameraYaw -= yawInput * THREE.MathUtils.degToRad(132) * deltaSeconds + lookDelta.x;
         navigationCameraPitch = clampNavigationCameraPitch(
           navigationCameraMode,
-          navigationCameraPitch - pitchInput * THREE.MathUtils.degToRad(90) * deltaSeconds,
+          navigationCameraPitch
+            - pitchInput * THREE.MathUtils.degToRad(90) * deltaSeconds
+            - lookDelta.y,
         );
       } else {
-        rotateCamera(yawInput * 132 * deltaSeconds, pitchInput * 132 * deltaSeconds);
+        rotateCamera(
+          yawInput * 132 * deltaSeconds + THREE.MathUtils.radToDeg(lookDelta.x),
+          pitchInput * 132 * deltaSeconds + THREE.MathUtils.radToDeg(lookDelta.y),
+        );
       }
     }
   };
@@ -1386,6 +1392,7 @@ export function createNavigationRuntime({
     navigationAvatarAnimating
     || Math.hypot(input.move.x, input.move.y) > 0.001
     || Math.hypot(input.look.x, input.look.y) > 0.001
+    || Math.hypot(input.lookDelta.x, input.lookDelta.y) > 0.001
     || input.jump
     || input.crouch
     || input.sprint
