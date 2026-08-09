@@ -29,6 +29,7 @@ import {
   type PlayTheme,
 } from "./playPreferences";
 import { usePlayUrlState } from "./usePlayUrlState";
+import { TouchControlsOverlay } from "./controls/touch/TouchControlsOverlay";
 import "./PlayWorkspace.css";
 
 interface PlayWorkspaceProps {
@@ -158,12 +159,16 @@ export function PlayWorkspace({
     deviceExecute: copy.interactionDeviceExecute,
     deviceOpen: copy.interactionDeviceOpen,
     deviceReady: copy.interactionDeviceReady,
-    keyHint: lastInputDevice === "gamepad" ? "A / ✕" : copy.interactionKeyHint,
+    keyHint: lastInputDevice === "gamepad"
+      ? "A / ✕"
+      : lastInputDevice === "touch"
+        ? (locale === "zh-CN" ? "轻触操作" : "Tap to interact")
+        : copy.interactionKeyHint,
     powerOff: copy.interactionPowerOff,
     powerOn: copy.interactionPowerOn,
     sit: copy.interactionSit,
     stand: copy.interactionStand,
-  }), [copy, lastInputDevice]);
+  }), [copy, lastInputDevice, locale]);
 
   return (
     <InputRuntimeProvider runtime={inputRuntime}>
@@ -231,6 +236,8 @@ export function PlayWorkspace({
         ) : (
           <PlayRuntimeState locale={locale} onReconnect={onReconnect} snapshot={snapshot} />
         )}
+
+        {scene && runtimeModel && <TouchControlsOverlay locale={locale} />}
 
         {scene && runtimeModel && (
           <section className="play-runtime-layer play-runtime-panel-layer" aria-label={playCopy.menu}>

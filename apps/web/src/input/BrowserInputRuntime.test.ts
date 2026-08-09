@@ -178,4 +178,50 @@ describe("BrowserInputRuntime", () => {
     expect(runtime.getSnapshot().lastActiveDevice).toBe("keyboard-mouse");
     expect(runtime.getSnapshot().notice).toMatchObject({ kind: "disconnected" });
   });
+
+  it("merges touch movement and actions into the shared semantic snapshot", () => {
+    const runtime = new BrowserInputRuntime();
+    const phases: string[] = [];
+    runtime.subscribeAction((event) => {
+      if (event.action === "primary") phases.push(`${event.device}:${event.phase}`);
+    });
+
+    runtime.updateExternalInput("touch:move", {
+      device: "touch",
+      move: { x: 0.4, y: 0.8 },
+    });
+    runtime.updateExternalInput("touch:primary", {
+      actions: { primary: 1 },
+      device: "touch",
+    });
+
+    expect(runtime.getSnapshot()).toMatchObject({
+      lastActiveDevice: "touch",
+      move: { x: 0.4, y: 0.8 },
+    });
+    expect(phases).toEqual(["touch:pressed"]);
+
+    runtime.clearExternalInput("touch:primary");
+    runtime.clearExternalInput("touch:move");
+    expect(phases).toEqual(["touch:pressed", "touch:released"]);
+    expect(runtime.getSnapshot().move).toEqual({ x: 0, y: 0 });
+  });
+
+  it("consumes touch look deltas once without turning them into a held axis", () => {
+    const runtime = new BrowserInputRuntime();
+    runtime.updateExternalInput("touch:look", {
+      device: "touch",
+      lookDelta: { x: 0.12, y: -0.08 },
+    });
+    runtime.updateExternalInput("touch:look", {
+      device: "touch",
+      lookDelta: { x: 0.03, y: 0.02 },
+    });
+
+    const delta = runtime.consumeLookDelta();
+    expect(delta.x).toBeCloseTo(0.15);
+    expect(delta.y).toBeCloseTo(-0.06);
+    expect(runtime.consumeLookDelta()).toEqual({ x: 0, y: 0 });
+    expect(runtime.getSnapshot().look).toEqual({ x: 0, y: 0 });
+  });
 });

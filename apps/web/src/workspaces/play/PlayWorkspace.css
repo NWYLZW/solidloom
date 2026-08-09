@@ -35,10 +35,12 @@ body.play-workspace-active {
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .navigation-mode-banner,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .navigation-interaction-prompts,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .navigation-aim-target,
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="modal"]) .play-touch-controls,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .play-menu-root,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .navigation-mode-banner,
 .play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .navigation-interaction-prompts,
-.play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .navigation-aim-target {
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .navigation-aim-target,
+.play-workspace:has(.interaction-ui-root[data-interaction-presentation="sheet"]) .play-touch-controls {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;

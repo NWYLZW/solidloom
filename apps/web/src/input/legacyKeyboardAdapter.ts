@@ -5,6 +5,7 @@ export interface NavigationSemanticFrame {
   crouch: boolean;
   jump: boolean;
   look: { x: number; y: number };
+  lookDelta: { x: number; y: number };
   move: { x: number; y: number };
   precise: boolean;
   sprint: boolean;
@@ -16,6 +17,7 @@ export const EMPTY_NAVIGATION_SEMANTIC_FRAME: NavigationSemanticFrame = {
   crouch: false,
   jump: false,
   look: { x: 0, y: 0 },
+  lookDelta: { x: 0, y: 0 },
   move: { x: 0, y: 0 },
   precise: false,
   sprint: false,
@@ -31,6 +33,7 @@ export function navigationFrameFromKeyboard(codes: ReadonlySet<string>): Navigat
       x: Number(codes.has("ArrowRight")) - Number(codes.has("ArrowLeft")),
       y: Number(codes.has("ArrowDown")) - Number(codes.has("ArrowUp")),
     },
+    lookDelta: { x: 0, y: 0 },
     move: {
       x: Number(codes.has("KeyD")) - Number(codes.has("KeyA")),
       y: Number(codes.has("KeyW")) - Number(codes.has("KeyS")),
@@ -41,12 +44,16 @@ export function navigationFrameFromKeyboard(codes: ReadonlySet<string>): Navigat
   };
 }
 
-export function navigationFrameFromSnapshot(snapshot: import("./types").SemanticInputSnapshot) {
+export function navigationFrameFromSnapshot(
+  snapshot: import("./types").SemanticInputSnapshot,
+  lookDelta = { x: 0, y: 0 },
+) {
   return {
     context: snapshot.context,
     crouch: snapshot.actions.crouch.held,
     jump: snapshot.actions.jump.held,
     look: snapshot.look,
+    lookDelta,
     move: snapshot.move,
     precise: false,
     sprint: snapshot.actions.sprint.held,

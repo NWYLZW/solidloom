@@ -319,7 +319,10 @@ export function useViewport3DRuntime({
       isFeatureSelected: selectionTransformRuntime.isFeatureSelected,
     });
     const readNavigationInput = () => semanticInputRuntime
-      ? navigationFrameFromSnapshot(semanticInputRuntime.getSnapshot())
+      ? navigationFrameFromSnapshot(
+          semanticInputRuntime.getSnapshot(),
+          semanticInputRuntime.consumeLookDelta(),
+        )
       : navigationFrameFromKeyboard(cameraControllerRuntime.keyboardNavigationKeys);
     const unsubscribeInputChange = semanticInputRuntime?.subscribe(() => requestRender());
     const unsubscribeInputAction = semanticInputRuntime?.subscribeAction((event) => {
