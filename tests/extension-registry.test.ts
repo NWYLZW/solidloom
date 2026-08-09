@@ -9,6 +9,7 @@ import {
   defineFactoryModelModule,
   DuplicateRegistrationError,
   type CapabilityDefinition,
+  type DomainPackageManifest,
 } from "@solidloom/shared";
 import { createReactUiExtensionRegistry } from "../apps/web/src/extensions/registry";
 import type { ReactUiExtension } from "../apps/web/src/extensions/types";
@@ -25,6 +26,35 @@ const capability = (id: string): CapabilityDefinition => ({
   safety: "read",
   agent: { useWhen: id, instructions: [id] },
   schema: {},
+});
+
+const domainManifest = (
+  id: string,
+  displayName: string,
+): DomainPackageManifest => ({
+  schemaVersion: 1,
+  id,
+  namespace: id,
+  displayName,
+  description: "测试领域。",
+  version: "1.0.0",
+  dataVersion: "1.0.0",
+  status: "planned",
+  platformVersion: "^0.1.0",
+  dependencies: [],
+  extends: [],
+  definitions: {
+    entityTypes: [],
+    componentTypes: [],
+    relationTypes: [],
+    resourceTypes: [],
+    metricTypes: [],
+    actionTypes: [],
+    processTypes: [],
+    ruleSets: [],
+    viewDefinitions: [],
+  },
+  migrations: [],
 });
 
 describe("extension registries", () => {
@@ -71,32 +101,20 @@ describe("extension registries", () => {
   });
 
   it("detects conflicts contributed by separate domain packages", () => {
-    const first = defineDomainPackage({
-      id: "first-domain",
-      displayName: "领域一",
-      description: "测试领域。",
-      version: "1.0.0",
-      status: "planned",
-    }, { models: [], capabilities: [capability("domain.inspect")], uiExtensions: [] });
-    const second = defineDomainPackage({
-      id: "second-domain",
-      displayName: "领域二",
-      description: "测试领域。",
-      version: "1.0.0",
-      status: "planned",
-    }, { models: [], capabilities: [capability("domain.inspect")], uiExtensions: [] });
+    const first = defineDomainPackage(domainManifest("first-domain", "领域一"), {
+      models: [], capabilities: [capability("domain.inspect")], uiExtensions: [],
+    });
+    const second = defineDomainPackage(domainManifest("second-domain", "领域二"), {
+      models: [], capabilities: [capability("domain.inspect")], uiExtensions: [],
+    });
 
     expect(() => createDomainPackageRegistry([first, second])).toThrow("领域能力注册表");
   });
 
   it("assembles core and planned domain capabilities through one validation path", () => {
-    const domain = defineDomainPackage({
-      id: "operations-domain",
-      displayName: "运营领域",
-      description: "测试领域。",
-      version: "1.0.0",
-      status: "planned",
-    }, { models: [], capabilities: [capability("operations.observe")], uiExtensions: [] });
+    const domain = defineDomainPackage(domainManifest("operations-domain", "运营领域"), {
+      models: [], capabilities: [capability("operations.observe")], uiExtensions: [],
+    });
     const registry = createDomainPackageRegistry([domain]);
 
     expect(assembleCapabilities([capability("core.health")], registry).map((entry) => entry.id))

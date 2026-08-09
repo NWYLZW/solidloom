@@ -34,11 +34,29 @@ export const cyberFactoryModelModules = [
 ];
 
 export const cyberFactoryDomainPackage = defineDomainPackage({
+  schemaVersion: 1,
   id: "cyber-factory",
+  namespace: "cyber-factory",
   displayName: "赛博工厂",
   description: "SolidLoom 自带的参数化办公资产与场景示例。",
   version: "1.0.0",
+  dataVersion: "1.0.0",
   status: "available",
+  platformVersion: "^0.1.0",
+  dependencies: [],
+  extends: [],
+  definitions: {
+    entityTypes: [],
+    componentTypes: [],
+    relationTypes: [],
+    resourceTypes: [],
+    metricTypes: [],
+    actionTypes: [],
+    processTypes: [],
+    ruleSets: [],
+    viewDefinitions: [],
+  },
+  migrations: [],
 }, {
   models: cyberFactoryModelModules,
   capabilities: [],
