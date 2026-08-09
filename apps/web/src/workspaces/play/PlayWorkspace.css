@@ -13,6 +13,20 @@ body.play-workspace-active {
   background: var(--color-viewport);
 }
 
+.play-runtime-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.play-runtime-world-layer {
+  z-index: 0;
+}
+
+.play-runtime-panel-layer {
+  z-index: 20;
+  pointer-events: none;
+}
+
 :root[data-theme="dark"] .play-workspace {
   --play-accent-color: #b8d56d;
 }
@@ -48,20 +62,4 @@ body.play-workspace-active {
   border-color: var(--color-muted);
   background: var(--color-control);
   outline: none;
-}
-
-.play-workspace-state {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 8px;
-  padding: var(--panel-edge-inset);
-  text-align: center;
-}
-
-.play-workspace-state small {
-  max-width: 480px;
-  color: var(--color-muted);
 }

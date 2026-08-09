@@ -45,8 +45,8 @@ export function getHealth(): Promise<HealthResponse> {
   return requestJson<HealthResponse>("/api/health");
 }
 
-export function listModels(): Promise<ModelList> {
-  return requestJson<ModelList>("/api/models");
+export function listModels(signal?: AbortSignal): Promise<ModelList> {
+  return requestJson<ModelList>("/api/models", signal ? { signal } : undefined);
 }
 
 export function createModel(input: CreateModelInput): Promise<ModelRecord> {

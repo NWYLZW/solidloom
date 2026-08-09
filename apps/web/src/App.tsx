@@ -1,10 +1,9 @@
 import { EditorWorkspace } from "./workspaces/editor/EditorWorkspace";
-import { PlayWorkspace } from "./workspaces/play/PlayWorkspace";
+import { PlayRoute } from "./play/PlayRoute";
+import { matchAppRoute } from "./router/appRoute";
 
 export function App() {
-  const playMatch = window.location.pathname.match(
-    /^\/play\/([^/]+)(?:\/(?:menu|character|settings(?:\/(?:appearance|audio|camera|general))?))?\/?$/,
-  );
-  if (playMatch?.[1]) return <PlayWorkspace sceneId={decodeURIComponent(playMatch[1])} />;
+  const route = matchAppRoute(window.location.pathname);
+  if (route.kind === "play") return <PlayRoute runId={route.runId} />;
   return <EditorWorkspace />;
 }
