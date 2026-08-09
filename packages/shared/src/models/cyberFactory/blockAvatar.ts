@@ -5,6 +5,7 @@ import type {
   ModelVariable,
   RoomShellSource,
   Vector3Tuple,
+  VoxelSkinModel,
 } from "../../types.js";
 import {
   box,
@@ -24,8 +25,73 @@ import {
   type AppearanceDefinition,
 } from "./factory.js";
 
-export function createBlockAvatar(): CreateModelInput {
-  const pixel = 56.25;
+export interface BlockAvatarParameters {
+  height: number;
+  skinModel: VoxelSkinModel;
+}
+
+export const blockAvatarParameterLimits = {
+  height: { minimum: 1_500, maximum: 2_000, step: 10 },
+} as const;
+
+export const defaultBlockAvatarParameters: BlockAvatarParameters = {
+  height: 1_720,
+  skinModel: "classic",
+};
+
+export const blockAvatarFeatureIds = {
+  head: "block-avatar-head",
+  torso: "block-avatar-torso",
+  leftArm: "block-avatar-left-arm",
+  rightArm: "block-avatar-right-arm",
+  leftUpperLeg: "block-avatar-left-upper-leg",
+  leftLowerLeg: "block-avatar-left-lower-leg",
+  rightUpperLeg: "block-avatar-right-upper-leg",
+  rightLowerLeg: "block-avatar-right-lower-leg",
+} as const;
+
+export const blockAvatarGroupIds = {
+  head: "block-avatar-head-group",
+  torso: "block-avatar-torso-group",
+  leftArm: "block-avatar-left-arm-group",
+  rightArm: "block-avatar-right-arm-group",
+  leftUpperLeg: "block-avatar-left-upper-leg-group",
+  leftLowerLeg: "block-avatar-left-lower-leg-group",
+  rightUpperLeg: "block-avatar-right-upper-leg-group",
+  rightLowerLeg: "block-avatar-right-lower-leg-group",
+} as const;
+
+export const blockAvatarJointIds = {
+  torso: "block-avatar-torso-joint",
+  head: "block-avatar-head-joint",
+  leftArm: "block-avatar-left-arm-joint",
+  rightArm: "block-avatar-right-arm-joint",
+  leftHip: "block-avatar-left-leg-joint",
+  leftKnee: "block-avatar-left-knee-joint",
+  rightHip: "block-avatar-right-leg-joint",
+  rightKnee: "block-avatar-right-knee-joint",
+} as const;
+
+export function normalizeBlockAvatarParameters(
+  input: Partial<BlockAvatarParameters> = {},
+): BlockAvatarParameters {
+  const height = input.height ?? defaultBlockAvatarParameters.height;
+  if (!Number.isFinite(height)) throw new Error("方块角色高度必须是有限数值。");
+  const skinModel = input.skinModel ?? defaultBlockAvatarParameters.skinModel;
+  if (skinModel !== "classic" && skinModel !== "slim") {
+    throw new Error("方块角色皮肤模型必须是 classic 或 slim。");
+  }
+  return {
+    height: Math.min(2_000, Math.max(1_500, height)),
+    skinModel,
+  };
+}
+
+export function createBlockAvatar(input: Partial<BlockAvatarParameters> = {}): CreateModelInput {
+  const parameters = normalizeBlockAvatarParameters(input);
+  const pixel = parameters.height / 32;
+  const armWidth = (parameters.skinModel === "slim" ? 3 : 4) * pixel;
+  const armOffset = (parameters.skinModel === "slim" ? 5.5 : 6) * pixel;
   const skinUrl = "builtin:solidloom-block-avatar";
   const skinnedBox = (
     id: string,
@@ -48,7 +114,7 @@ export function createBlockAvatar(): CreateModelInput {
       appearance: {
         ...fallbackAppearance[part],
         voxelSkin: {
-          model: "classic",
+          model: parameters.skinModel,
           part,
           ...(segment ? { segment } : {}),
           url: skinUrl,
@@ -74,15 +140,15 @@ export function createBlockAvatar(): CreateModelInput {
   const leftArm = [skinnedBox(
     "block-avatar-left-arm",
     "左臂",
-    [4 * pixel, 12 * pixel, 4 * pixel],
-    [-6 * pixel, 18 * pixel, 0],
+    [armWidth, 12 * pixel, 4 * pixel],
+    [-armOffset, 18 * pixel, 0],
     "leftArm",
   )];
   const rightArm = [skinnedBox(
     "block-avatar-right-arm",
     "右臂",
-    [4 * pixel, 12 * pixel, 4 * pixel],
-    [6 * pixel, 18 * pixel, 0],
+    [armWidth, 12 * pixel, 4 * pixel],
+    [armOffset, 18 * pixel, 0],
     "rightArm",
   )];
   const leftUpperLeg = [skinnedBox(

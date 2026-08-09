@@ -1,4 +1,8 @@
 import type { CreateModelInput, ModelReferenceInstance, Vector3Tuple } from "../../types.js";
+import { officeChairFeatureIds } from "./chair.js";
+import { defaultOfficeDeskParameters } from "./desk.js";
+import { officeLaptopFeatureIds, officeLaptopJointIds } from "./laptop.js";
+import { officeMonitorFeatureIds } from "./monitor.js";
 
 export interface CyberOfficeSpaceModelIds {
   roomId: string;
@@ -11,7 +15,7 @@ export interface CyberOfficeSpaceModelIds {
 export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): CreateModelInput {
   const floorThickness = 160;
   const finishedFloorY = 0;
-  const deskSurfaceY = finishedFloorY + 760;
+  const deskSurfaceY = finishedFloorY + defaultOfficeDeskParameters.height;
   const laptopClearance = 10;
   const stationCount = 4;
   const deskScale: Vector3Tuple = [1.25, 1, 1.1];
@@ -76,7 +80,11 @@ export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): Crea
             activateLabel: "开启显示器",
             deactivateLabel: "关闭显示器",
             range: 1350,
-            targetFeatureIds: ["cyber-monitor-panel", "cyber-monitor-light-left", "cyber-monitor-light-right"],
+            targetFeatureIds: [
+              officeMonitorFeatureIds.panel,
+              officeMonitorFeatureIds.lightLeft,
+              officeMonitorFeatureIds.lightRight,
+            ],
           }],
         };
       });
@@ -100,7 +108,7 @@ export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): Crea
           ],
           rotation: [0, row.laptopRotation[1] + variation.laptopYaw, 0],
           scale: [1, 1, 1],
-          jointValues: { "cyber-laptop-screen-hinge": variation.laptopAngle },
+          jointValues: { [officeLaptopJointIds.screenHinge]: variation.laptopAngle },
           interactions: [{
             id: "computer-power",
             kind: "articulation",
@@ -108,11 +116,11 @@ export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): Crea
             deactivateLabel: "合上笔记本",
             range: 1050,
             targetFeatureIds: [
-              "cyber-laptop-screen-shell",
-              "cyber-laptop-screen-panel",
-              "cyber-laptop-camera",
+              officeLaptopFeatureIds.screenShell,
+              officeLaptopFeatureIds.screenPanel,
+              officeLaptopFeatureIds.camera,
             ],
-            jointId: "cyber-laptop-screen-hinge",
+            jointId: officeLaptopJointIds.screenHinge,
             closedValue: 0,
             openValue: 102,
           }],
@@ -141,7 +149,7 @@ export function createCyberOfficeSpaceModel(ids: CyberOfficeSpaceModelIds): Crea
             activateLabel: "坐到座椅",
             deactivateLabel: "离开座椅",
             range: 680,
-            targetFeatureIds: ["cyber-chair-seat"],
+            targetFeatureIds: [officeChairFeatureIds.seat],
           }],
         },
       ];
