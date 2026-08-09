@@ -73,3 +73,15 @@
 
 - 修改后运行 `npm run typecheck`、`npm test` 和 `npm run build`。
 - 检查 `/llms.txt`、`/capabilities.json`、路径级 `/skill.md` 与 CLI `--llms` 是否仍由同一 capability registry 生成。
+
+## GitHub 多机协作
+
+- 协作提示词只负责启动流程，不复制任务背景、分支名、依赖、Owned paths 或验收标准；这些动态事实必须从仓库和 GitHub 读取。
+- 信息优先级为：当前路径适用的 `AGENTS.md` → 叶子 Issue 及其父工作流/总 Issue → `.ai/specs/**` → 当前 PR。提示词与这些来源冲突时，以仓库和 GitHub 实时状态为准。
+- 开始工作前运行 `npm run collab:status`。只能认领输出中的 `kind:task + status:ready` 叶子任务；工作流 Issue、Epic、仍有未完成依赖、已有 Assignee 的任务不能直接实现。
+- 使用 `npm run collab:claim -- <issue>` 完成认领。命令会再次校验依赖和竞争状态、设置 Assignee/`status:claimed`、从协作配置指定的基线创建并推送独立分支，并把 Owned paths 记录到 Issue。
+- 实现范围以叶子 Issue 的 Owned paths 为边界。需要修改 Shared paths 或边界外文件时，先在 Issue 评论说明原因；不得因为提示词提到某个方向就扩大任务范围。
+- 完成后提交代码，并使用 `npm run collab:handoff -- <issue> --mobile "<移动端影响>"` 交付。UI、3D 和模型任务还必须传 `--evidence <截图或验收记录>`。命令会运行统一验证、推送/创建 PR，并把 Issue 转为 `status:review`，不会自行标记完成。
+- `status:done` 和关闭 Issue 只发生在审查、合入与验收后。视觉原型、独立预览或 planned 占位不能作为完成依据。
+- 本轮 Epic、集成基线、验证命令和视觉证据标签位于 `.ai/collaboration/config.json`；本轮结束时更新该配置，不把它变成长期固定分支。
+- 完整使用说明和可转发的最小提示词见 `.ai/collaboration/README.md`。
