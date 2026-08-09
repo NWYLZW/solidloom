@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>现有办公资产 · 独立预览</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+        --ink: #f4f8f7;
+        --muted: #96aaa8;
+        --line: rgba(160, 206, 198, 0.2);
+        --surface: rgba(9, 18, 21, 0.88);
+        --accent: #66dfc9;
+        --accent-warm: #f0b86a;
+        --panel-edge-inset: 14px;
+        --panel-padding: var(--panel-edge-inset);
+        --control-padding-y: 8px;
+        --control-padding-x: 10px;
+      }
+
+      * { box-sizing: border-box; }
+      html, body, #preview-root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+      body {
+        background:
+          radial-gradient(circle at 52% 34%, rgba(53, 118, 109, 0.2), transparent 42%),
+          linear-gradient(145deg, #071014 0%, #102126 54%, #080e11 100%);
+        color: var(--ink);
+      }
+      button, select { font: inherit; }
+      #preview-root { position: relative; }
+      #preview-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+      .asset-info {
+        position: absolute;
+        top: max(22px, env(safe-area-inset-top));
+        left: max(24px, env(safe-area-inset-left));
+        max-width: min(560px, calc(100% - 440px));
+        pointer-events: none;
+      }
+      .eyebrow { color: var(--accent); font-size: 12px; font-weight: 760; letter-spacing: 0.14em; }
+      h1 { margin: 8px 0 6px; font-size: clamp(28px, 3.4vw, 48px); line-height: 1.02; }
+      .description { max-width: 520px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+      .badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
+      .badge {
+        min-height: 27px;
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(8, 15, 18, 0.7);
+        color: #bfd1ce;
+        padding: 5px 9px;
+        font-size: 10px;
+      }
+      .badge[data-accent="true"] { border-color: rgba(102, 223, 201, 0.68); color: var(--accent); }
+
+      .controls {
+        position: absolute;
+        top: max(22px, env(safe-area-inset-top));
+        right: max(24px, env(safe-area-inset-right));
+        width: 360px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
+        padding: var(--panel-padding);
+        backdrop-filter: blur(18px);
+      }
+      .controls h2 { margin: 0 0 4px; font-size: 14px; }
+      .control-note { margin: 0 0 13px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+      .select-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 9px; }
+      label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
+      select,
+      .toggle {
+        width: 100%;
+        min-height: 40px;
+        border: 1px solid rgba(126, 170, 164, 0.3);
+        border-radius: 9px;
+        background: rgba(23, 36, 39, 0.94);
+        color: var(--ink);
+        padding: var(--control-padding-y) var(--control-padding-x);
+      }
+      .toggle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+      .toggle { cursor: pointer; font-size: 11px; white-space: nowrap; }
+      .toggle:hover,
+      .toggle:focus-visible,
+      select:focus-visible { border-color: rgba(102, 223, 201, 0.8); outline: none; }
+      .toggle[aria-pressed="true"] {
+        border-color: var(--accent);
+        background: rgba(41, 110, 100, 0.34);
+        color: #d8fffa;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .metric {
+        min-width: 0;
+        border-top: 1px solid var(--line);
+        padding-top: 9px;
+      }
+      .metric-label { display: block; color: var(--muted); font-size: 9px; }
+      .metric-value {
+        display: block;
+        margin-top: 3px;
+        overflow: hidden;
+        color: #d9e7e5;
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .legend {
+        position: absolute;
+        left: max(24px, env(safe-area-inset-left));
+        bottom: max(20px, env(safe-area-inset-bottom));
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        color: var(--muted);
+        font-size: 10px;
+        pointer-events: none;
+      }
+      .legend-item { display: flex; align-items: center; gap: 6px; }
+      .legend-mark { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+      .legend-mark[data-kind="collider"] { border-radius: 2px; background: #f0b86a; box-shadow: 0 0 12px #f0b86a; }
+      .legend-mark[data-kind="ground"] { border-radius: 1px; background: #7d9c98; box-shadow: none; }
+
+      @media (max-width: 780px) {
+        .asset-info {
+          top: max(10px, env(safe-area-inset-top));
+          left: max(12px, env(safe-area-inset-left));
+          right: max(12px, env(safe-area-inset-right));
+          max-width: none;
+        }
+        .eyebrow { font-size: 9px; }
+        h1 { margin: 4px 0; font-size: 24px; }
+        .description { display: none; }
+        .badges { gap: 5px; margin-top: 7px; }
+        .badge { min-height: 23px; padding: 3px 7px; font-size: 9px; }
+        .badge:nth-child(n + 5) { display: none; }
+
+        .controls {
+          top: auto;
+          right: max(10px, env(safe-area-inset-right));
+          bottom: max(10px, env(safe-area-inset-bottom));
+          left: max(10px, env(safe-area-inset-left));
+          width: auto;
+          border-radius: 14px;
+          padding: 10px;
+        }
+        .controls h2,
+        .control-note { display: none; }
+        .select-grid { gap: 7px; }
+        label { gap: 4px; font-size: 9px; }
+        select,
+        .toggle { min-height: 44px; padding: 7px 8px; font-size: 11px; }
+        .toggle-grid { gap: 6px; margin-top: 7px; }
+        .metrics { gap: 7px; margin-top: 7px; }
+        .metric { padding-top: 6px; }
+        .metric-label { font-size: 8px; }
+        .metric-value { margin-top: 2px; font-size: 9px; }
+        .legend { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="preview-root">
+      <canvas id="preview-canvas" aria-label="现有办公资产三维预览"></canvas>
+
+      <section class="asset-info" aria-label="资产信息">
+        <div class="eyebrow">赛博工厂 · 正式资产预览</div>
+        <h1 id="asset-name">办公桌</h1>
+        <div class="description" id="asset-description"></div>
+        <div class="badges">
+          <span class="badge" data-accent="true" id="device-badge">桌面层级</span>
+          <span class="badge" id="asset-id-badge"></span>
+          <span class="badge">毫米尺度</span>
+          <span class="badge">地面基准 Y=0</span>
+          <span class="badge" id="anchor-badge"></span>
+          <span class="badge">状态：规划中</span>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="预览控制">
+        <h2>独立资产验收</h2>
+        <p class="control-note">拖动旋转，滚轮缩放；分别核对地面、碰撞体、锚点、性能层级和角色比例。</p>
+        <div class="select-grid">
+          <label>资产
+            <select id="asset-select">
+              <option value="desk">办公桌</option>
+              <option value="chair">人体工学椅</option>
+              <option value="laptop">笔记本</option>
+              <option value="monitor">显示器</option>
+              <option value="tower">主机箱</option>
+              <option value="avatar">方块角色</option>
+            </select>
+          </label>
+          <label>预览层级
+            <select id="device-select">
+              <option value="auto">跟随屏幕</option>
+              <option value="desktop">桌面</option>
+              <option value="mobile">手机</option>
+            </select>
+          </label>
+        </div>
+        <div class="toggle-grid">
+          <button class="toggle" id="anchors-toggle" type="button" aria-pressed="true">锚点</button>
+          <button class="toggle" id="colliders-toggle" type="button" aria-pressed="true">碰撞体</button>
+          <button class="toggle" id="scale-toggle" type="button" aria-pressed="true">角色比例</button>
+        </div>
+        <div class="metrics" aria-label="性能预算">
+          <div class="metric">
+            <span class="metric-label">层级</span>
+            <span class="metric-value" id="lod-metric"></span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">绘制调用</span>
+            <span class="metric-value" id="draw-call-metric"></span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">三角形</span>
+            <span class="metric-value" id="triangle-metric"></span>
+          </div>
+        </div>
+      </section>
+
+      <div class="legend" aria-hidden="true">
+        <span class="legend-item"><span class="legend-mark"></span>语义锚点</span>
+        <span class="legend-item"><span class="legend-mark" data-kind="collider"></span>碰撞体</span>
+        <span class="legend-item"><span class="legend-mark" data-kind="ground"></span>Y=0 支撑面</span>
+      </div>
+    </main>
+    <script type="module" src="./preview.ts"></script>
+  </body>
+</html>
