@@ -1,4 +1,4 @@
-import { Gauge, Hand, Menu, MoveDown, MoveUp } from "lucide-react";
+import { Gauge, Hand, MoveDown, MoveUp } from "lucide-react";
 import {
   useEffect,
   useRef,
@@ -24,7 +24,6 @@ const copy = {
     interact: "交互",
     jump: "跳跃",
     look: "拖动调整视角",
-    menu: "菜单",
     move: "移动",
     sprint: "冲刺",
   },
@@ -33,7 +32,6 @@ const copy = {
     interact: "Interact",
     jump: "Jump",
     look: "Drag to look",
-    menu: "Menu",
     move: "Move",
     sprint: "Sprint",
   },
@@ -199,10 +197,6 @@ export function TouchControlsOverlay({ locale }: TouchControlsOverlayProps) {
           <Hand aria-hidden="true" />
         </TouchActionButton>
       </div>
-
-      <TouchActionButton action="open-menu" className="play-touch-menu" label={labels.menu}>
-        <Menu aria-hidden="true" />
-      </TouchActionButton>
     </div>
   );
 }
