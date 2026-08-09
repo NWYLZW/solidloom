@@ -1,4 +1,5 @@
 export * from "./capabilities.js";
+export * from "./actions/index.js";
 export * from "./cornerRadii.js";
 export * from "./docs.js";
 export * from "./domain-packages/index.js";
