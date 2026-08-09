@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BrowserInputRuntime } from "./BrowserInputRuntime";
 import { cloneInputPreferences } from "./defaultBindings";
 
@@ -28,6 +28,56 @@ function gamepad(options: {
 }
 
 describe("BrowserInputRuntime", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("leaves tab navigation keys to the focused tab control", () => {
+    class FakeElement {
+      constructor(private readonly role: "button" | "tab") {}
+
+      closest(selector: string) {
+        return selector === "[role='tab']" && this.role === "tab" ? this : null;
+      }
+    }
+    vi.stubGlobal("HTMLElement", FakeElement);
+    const listeners = new Map<string, EventListenerOrEventListenerObject>();
+    const windowTarget = {
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+        listeners.set(type, listener);
+      },
+      cancelAnimationFrame() {},
+      navigator: { getGamepads: () => [] },
+      removeEventListener() {},
+      requestAnimationFrame: () => 1,
+    } as unknown as Window;
+    const runtime = new BrowserInputRuntime();
+    runtime.activateContext("menu");
+    runtime.attach(windowTarget);
+    const actions: string[] = [];
+    runtime.subscribeAction((event) => actions.push(event.action));
+    const keydown = listeners.get("keydown") as EventListener;
+
+    keydown({
+      code: "ArrowLeft",
+      ctrlKey: false,
+      metaKey: false,
+      repeat: false,
+      target: new FakeElement("tab"),
+      timeStamp: 10,
+    } as unknown as Event);
+    expect(actions).toEqual([]);
+
+    keydown({
+      code: "ArrowLeft",
+      ctrlKey: false,
+      metaKey: false,
+      repeat: false,
+      target: new FakeElement("button"),
+      timeStamp: 20,
+    } as unknown as Event);
+    expect(actions).toEqual(["ui-left"]);
+    runtime.dispose();
+  });
+
   it("reattaches after an effect cleanup cycle", () => {
     const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
     const windowTarget = {

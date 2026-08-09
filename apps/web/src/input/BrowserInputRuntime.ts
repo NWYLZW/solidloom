@@ -53,6 +53,9 @@ function sameConnectedGamepads(
 
 function nativeControlConsumesKey(target: EventTarget | null, code: string) {
   if (!(target instanceof HTMLElement) || code === "Escape") return false;
+  if (target.closest("[role='tab']")) {
+    return ["ArrowLeft", "ArrowRight", "Home", "End"].includes(code);
+  }
   const control = target.closest<HTMLElement>("input, textarea, select, [contenteditable='true']");
   if (!control) return false;
   if (control instanceof HTMLTextAreaElement || control.isContentEditable) return true;
