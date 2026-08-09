@@ -1,5 +1,12 @@
 import { Gamepad2, Keyboard, RotateCcw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ACTION_CONTEXTS,
   DEFAULT_INPUT_PREFERENCES,
@@ -159,6 +166,7 @@ function copyFor(locale: EditorLocale) {
       empty: "Unassigned",
       gamepad: "Gamepad",
       inputDelay: "Initial UI repeat delay",
+      inputDevices: "Input devices",
       inputRepeat: "UI repeat interval",
       interface: "Interface",
       interaction: "Interaction",
@@ -197,6 +205,7 @@ function copyFor(locale: EditorLocale) {
     empty: "未绑定",
     gamepad: "手柄",
     inputDelay: "界面连发等待",
+    inputDevices: "输入设备",
     inputRepeat: "界面连发间隔",
     interface: "界面",
     interaction: "交互",
@@ -228,6 +237,10 @@ export function PlayControlsSettings({ locale, onChange, preferences }: PlayCont
   const [calibrationTarget, setCalibrationTarget] = useState<CalibrationTarget | null>(null);
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
   const [captureMessage, setCaptureMessage] = useState<string | null>(null);
+  const [activeDevice, setActiveDevice] = useState<BindingDevice>("keyboard");
+  const keyboardTabRef = useRef<HTMLButtonElement>(null);
+  const gamepadTabRef = useRef<HTMLButtonElement>(null);
+  const tabIdPrefix = useId();
   const currentGamepad = snapshot.connectedGamepads[0] ?? null;
   const currentProfile = currentGamepad
     ? preferences.customGamepads[gamepadDeviceKey(currentGamepad.id)]
@@ -417,17 +430,79 @@ export function PlayControlsSettings({ locale, onChange, preferences }: PlayCont
       ? copy.standard
       : currentGamepad.mapping === "custom" ? copy.custom : copy.unconfigured;
 
+  const selectDevice = (device: BindingDevice, focus = false) => {
+    setActiveDevice(device);
+    setBindingTarget(null);
+    setCalibrationTarget(null);
+    setPendingConflict(null);
+    setCaptureMessage(null);
+    if (focus) {
+      (device === "keyboard" ? keyboardTabRef : gamepadTabRef).current?.focus();
+    }
+  };
+
+  const handleTabKeyDown = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    device: BindingDevice,
+  ) => {
+    let nextDevice: BindingDevice | null = null;
+    if (event.key === "Home") nextDevice = "keyboard";
+    if (event.key === "End") nextDevice = "gamepad";
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      nextDevice = device === "keyboard" ? "gamepad" : "keyboard";
+    }
+    if (!nextDevice) return;
+    event.preventDefault();
+    selectDevice(nextDevice, true);
+  };
+
+  const keyboardTabId = `${tabIdPrefix}-keyboard-tab`;
+  const keyboardPanelId = `${tabIdPrefix}-keyboard-panel`;
+  const gamepadTabId = `${tabIdPrefix}-gamepad-tab`;
+  const gamepadPanelId = `${tabIdPrefix}-gamepad-panel`;
+
   return (
     <div className="play-controls-settings">
       <div className="play-controls-toolbar">
-        <div className="play-controls-device-status" data-connected={currentGamepad ? true : undefined}>
-          <Gamepad2 aria-hidden="true" size={17} />
-          <span>
-            <strong>{copy.connected}</strong>
-            <small>{currentGamepad ? `${currentGamepad.id} · ${mappingLabel}` : mappingLabel}</small>
-          </span>
+        <div
+          aria-label={copy.inputDevices}
+          className="play-controls-tabs"
+          role="tablist"
+        >
+          <button
+            aria-controls={keyboardPanelId}
+            aria-selected={activeDevice === "keyboard"}
+            id={keyboardTabId}
+            onClick={() => selectDevice("keyboard")}
+            onKeyDown={(event) => handleTabKeyDown(event, "keyboard")}
+            ref={keyboardTabRef}
+            role="tab"
+            tabIndex={activeDevice === "keyboard" ? 0 : -1}
+            type="button"
+          >
+            <Keyboard aria-hidden="true" size={17} />
+            <span>{copy.keyboard}</span>
+          </button>
+          <button
+            aria-controls={gamepadPanelId}
+            aria-selected={activeDevice === "gamepad"}
+            id={gamepadTabId}
+            onClick={() => selectDevice("gamepad")}
+            onKeyDown={(event) => handleTabKeyDown(event, "gamepad")}
+            ref={gamepadTabRef}
+            role="tab"
+            tabIndex={activeDevice === "gamepad" ? 0 : -1}
+            type="button"
+          >
+            <Gamepad2 aria-hidden="true" size={17} />
+            <span>{copy.gamepad}</span>
+          </button>
         </div>
-        <button type="button" onClick={() => onChange(cloneInputPreferences())}>
+        <button
+          className="play-controls-reset"
+          type="button"
+          onClick={() => onChange(cloneInputPreferences())}
+        >
           <RotateCcw aria-hidden="true" size={15} />
           <span>{copy.controlsReset}</span>
         </button>
@@ -459,73 +534,86 @@ export function PlayControlsSettings({ locale, onChange, preferences }: PlayCont
         </div>
       )}
 
-      <section className="play-controls-section">
-        <header>
-          <Keyboard aria-hidden="true" size={18} />
-          <h3>{copy.keyboard}</h3>
-        </header>
-        {renderBindings("keyboard")}
-      </section>
-
-      <section className="play-controls-section">
-        <header>
-          <Gamepad2 aria-hidden="true" size={18} />
-          <h3>{copy.gamepad}</h3>
-        </header>
-        <section className="play-controls-group">
-          <h4>{copy.camera}</h4>
-          <div className="play-controls-tuning">
-            <PlayRangeField label={copy.deadzone} minimum={0} maximum={35} suffix="%"
-              value={Math.round(preferences.deadzone * 100)}
-              onChange={(value) => onChange({ ...preferences, deadzone: value / 100 })} />
-            <PlayRangeField label={copy.moveSensitivity} minimum={10} maximum={200} suffix="%"
-              value={Math.round(preferences.moveSensitivity * 100)}
-              onChange={(value) => onChange({ ...preferences, moveSensitivity: value / 100 })} />
-            <PlayRangeField label={copy.lookSensitivity} minimum={10} maximum={300} suffix="%"
-              value={Math.round(preferences.lookSensitivity * 100)}
-              onChange={(value) => onChange({ ...preferences, lookSensitivity: value / 100 })} />
-            <PlayRangeField label={copy.responseCurve} minimum={20} maximum={300} suffix="%"
-              value={Math.round(preferences.responseCurve * 100)}
-              onChange={(value) => onChange({ ...preferences, responseCurve: value / 100 })} />
-            <PlayToggleField checked={preferences.invertLookY} label={copy.invertY}
-              onChange={(invertLookY) => onChange({ ...preferences, invertLookY })} />
-            <PlayRangeField label={copy.inputDelay} minimum={120} maximum={900} suffix=" ms"
-              value={preferences.uiRepeatDelayMs}
-              onChange={(uiRepeatDelayMs) => onChange({ ...preferences, uiRepeatDelayMs })} />
-            <PlayRangeField label={copy.inputRepeat} minimum={40} maximum={400} suffix=" ms"
-              value={preferences.uiRepeatIntervalMs}
-              onChange={(uiRepeatIntervalMs) => onChange({ ...preferences, uiRepeatIntervalMs })} />
-          </div>
+      {activeDevice === "keyboard" && (
+        <section
+          aria-labelledby={keyboardTabId}
+          className="play-controls-section"
+          id={keyboardPanelId}
+          role="tabpanel"
+        >
+          {renderBindings("keyboard")}
         </section>
+      )}
 
-        {currentGamepad && currentGamepad.mapping !== "standard" && (
-          <section className="play-gamepad-calibration">
-            <h4>{copy.calibration}</h4>
-            <p>{copy.calibrationDescription}</p>
-            <div>
-              {CALIBRATION_TARGETS.map((target) => {
-                const mapped = target.kind === "button"
-                  ? currentProfile?.buttons[target.control as GamepadButtonControl] !== undefined
-                  : currentProfile?.axes[target.control as GamepadAxisControl] !== undefined;
-                return (
-                  <button
-                    data-mapped={mapped || undefined}
-                    key={target.control}
-                    type="button"
-                    onClick={() => setCalibrationTarget(target)}
-                  >
-                    <span>{target.kind === "button"
-                      ? GAMEPAD_BUTTON_LABELS[target.control as GamepadButtonControl]
-                      : GAMEPAD_AXIS_LABELS[target.control as GamepadAxisControl]}</span>
-                    <small>{calibrationTarget?.control === target.control ? copy.waiting : mapped ? copy.custom : copy.unconfigured}</small>
-                  </button>
-                );
-              })}
+      {activeDevice === "gamepad" && (
+        <section
+          aria-labelledby={gamepadTabId}
+          className="play-controls-section"
+          id={gamepadPanelId}
+          role="tabpanel"
+        >
+          <div className="play-controls-device-status" data-connected={currentGamepad ? true : undefined}>
+            <Gamepad2 aria-hidden="true" size={18} />
+            <span>
+              <strong>{copy.connected}</strong>
+              <small>{currentGamepad ? `${currentGamepad.id} · ${mappingLabel}` : mappingLabel}</small>
+            </span>
+          </div>
+          <section className="play-controls-group">
+            <h4>{copy.camera}</h4>
+            <div className="play-controls-tuning">
+              <PlayRangeField label={copy.deadzone} minimum={0} maximum={35} suffix="%"
+                value={Math.round(preferences.deadzone * 100)}
+                onChange={(value) => onChange({ ...preferences, deadzone: value / 100 })} />
+              <PlayRangeField label={copy.moveSensitivity} minimum={10} maximum={200} suffix="%"
+                value={Math.round(preferences.moveSensitivity * 100)}
+                onChange={(value) => onChange({ ...preferences, moveSensitivity: value / 100 })} />
+              <PlayRangeField label={copy.lookSensitivity} minimum={10} maximum={300} suffix="%"
+                value={Math.round(preferences.lookSensitivity * 100)}
+                onChange={(value) => onChange({ ...preferences, lookSensitivity: value / 100 })} />
+              <PlayRangeField label={copy.responseCurve} minimum={20} maximum={300} suffix="%"
+                value={Math.round(preferences.responseCurve * 100)}
+                onChange={(value) => onChange({ ...preferences, responseCurve: value / 100 })} />
+              <PlayToggleField checked={preferences.invertLookY} label={copy.invertY}
+                onChange={(invertLookY) => onChange({ ...preferences, invertLookY })} />
+              <PlayRangeField label={copy.inputDelay} minimum={120} maximum={900} suffix=" ms"
+                value={preferences.uiRepeatDelayMs}
+                onChange={(uiRepeatDelayMs) => onChange({ ...preferences, uiRepeatDelayMs })} />
+              <PlayRangeField label={copy.inputRepeat} minimum={40} maximum={400} suffix=" ms"
+                value={preferences.uiRepeatIntervalMs}
+                onChange={(uiRepeatIntervalMs) => onChange({ ...preferences, uiRepeatIntervalMs })} />
             </div>
           </section>
-        )}
-        {renderBindings("gamepad")}
-      </section>
+
+          {currentGamepad && currentGamepad.mapping !== "standard" && (
+            <section className="play-gamepad-calibration">
+              <h4>{copy.calibration}</h4>
+              <p>{copy.calibrationDescription}</p>
+              <div>
+                {CALIBRATION_TARGETS.map((target) => {
+                  const mapped = target.kind === "button"
+                    ? currentProfile?.buttons[target.control as GamepadButtonControl] !== undefined
+                    : currentProfile?.axes[target.control as GamepadAxisControl] !== undefined;
+                  return (
+                    <button
+                      data-mapped={mapped || undefined}
+                      key={target.control}
+                      type="button"
+                      onClick={() => setCalibrationTarget(target)}
+                    >
+                      <span>{target.kind === "button"
+                        ? GAMEPAD_BUTTON_LABELS[target.control as GamepadButtonControl]
+                        : GAMEPAD_AXIS_LABELS[target.control as GamepadAxisControl]}</span>
+                      <small>{calibrationTarget?.control === target.control ? copy.waiting : mapped ? copy.custom : copy.unconfigured}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+          {renderBindings("gamepad")}
+        </section>
+      )}
     </div>
   );
 }
