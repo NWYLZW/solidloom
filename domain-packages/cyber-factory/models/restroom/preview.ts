@@ -19,6 +19,7 @@ import {
   createRestroomVanityDefinition,
 } from "./asset.js";
 import { restroomDoorLeafBounds } from "./model.js";
+import { createRestroomPreviewFixtureLayout } from "./preview-layout.js";
 
 type DevicePreference = "auto" | ModelAssetDeviceClass;
 
@@ -98,8 +99,9 @@ const backWall = new THREE.Mesh(new THREE.BoxGeometry(6_300, 2_650, 70), wallMat
 backWall.position.set(200, 1_325, -1_870);
 backWall.receiveShadow = true;
 scene.add(backWall);
-const sideWall = new THREE.Mesh(new THREE.BoxGeometry(70, 2_650, 2_050), wallMaterial);
-sideWall.position.set(2_930, 1_325, -260);
+const fixtureLayout = createRestroomPreviewFixtureLayout();
+const sideWall = new THREE.Mesh(new THREE.BoxGeometry(...fixtureLayout.sideWall.size), wallMaterial);
+sideWall.position.set(...fixtureLayout.sideWall.position);
 sideWall.receiveShadow = true;
 scene.add(sideWall);
 
@@ -362,10 +364,24 @@ function rebuildScene() {
   });
   addDefinition(urinals, { position: [650, 0, -1_820] });
 
-  const vanity = createRestroomVanityDefinition({ width: 1_600, basinCount: 2, basinSpacing: 700 });
-  addDefinition(vanity, { position: [2_970, 0, -370], rotationY: 90 });
-  const mirror = createRestroomMirrorDefinition({ width: 1_600, bottomHeight: 1_050 });
-  addDefinition(mirror, { position: [2_970, 0, -370], rotationY: 90 });
+  const vanity = createRestroomVanityDefinition({
+    width: fixtureLayout.vanity.width,
+    depth: fixtureLayout.vanity.depth,
+    basinCount: 2,
+    basinSpacing: 700,
+  });
+  addDefinition(vanity, {
+    position: fixtureLayout.vanity.position,
+    rotationY: fixtureLayout.vanity.rotationY,
+  });
+  const mirror = createRestroomMirrorDefinition({
+    width: fixtureLayout.mirror.width,
+    bottomHeight: 1_050,
+  });
+  addDefinition(mirror, {
+    position: fixtureLayout.mirror.position,
+    rotationY: fixtureLayout.mirror.rotationY,
+  });
 
   addLabel("双隔间 · 坐便器", [-1_370, 2_380, -700]);
   addLabel("独立坐便器组件", [-2_750, 1_180, 520]);

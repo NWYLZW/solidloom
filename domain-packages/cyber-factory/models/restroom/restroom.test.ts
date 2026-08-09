@@ -20,6 +20,7 @@ import {
   restroomUrinalDividerX,
   restroomVanityBasinX,
 } from "./index.js";
+import { createRestroomPreviewFixtureLayout } from "./preview-layout.js";
 
 function ids(values: ReadonlyArray<{ id: string }>) {
   return values.map(({ id }) => id);
@@ -66,6 +67,25 @@ describe("modular restroom asset kit", () => {
       expect(definition.manifest.lod.map(({ device }) => device)).toEqual(["desktop", "mobile"]);
       expect(definition.manifest.previews.map(({ device }) => device)).toEqual(["desktop", "mobile"]);
     }
+  });
+
+  it("mounts the vanity and mirror in front of the preview side wall without intersection", () => {
+    const layout = createRestroomPreviewFixtureLayout();
+    const wallFrontX = layout.sideWall.position[0] + layout.sideWall.size[0] / 2;
+    const vanityBackX = layout.vanity.position[0] - layout.vanity.depth / 2;
+
+    expect(layout.sideWall.frontX).toBe(wallFrontX);
+    expect(vanityBackX).toBe(wallFrontX + layout.vanity.wallClearance);
+    expect(layout.mirror.position[0]).toBe(wallFrontX + layout.mirror.wallClearance);
+    expect(vanityBackX).toBeGreaterThan(wallFrontX);
+    expect(layout.mirror.position[0]).toBeGreaterThan(wallFrontX);
+
+    const wallMinimumZ = layout.sideWall.position[2] - layout.sideWall.size[2] / 2;
+    const wallMaximumZ = layout.sideWall.position[2] + layout.sideWall.size[2] / 2;
+    const fixtureMinimumZ = layout.vanity.position[2] - layout.vanity.width / 2;
+    const fixtureMaximumZ = layout.vanity.position[2] + layout.vanity.width / 2;
+    expect(fixtureMinimumZ).toBeGreaterThanOrEqual(wallMinimumZ);
+    expect(fixtureMaximumZ).toBeLessThanOrEqual(wallMaximumZ);
   });
 
   it("keeps stable feature, collider and anchor IDs when dimensions change", () => {
