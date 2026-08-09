@@ -2,7 +2,7 @@ import type {
   ArticulationAnimationClip,
   ArticulationLocomotionProfile,
 } from "@solidloom/shared";
-import { sampleAnimationJointValue } from "./runtime";
+import { clampUnit, normalizedDurationMs, sampleAnimationJointValue } from "./runtime";
 
 export type LocomotionState = "idle" | "walk" | "blend" | "run";
 
@@ -18,19 +18,23 @@ const clamp = (value: number, minimum: number, maximum: number) => Math.min(maxi
 const lerp = (from: number, to: number, progress: number) => from + (to - from) * progress;
 
 function smoothstep(progress: number): number {
-  const clamped = clamp(progress, 0, 1);
+  const clamped = clampUnit(progress);
   return clamped * clamped * (3 - 2 * clamped);
 }
 
 function scaledCycleDuration(clip: ArticulationAnimationClip, referenceSpeed: number, speed: number): number {
-  const rawDuration = clip.durationMs * referenceSpeed / Math.max(0.35, speed);
-  return clamp(rawDuration, clip.durationMs * 0.72, clip.durationMs * 1.65);
+  const durationMs = normalizedDurationMs(clip.durationMs);
+  const safeReferenceSpeed = Math.max(0.01, Number.isFinite(referenceSpeed) ? referenceSpeed : 0.01);
+  const rawDuration = durationMs * safeReferenceSpeed / Math.max(0.35, speed);
+  return clamp(rawDuration, durationMs * 0.72, durationMs * 1.65);
 }
 
 export function resolveLocomotionState(profile: ArticulationLocomotionProfile, speed: number): LocomotionState {
+  const transitionStartSpeed = Math.min(profile.transitionStartSpeed, profile.transitionEndSpeed);
+  const transitionEndSpeed = Math.max(profile.transitionStartSpeed, profile.transitionEndSpeed);
   if (speed <= Math.max(0.01, profile.minimumSpeed)) return "idle";
-  if (speed <= profile.transitionStartSpeed) return "walk";
-  if (speed >= profile.transitionEndSpeed) return "run";
+  if (speed <= transitionStartSpeed) return "walk";
+  if (speed >= transitionEndSpeed) return "run";
   return "blend";
 }
 
@@ -39,7 +43,9 @@ export function createLocomotionAnimation(
   animations: ArticulationAnimationClip[],
   requestedSpeed: number,
 ): LocomotionAnimationResult | null {
-  const speed = clamp(requestedSpeed, profile.minimumSpeed, profile.maximumSpeed);
+  const minimumSpeed = Math.min(profile.minimumSpeed, profile.maximumSpeed);
+  const maximumSpeed = Math.max(profile.minimumSpeed, profile.maximumSpeed);
+  const speed = clamp(Number.isFinite(requestedSpeed) ? requestedSpeed : minimumSpeed, minimumSpeed, maximumSpeed);
   const state = resolveLocomotionState(profile, speed);
   if (state === "idle") return null;
 
@@ -47,8 +53,10 @@ export function createLocomotionAnimation(
   const run = animations.find((animation) => animation.id === profile.runAnimationId);
   if (!walk || !run) return null;
 
-  const transitionRange = Math.max(0.001, profile.transitionEndSpeed - profile.transitionStartSpeed);
-  const blend = smoothstep((speed - profile.transitionStartSpeed) / transitionRange);
+  const transitionStartSpeed = Math.min(profile.transitionStartSpeed, profile.transitionEndSpeed);
+  const transitionEndSpeed = Math.max(profile.transitionStartSpeed, profile.transitionEndSpeed);
+  const transitionRange = Math.max(0.001, transitionEndSpeed - transitionStartSpeed);
+  const blend = smoothstep((speed - transitionStartSpeed) / transitionRange);
   const walkDuration = scaledCycleDuration(walk, profile.walkReferenceSpeed, speed);
   const runDuration = scaledCycleDuration(run, profile.runReferenceSpeed, speed);
   const cycleDurationMs = Math.round(lerp(walkDuration, runDuration, blend));
