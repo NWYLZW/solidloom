@@ -30,12 +30,12 @@ function gamepad(options: {
 describe("BrowserInputRuntime", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("leaves tab navigation keys to the focused tab control", () => {
+  it("leaves composite control navigation keys to the focused tab or radio", () => {
     class FakeElement {
-      constructor(private readonly role: "button" | "tab") {}
+      constructor(private readonly role: "button" | "radio" | "tab") {}
 
       closest(selector: string) {
-        return selector === "[role='tab']" && this.role === "tab" ? this : null;
+        return selector === "[role='tab'], [role='radio']" && this.role !== "button" ? this : null;
       }
     }
     vi.stubGlobal("HTMLElement", FakeElement);
@@ -63,6 +63,16 @@ describe("BrowserInputRuntime", () => {
       repeat: false,
       target: new FakeElement("tab"),
       timeStamp: 10,
+    } as unknown as Event);
+    expect(actions).toEqual([]);
+
+    keydown({
+      code: "ArrowRight",
+      ctrlKey: false,
+      metaKey: false,
+      repeat: false,
+      target: new FakeElement("radio"),
+      timeStamp: 15,
     } as unknown as Event);
     expect(actions).toEqual([]);
 
