@@ -1,5 +1,15 @@
 import type { CapabilityDefinition } from "../types.js";
 import type { ModelModule } from "../models/registry.js";
+import type { DomainPackageManifest } from "./manifest.js";
+
+export type {
+  DomainPackageDefinitionCatalog,
+  DomainPackageDefinitionKind,
+  DomainPackageDependency,
+  DomainPackageManifest,
+  DomainPackageMigrationDeclaration,
+  DomainPackageStatus,
+} from "./manifest.js";
 
 export type UiExtensionSlot = "hud" | "manage";
 
@@ -11,18 +21,10 @@ export interface UiExtensionDescriptor {
   order?: number;
 }
 
-export interface DomainPackageManifest {
-  id: string;
-  displayName: string;
-  description: string;
-  version: string;
-  status: "available" | "planned";
-}
-
 export interface DomainPackageDefinition {
-  id: string;
-  manifest: DomainPackageManifest;
-  models: ModelModule[];
-  capabilities: CapabilityDefinition[];
-  uiExtensions: UiExtensionDescriptor[];
+  readonly id: string;
+  readonly manifest: DomainPackageManifest;
+  readonly models: readonly ModelModule[];
+  readonly capabilities: readonly CapabilityDefinition[];
+  readonly uiExtensions: readonly UiExtensionDescriptor[];
 }
