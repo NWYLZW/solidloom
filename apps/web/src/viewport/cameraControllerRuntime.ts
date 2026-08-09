@@ -28,6 +28,7 @@ interface CreateCameraControllerRuntimeOptions {
   savedView: SavedCameraView | null;
   selectedFeatureIds: string[];
   selectedGroupId: string | null;
+  semanticInputEnabled: boolean;
   viewCubeRuntime: ReturnType<typeof createViewCubeRuntime>;
   viewDirection: THREE.Vector3;
 }
@@ -69,6 +70,7 @@ export function createCameraControllerRuntime({
   savedView,
   selectedFeatureIds,
   selectedGroupId,
+  semanticInputEnabled,
   viewCubeRuntime,
   viewDirection,
 }: CreateCameraControllerRuntimeOptions): CameraControllerRuntime {
@@ -285,6 +287,7 @@ export function createCameraControllerRuntime({
   const handleViewportKeyDown = (event: KeyboardEvent) => {
     if (document.activeElement !== renderer.domElement || event.metaKey || event.ctrlKey) return;
     if (event.code === "KeyS" && event.shiftKey) return;
+    if (semanticInputEnabled && navigationMode) return;
     const activeInteractionId = getActiveNavigationInteractionId();
     if (event.code === "KeyE" && navigationMode && activeInteractionId && !event.repeat) {
       event.preventDefault();

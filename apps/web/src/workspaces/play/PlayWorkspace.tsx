@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  InputDeviceNotice,
+  InputRuntimeProvider,
+  useBrowserInputRuntime,
+  useLastInputDevice,
+} from "../../input";
 import type { NavigationAvatarSkin } from "../../navigationAvatar";
 import { PlayRuntimeState } from "../../play/PlayRuntimeState";
 import type { RunRuntimeSnapshot } from "../../runtime-store/runRuntimeStore";
@@ -15,9 +21,11 @@ import { resolvePlayMenuItems } from "./playMenu";
 import {
   publishPlayAudioPreferences,
   readPlayAudioPreferences,
+  readPlayInputPreferences,
   readPlayLocale,
   readPlayTheme,
   savePlayAudioPreferences,
+  savePlayInputPreferences,
   type PlayTheme,
 } from "./playPreferences";
 import { usePlayUrlState } from "./usePlayUrlState";
@@ -39,6 +47,9 @@ export function PlayWorkspace({
   const [locale, setLocale] = useState<EditorLocale>(readPlayLocale);
   const [theme, setTheme] = useState<PlayTheme>(readPlayTheme);
   const [audioPreferences, setAudioPreferences] = useState(readPlayAudioPreferences);
+  const [inputPreferences, setInputPreferences] = useState(readPlayInputPreferences);
+  const inputRuntime = useBrowserInputRuntime(inputPreferences);
+  const lastInputDevice = useLastInputDevice(inputRuntime);
   const copy = copyByLocale[locale];
   const playCopy = playCopyByLocale[locale];
   const scene = snapshot.content?.scene ?? null;
@@ -112,6 +123,10 @@ export function PlayWorkspace({
   }, [audioPreferences]);
 
   useEffect(() => {
+    savePlayInputPreferences(inputPreferences);
+  }, [inputPreferences]);
+
+  useEffect(() => {
     setAvatarSkin(runtimeModel?.avatarSkin ?? null);
   }, [runtimeModel?.avatarSkin?.model, runtimeModel?.avatarSkin?.url]);
 
@@ -143,17 +158,18 @@ export function PlayWorkspace({
     deviceExecute: copy.interactionDeviceExecute,
     deviceOpen: copy.interactionDeviceOpen,
     deviceReady: copy.interactionDeviceReady,
-    keyHint: copy.interactionKeyHint,
+    keyHint: lastInputDevice === "gamepad" ? "A / ✕" : copy.interactionKeyHint,
     powerOff: copy.interactionPowerOff,
     powerOn: copy.interactionPowerOn,
     sit: copy.interactionSit,
     stand: copy.interactionStand,
-  }), [copy]);
+  }), [copy, lastInputDevice]);
 
   return (
-    <main className="play-workspace" data-runtime-status={snapshot.status}>
-      {scene && runtimeModel ? (
-        <section className="play-runtime-layer play-runtime-world-layer" aria-label={playCopy.runtime}>
+    <InputRuntimeProvider runtime={inputRuntime}>
+      <main className="play-workspace" data-runtime-status={snapshot.status}>
+        {scene && runtimeModel ? (
+          <section className="play-runtime-layer play-runtime-world-layer" aria-label={playCopy.runtime}>
           <Viewport3D
             annotationMode={false}
             annotationStrings={{
@@ -205,50 +221,55 @@ export function PlayWorkspace({
             rendererReloadLabel={copy.reloadViewport}
             selectedFeatureIds={[]}
             selectedGroupId={null}
+            semanticInputRuntime={inputRuntime}
             theme={theme}
             transformMode={null}
             viewCubeLabel={copy.viewCube}
             viewLabels={[copy.viewRight, copy.viewLeft, copy.viewTop, copy.viewBottom, copy.viewFront, copy.viewBack]}
           />
-        </section>
-      ) : (
-        <PlayRuntimeState locale={locale} onReconnect={onReconnect} snapshot={snapshot} />
-      )}
+          </section>
+        ) : (
+          <PlayRuntimeState locale={locale} onReconnect={onReconnect} snapshot={snapshot} />
+        )}
 
-      {scene && runtimeModel && (
-        <section className="play-runtime-layer play-runtime-panel-layer" aria-label={playCopy.menu}>
-          <PlayMenuOverlay
-            audioPreferences={audioPreferences}
-            avatarSkin={avatarSkin}
-            cameraLabels={{
-              god: copy.navigationGodCamera,
-              "first-person": copy.navigationFirstPerson,
-              "third-person": copy.navigationThirdPerson,
-            }}
-            cameraMode={cameraMode}
-            firstPersonAvatarMode={firstPersonAvatarMode}
-            items={menuItems}
-            locale={locale}
-            onAudioPreferencesChange={setAudioPreferences}
-            onAvatarSkinChange={setAvatarSkin}
-            onAvatarSkinReset={() => setAvatarSkin(runtimeModel.avatarSkin)}
-            onCameraModeChange={setCameraMode}
-            onFirstPersonAvatarModeChange={setFirstPersonAvatarMode}
-            onLocaleChange={setLocale}
-            onClose={closeMenu}
-            onReturnWorkshop={() => window.location.assign("/")}
-            onSettingsCategoryChange={setSettingsCategory}
-            onThemeChange={setTheme}
-            onViewBack={returnToMenu}
-            onViewChange={openMenuView}
-            sceneAvatarSkin={runtimeModel.avatarSkin}
-            sceneName={scene.name}
-            settingsCategory={settingsCategory}
-            theme={theme}
-            view={menuView}
-          />
-        </section>
-      )}
-    </main>
+        {scene && runtimeModel && (
+          <section className="play-runtime-layer play-runtime-panel-layer" aria-label={playCopy.menu}>
+            <PlayMenuOverlay
+              audioPreferences={audioPreferences}
+              avatarSkin={avatarSkin}
+              cameraLabels={{
+                god: copy.navigationGodCamera,
+                "first-person": copy.navigationFirstPerson,
+                "third-person": copy.navigationThirdPerson,
+              }}
+              cameraMode={cameraMode}
+              firstPersonAvatarMode={firstPersonAvatarMode}
+              inputPreferences={inputPreferences}
+              items={menuItems}
+              locale={locale}
+              onAudioPreferencesChange={setAudioPreferences}
+              onAvatarSkinChange={setAvatarSkin}
+              onAvatarSkinReset={() => setAvatarSkin(runtimeModel.avatarSkin)}
+              onCameraModeChange={setCameraMode}
+              onFirstPersonAvatarModeChange={setFirstPersonAvatarMode}
+              onInputPreferencesChange={setInputPreferences}
+              onLocaleChange={setLocale}
+              onClose={closeMenu}
+              onReturnWorkshop={() => window.location.assign("/")}
+              onSettingsCategoryChange={setSettingsCategory}
+              onThemeChange={setTheme}
+              onViewBack={returnToMenu}
+              onViewChange={openMenuView}
+              sceneAvatarSkin={runtimeModel.avatarSkin}
+              sceneName={scene.name}
+              settingsCategory={settingsCategory}
+              theme={theme}
+              view={menuView}
+            />
+          </section>
+        )}
+        <InputDeviceNotice locale={locale} />
+      </main>
+    </InputRuntimeProvider>
   );
 }

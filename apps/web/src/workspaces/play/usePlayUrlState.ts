@@ -7,7 +7,7 @@ import type { NavigationCameraMode } from "../../Viewport3D";
 import { readPreference } from "../editor/workspacePreferences";
 
 export type PlayMenuView = "character" | "menu" | "settings";
-export type PlaySettingsCategory = "appearance" | "audio" | "camera" | "general";
+export type PlaySettingsCategory = "appearance" | "audio" | "camera" | "controls" | "general";
 
 export interface PlayUrlState {
   cameraMode: NavigationCameraMode;
@@ -38,6 +38,7 @@ const SETTINGS_CATEGORIES = new Set<PlaySettingsCategory>([
   "appearance",
   "audio",
   "camera",
+  "controls",
   "general",
 ]);
 

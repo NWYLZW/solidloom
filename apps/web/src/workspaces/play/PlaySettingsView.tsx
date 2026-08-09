@@ -1,4 +1,5 @@
-import { Camera, Languages, Monitor, Volume2 } from "lucide-react";
+import { Camera, Gamepad2, Languages, Monitor, Volume2 } from "lucide-react";
+import type { InputPreferences } from "../../input";
 import {
   NAVIGATION_FIRST_PERSON_AVATAR_MODES,
   type NavigationFirstPersonAvatarMode,
@@ -11,6 +12,7 @@ import { PlaySubpageHeader } from "./PlaySubpageHeader";
 import { PlayRangeField } from "./controls/PlayRangeField";
 import { PlaySelectField } from "./controls/PlaySelectField";
 import { PlayToggleField } from "./controls/PlayToggleField";
+import { PlayControlsSettings } from "./controls/PlayControlsSettings";
 import type { PlaySettingsCategory } from "./usePlayUrlState";
 import "./PlaySettingsView.css";
 
@@ -19,6 +21,7 @@ const SETTINGS_CATEGORIES: PlaySettingsCategory[] = [
   "appearance",
   "audio",
   "camera",
+  "controls",
   "general",
 ];
 
@@ -26,6 +29,7 @@ const CATEGORY_ICONS = {
   appearance: Monitor,
   audio: Volume2,
   camera: Camera,
+  controls: Gamepad2,
   general: Languages,
 } as const;
 
@@ -35,12 +39,14 @@ interface PlaySettingsViewProps {
   cameraMode: NavigationCameraMode;
   category: PlaySettingsCategory;
   firstPersonAvatarMode: NavigationFirstPersonAvatarMode;
+  inputPreferences: InputPreferences;
   locale: EditorLocale;
   onAudioPreferencesChange: (preferences: PlayAudioPreferences) => void;
   onBack: () => void;
   onCameraModeChange: (mode: NavigationCameraMode) => void;
   onCategoryChange: (category: PlaySettingsCategory) => void;
   onFirstPersonAvatarModeChange: (mode: NavigationFirstPersonAvatarMode) => void;
+  onInputPreferencesChange: (preferences: InputPreferences) => void;
   onLocaleChange: (locale: EditorLocale) => void;
   onThemeChange: (theme: PlayTheme) => void;
   theme: PlayTheme;
@@ -52,12 +58,14 @@ export function PlaySettingsView({
   cameraMode,
   category,
   firstPersonAvatarMode,
+  inputPreferences,
   locale,
   onAudioPreferencesChange,
   onBack,
   onCameraModeChange,
   onCategoryChange,
   onFirstPersonAvatarModeChange,
+  onInputPreferencesChange,
   onLocaleChange,
   onThemeChange,
   theme,
@@ -70,6 +78,12 @@ export function PlaySettingsView({
     },
     audio: { description: copy.audioDescription, label: copy.audio },
     camera: { description: copy.cameraDescription, label: copy.camera },
+    controls: {
+      description: locale === "zh-CN"
+        ? "重映射键盘与手柄，并调整摇杆、观察和界面连发。"
+        : "Remap keyboard and gamepad input, sticks, look, and UI repeat.",
+      label: locale === "zh-CN" ? "控制" : "Controls",
+    },
     general: { description: copy.generalDescription, label: copy.general },
   } satisfies Record<PlaySettingsCategory, { description: string; label: string }>;
   const activeCategory = categoryCopy[category];
@@ -136,6 +150,16 @@ export function PlaySettingsView({
             { label: "English", value: "en" },
           ]}
           value={locale}
+        />
+      );
+    }
+
+    if (category === "controls") {
+      return (
+        <PlayControlsSettings
+          locale={locale}
+          onChange={onInputPreferencesChange}
+          preferences={inputPreferences}
         />
       );
     }

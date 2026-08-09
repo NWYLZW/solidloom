@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { JointAnimationRequest } from "../articulation/types";
+import {
+  navigationFrameFromKeyboard,
+  navigationFrameFromSnapshot,
+} from "../input";
 import { shouldRefreshShadowMap, shouldScheduleViewportFrame } from "../renderPerformance";
 import { createAnnotationProjector } from "./annotationProjection";
 import { createCameraControllerRuntime } from "./cameraControllerRuntime";
@@ -57,6 +61,7 @@ export function useViewport3DRuntime({
   onTransformCommit,
   selectedFeatureIds,
   selectedGroupId,
+  semanticInputRuntime,
   theme,
   transformMode,
   viewLabels,
@@ -288,6 +293,7 @@ export function useViewport3DRuntime({
       savedView,
       selectedFeatureIds,
       selectedGroupId,
+      semanticInputEnabled: Boolean(semanticInputRuntime),
       viewCubeRuntime,
       viewDirection,
     }));
@@ -312,16 +318,27 @@ export function useViewport3DRuntime({
       entries: featureLodEntries,
       isFeatureSelected: selectionTransformRuntime.isFeatureSelected,
     });
+    const readNavigationInput = () => semanticInputRuntime
+      ? navigationFrameFromSnapshot(semanticInputRuntime.getSnapshot())
+      : navigationFrameFromKeyboard(cameraControllerRuntime.keyboardNavigationKeys);
+    const unsubscribeInputChange = semanticInputRuntime?.subscribe(() => requestRender());
+    const unsubscribeInputAction = semanticInputRuntime?.subscribeAction((event) => {
+      if (event.context !== "gameplay" || event.phase !== "pressed" || event.action !== "primary") return;
+      const interactionId = navigationRuntime.getActiveInteractionId();
+      if (!interactionId) return;
+      event.preventDefault();
+      navigationRuntime.performInteraction(interactionId);
+      requestRender();
+    });
 
     renderLoop = lifecycle.add(createViewportRenderLoopRuntime({
       onFrame: ({ deltaSeconds, frameTime, renderRequested }) => {
+        const navigationInput = readNavigationInput();
         const controlsChanged = !cameraControllerRuntime.viewTransitionActive
           && (!navigationMode || navigationCameraMode === "god")
           ? controls.update()
           : false;
-        const navigationActive = navigationRuntime.needsContinuousRendering(
-          cameraControllerRuntime.keyboardNavigationKeys,
-        );
+        const navigationActive = navigationRuntime.needsContinuousRendering(navigationInput);
         const continuousRendering = Boolean(
           navigationActive
           || cameraControllerRuntime.viewTransitionActive
@@ -336,7 +353,7 @@ export function useViewport3DRuntime({
         cameraControllerRuntime.updateTransition(frameTime);
         const navigationFrame = navigationRuntime.update({
           deltaSeconds,
-          keyboardNavigationKeys: cameraControllerRuntime.keyboardNavigationKeys,
+          ...navigationInput,
           rotateCamera: cameraControllerRuntime.rotateCamera,
           viewTransitionActive: viewTransitionRunning,
         });
@@ -357,9 +374,7 @@ export function useViewport3DRuntime({
         return shouldScheduleViewportFrame({
           controlsChanged,
           jointAnimationActive: jointAnimationRuntime.active,
-          navigationActive: navigationRuntime.needsContinuousRendering(
-            cameraControllerRuntime.keyboardNavigationKeys,
-          ),
+          navigationActive: navigationRuntime.needsContinuousRendering(readNavigationInput()),
           renderRequested: renderLoop?.renderRequested ?? false,
           transformActive: selectionTransformRuntime.transformGestureActive,
           viewTransitionActive: cameraControllerRuntime.viewTransitionActive,
@@ -368,6 +383,8 @@ export function useViewport3DRuntime({
     }));
 
     return () => {
+      unsubscribeInputAction?.();
+      unsubscribeInputChange?.();
       if (updateSelectionRef.current === selectionTransformRuntime.applySelection) updateSelectionRef.current = null;
       if (updateTransformRef.current === selectionTransformRuntime.applyTransformMode) updateTransformRef.current = null;
       if (updateCutPlaneRef.current === selectionTransformRuntime.applyCutPlane) updateCutPlaneRef.current = null;
@@ -411,6 +428,7 @@ export function useViewport3DRuntime({
     navigationDynamicBodies,
     navigationInteractions,
     navigationMode,
+    semanticInputRuntime,
     theme,
     viewLabels,
   ]);

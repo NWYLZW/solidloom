@@ -6,6 +6,7 @@ import type {
   Vector3Tuple,
 } from "@solidloom/shared";
 import type { JointAnimationRequest } from "../articulation/types";
+import type { InputMovementPolicy, SemanticInputRuntime } from "../input";
 import type {
   InteractionUIConfig,
   NavigationContainerItem,
@@ -55,6 +56,7 @@ export interface NavigationInteractionDescriptor {
   id: string;
   kind: "power" | "seat" | "door" | "articulation" | "container" | "device";
   label?: string;
+  movementPolicy?: InputMovementPolicy;
   jointAxis?: Vector3Tuple;
   jointClosedValue?: number;
   jointInitialValue?: number;
@@ -152,6 +154,7 @@ export interface Viewport3DProps {
   navigationInteractionLabels: NavigationInteractionLabels;
   selectedFeatureIds: string[];
   selectedGroupId: string | null;
+  semanticInputRuntime?: SemanticInputRuntime;
   theme: "light" | "dark" | "system";
   transformMode: TransformMode;
   cutPlane: { offset: number; rotation: Vector3Tuple } | null;

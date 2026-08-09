@@ -59,12 +59,16 @@ describe("play URL state", () => {
       .toBe("/play/scene-1/settings/appearance");
     expect(updatePlayUrlPathname("/play/scene-1/settings/appearance", "settings", "audio"))
       .toBe("/play/scene-1/settings/audio");
+    expect(updatePlayUrlPathname("/play/scene-1/settings/audio", "settings", "controls"))
+      .toBe("/play/scene-1/settings/controls");
     expect(updatePlayUrlPathname("/play/scene-1/character", null)).toBe("/play/scene-1");
   });
 
   it("restores a settings category from the path", () => {
     expect(readPlayUrlState("/play/scene-1/settings/camera", "").settingsCategory)
       .toBe("camera");
+    expect(readPlayUrlState("/play/scene-1/settings/controls", "").settingsCategory)
+      .toBe("controls");
     expect(readPlayUrlState("/play/scene-1/settings/unsupported", "").settingsCategory)
       .toBe("appearance");
   });
