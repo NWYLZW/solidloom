@@ -33,6 +33,50 @@ export const cyberFactoryModelModules = [
   defineFactoryModelModule({ id: "cyber-factory-lounge-kit", status: "available", createModel: createLoungeKit }),
 ];
 
+export const cyberFactoryDefinitionCatalog = {
+  entityTypes: [
+    "cyber-factory.organization",
+    "cyber-factory.employee",
+    "cyber-factory.place",
+    "cyber-factory.workstation",
+    "cyber-factory.chair",
+    "cyber-factory.device",
+    "cyber-factory.task",
+    "cyber-factory.production-line",
+  ],
+  componentTypes: [
+    "cyber-factory.identity",
+    "cyber-factory.lifecycle-state",
+    "cyber-factory.scene-binding",
+    "cyber-factory.organization-profile",
+    "cyber-factory.employee-profile",
+    "cyber-factory.employee-needs",
+    "cyber-factory.place-profile",
+    "cyber-factory.workstation-profile",
+    "cyber-factory.device-profile",
+    "cyber-factory.task-state",
+    "cyber-factory.production-line-state",
+  ],
+  relationTypes: [
+    "cyber-factory.employed-by",
+    "cyber-factory.assigned-to",
+    "cyber-factory.occupies",
+    "cyber-factory.belongs-to",
+    "cyber-factory.located-in",
+  ],
+  resourceTypes: ["cyber-factory.funds", "cyber-factory.inventory-unit"],
+  metricTypes: [
+    "cyber-factory.task-value-created",
+    "cyber-factory.task-progress",
+    "cyber-factory.employee-utilization",
+    "cyber-factory.production-throughput",
+  ],
+  actionTypes: [],
+  processTypes: [],
+  ruleSets: ["cyber-factory.authorization.default"],
+  viewDefinitions: [],
+} as const;
+
 export const cyberFactoryDomainPackage = defineDomainPackage({
   schemaVersion: 1,
   id: "cyber-factory",
@@ -45,17 +89,7 @@ export const cyberFactoryDomainPackage = defineDomainPackage({
   platformVersion: "^0.1.0",
   dependencies: [],
   extends: [],
-  definitions: {
-    entityTypes: [],
-    componentTypes: [],
-    relationTypes: [],
-    resourceTypes: [],
-    metricTypes: [],
-    actionTypes: [],
-    processTypes: [],
-    ruleSets: [],
-    viewDefinitions: [],
-  },
+  definitions: cyberFactoryDefinitionCatalog,
   migrations: [],
 }, {
   models: cyberFactoryModelModules,
