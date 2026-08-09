@@ -105,15 +105,6 @@ sideWall.position.set(...fixtureLayout.sideWall.position);
 sideWall.receiveShadow = true;
 scene.add(sideWall);
 
-const aisle = new THREE.Mesh(
-  new THREE.PlaneGeometry(4_900, 760),
-  new THREE.MeshStandardMaterial({ color: 0x31504e, roughness: 0.78, metalness: 0.03 }),
-);
-aisle.rotation.x = -Math.PI / 2;
-aisle.rotation.z = Math.PI / 2;
-aisle.position.set(80, 5, 760);
-scene.add(aisle);
-
 const state: PreviewState = {
   anchorVisible: false,
   colliderVisible: false,
