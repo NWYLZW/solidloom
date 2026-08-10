@@ -5,6 +5,8 @@ const sideWallSize: Vector3Tuple = [70, 2_650, 2_050];
 const sideWallPosition: Vector3Tuple = [2_930, 1_325, -260];
 const fixtureCenterZ = -370;
 const wallClearance = 8;
+const stallLeftBoundaryX = -2_320;
+const stallWidth = 950;
 
 export type RestroomPreviewRoomType = "men" | "women";
 export type RestroomPreviewAssetId = (typeof restroomAssetIds)[keyof typeof restroomAssetIds];
@@ -29,6 +31,43 @@ export function createRestroomPreviewComposition(
   if (urinalControlsEnabled) assetIds.splice(3, 0, restroomAssetIds.urinalBank);
 
   return { roomType, assetIds, urinalControlsEnabled };
+}
+
+export interface RestroomPreviewStallLayout {
+  stallCount: number;
+  stallWidth: number;
+  partitionXs: number[];
+  stallCenterXs: number[];
+  partitionZ: number;
+  doorZ: number;
+  toiletZ: number;
+  labelPosition: Vector3Tuple;
+}
+
+export function createRestroomPreviewStallLayout(
+  roomType: RestroomPreviewRoomType,
+): RestroomPreviewStallLayout {
+  const stallCount = roomType === "women" ? 4 : 2;
+  const partitionXs = Array.from(
+    { length: stallCount + 1 },
+    (_, index) => stallLeftBoundaryX + index * stallWidth,
+  );
+  const stallCenterXs = Array.from(
+    { length: stallCount },
+    (_, index) => stallLeftBoundaryX + stallWidth * (index + 0.5),
+  );
+  const labelCenterX = (partitionXs[0]! + partitionXs.at(-1)!) / 2;
+
+  return {
+    stallCount,
+    stallWidth,
+    partitionXs,
+    stallCenterXs,
+    partitionZ: -920,
+    doorZ: -20,
+    toiletZ: -1_120,
+    labelPosition: [labelCenterX, 2_380, -700],
+  };
 }
 
 export interface RestroomPreviewFixtureLayout {
