@@ -19,6 +19,12 @@
 
 每个 `createRestroom*Definition(parameters)` 工厂使用同一组规范化参数生成几何、manifest、碰撞体和锚点，避免尺寸变化后空间元数据漂移。现有公共 `ModelAssetDefinition.createModel` 仍是无参函数，因此参数化通过 definition 工厂提供；正式运行时接入前所有模块状态保持 `planned`。
 
+## 厕所类型组合
+
+独立预览支持男厕和女厕组合切换。男厕场景实例化小便器组合，并允许配置 1–6 个器具；女厕场景从资产清单中完全省略 `cyber-factory-restroom-urinal-bank`。小便器模型本身仍只接受 1–6 个器具，不使用 `count: 0` 表示资产缺席。
+
+该选择目前只验证 planned 资产的场景组合规则，不代表正式运行时已经提供厕所类型自动布局。
+
 ## 小便器排列
 
 `count`、`centerSpacing`、`urinalWidth`、`rimHeight`、`projection`、`dividerEnabled` 和 `dividerDepth` 可配置。中心距必须在相邻器具之间保留至少 240 mm 净距；挡板位于相邻中心的中点，并且比器具投影至少多 60 mm。

@@ -1,9 +1,35 @@
 import type { Vector3Tuple } from "@solidloom/shared";
+import { restroomAssetIds } from "./model.js";
 
 const sideWallSize: Vector3Tuple = [70, 2_650, 2_050];
 const sideWallPosition: Vector3Tuple = [2_930, 1_325, -260];
 const fixtureCenterZ = -370;
 const wallClearance = 8;
+
+export type RestroomPreviewRoomType = "men" | "women";
+export type RestroomPreviewAssetId = (typeof restroomAssetIds)[keyof typeof restroomAssetIds];
+
+export interface RestroomPreviewComposition {
+  roomType: RestroomPreviewRoomType;
+  assetIds: RestroomPreviewAssetId[];
+  urinalControlsEnabled: boolean;
+}
+
+export function createRestroomPreviewComposition(
+  roomType: RestroomPreviewRoomType,
+): RestroomPreviewComposition {
+  const assetIds: RestroomPreviewAssetId[] = [
+    restroomAssetIds.partition,
+    restroomAssetIds.stallDoor,
+    restroomAssetIds.toilet,
+    restroomAssetIds.vanity,
+    restroomAssetIds.mirror,
+  ];
+  const urinalControlsEnabled = roomType === "men";
+  if (urinalControlsEnabled) assetIds.splice(3, 0, restroomAssetIds.urinalBank);
+
+  return { roomType, assetIds, urinalControlsEnabled };
+}
 
 export interface RestroomPreviewFixtureLayout {
   sideWall: {
