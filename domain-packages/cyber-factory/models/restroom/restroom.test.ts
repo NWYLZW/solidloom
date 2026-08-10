@@ -29,6 +29,7 @@ import {
   createRestroomPreviewComposition,
   createRestroomPreviewFixtureLayout,
   createRestroomPreviewStallLayout,
+  restroomPreviewWallColor,
 } from "./preview-layout.js";
 
 function ids(values: ReadonlyArray<{ id: string }>) {
@@ -42,6 +43,10 @@ function boxFeature(definition: ReturnType<typeof createRestroomPartitionDefinit
 }
 
 describe("modular restroom asset kit", () => {
+  it("uses a low-glare white wall palette in every restroom preview", () => {
+    expect(restroomPreviewWallColor).toBe(0xe1e6e4);
+  });
+
   it("publishes nine independently referenceable planned assets that pass the shared contract", () => {
     expect(restroomAssetDefinitions.map(({ manifest }) => manifest.id)).toEqual([
       "cyber-factory-restroom-partition",

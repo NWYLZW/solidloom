@@ -31,6 +31,7 @@ import {
   createRestroomPreviewAccessibleLayout,
   createRestroomPreviewFixtureLayout,
   createRestroomPreviewStallLayout,
+  restroomPreviewWallColor,
   type RestroomPreviewRoomType,
 } from "./preview-layout.js";
 
@@ -109,7 +110,7 @@ const grid = new THREE.GridHelper(9_500, 38, 0x3b6964, 0x294845);
 grid.position.set(100, 2, -250);
 scene.add(grid);
 
-const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x46615f, roughness: 0.93, metalness: 0.02 });
+const wallMaterial = new THREE.MeshStandardMaterial({ color: restroomPreviewWallColor, roughness: 0.93, metalness: 0.02 });
 const backWall = new THREE.Mesh(new THREE.BoxGeometry(6_300, 2_650, 70), wallMaterial);
 backWall.position.set(200, 1_325, -1_870);
 backWall.receiveShadow = true;
