@@ -29,6 +29,7 @@ import {
   createRestroomPreviewComposition,
   createRestroomPreviewFixtureLayout,
   createRestroomPreviewStallLayout,
+  restroomPreviewRoomHeightLimits,
   restroomPreviewWallColor,
 } from "./preview-layout.js";
 
@@ -45,6 +46,34 @@ function boxFeature(definition: ReturnType<typeof createRestroomPartitionDefinit
 describe("modular restroom asset kit", () => {
   it("uses a low-glare white wall palette in every restroom preview", () => {
     expect(restroomPreviewWallColor).toBe(0xe1e6e4);
+  });
+
+  it("rebuilds full-height room walls while preserving the accessible cutaway", () => {
+    expect(restroomPreviewRoomHeightLimits).toEqual({
+      minimum: 2_200,
+      maximum: 3_500,
+      step: 50,
+      defaultValue: 2_650,
+    });
+
+    const fixtures = createRestroomPreviewFixtureLayout(2_200);
+    expect(fixtures.sideWall).toMatchObject({
+      position: [2_930, 1_100, -260],
+      size: [70, 2_200, 2_050],
+    });
+
+    const accessible = createRestroomPreviewAccessibleLayout("right", 3_500);
+    expect(accessible.room.wallHeight).toBe(3_500);
+    expect(accessible.room.backWall).toMatchObject({
+      position: [0, 1_750, -1_870],
+      size: [4_200, 3_500, 70],
+    });
+    expect(accessible.room.sideWalls.map(({ size }) => size[1])).toEqual([1_000, 3_500]);
+    expect(accessible.room.frontWalls.map(({ size }) => size[1])).toEqual([1_000, 1_000]);
+    expect(accessible.labelPosition[1]).toBe(3_270);
+    expect(createRestroomPreviewStallLayout("women", 3_500).labelPosition[1]).toBe(3_230);
+    expect(() => createRestroomPreviewAccessibleLayout("left", 2_199)).toThrow(/roomHeight/);
+    expect(() => createRestroomPreviewFixtureLayout(3_501)).toThrow(/roomHeight/);
   });
 
   it("publishes nine independently referenceable planned assets that pass the shared contract", () => {

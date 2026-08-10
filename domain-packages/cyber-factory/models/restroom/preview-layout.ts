@@ -2,8 +2,10 @@ import type { Vector3Tuple } from "@solidloom/shared";
 import type { RestroomAccessibleTransferSide } from "./accessible.js";
 import { restroomAssetIds } from "./model.js";
 
-const sideWallSize: Vector3Tuple = [70, 2_650, 2_050];
-const sideWallPosition: Vector3Tuple = [2_930, 1_325, -260];
+const sideWallThickness = 70;
+const sideWallDepth = 2_050;
+const sideWallX = 2_930;
+const sideWallZ = -260;
 const fixtureCenterZ = -370;
 const wallClearance = 8;
 const stallLeftBoundaryX = -2_320;
@@ -13,6 +15,21 @@ const womenStallCount = 5;
 export type RestroomPreviewRoomType = "men" | "women" | "accessible";
 export type RestroomPreviewAssetId = (typeof restroomAssetIds)[keyof typeof restroomAssetIds];
 export const restroomPreviewWallColor = 0xe1e6e4;
+export const restroomPreviewRoomHeightLimits = {
+  minimum: 2_200,
+  maximum: 3_500,
+  step: 50,
+  defaultValue: 2_650,
+} as const;
+
+function normalizeRestroomPreviewRoomHeight(roomHeight: number) {
+  if (!Number.isFinite(roomHeight)
+    || roomHeight < restroomPreviewRoomHeightLimits.minimum
+    || roomHeight > restroomPreviewRoomHeightLimits.maximum) {
+    throw new Error(`roomHeight 必须位于 ${restroomPreviewRoomHeightLimits.minimum}–${restroomPreviewRoomHeightLimits.maximum} mm。`);
+  }
+  return roomHeight;
+}
 
 export interface RestroomPreviewComposition {
   roomType: RestroomPreviewRoomType;
@@ -64,10 +81,12 @@ export interface RestroomPreviewStallLayout {
 
 export function createRestroomPreviewStallLayout(
   roomType: RestroomPreviewRoomType,
+  roomHeight: number = restroomPreviewRoomHeightLimits.defaultValue,
 ): RestroomPreviewStallLayout {
+  const normalizedRoomHeight = normalizeRestroomPreviewRoomHeight(roomHeight);
   const stallCount = roomType === "accessible" ? 0 : roomType === "women" ? womenStallCount : 2;
   const resolvedStallWidth = roomType === "women"
-    ? (sideWallPosition[0] - stallLeftBoundaryX) / womenStallCount
+    ? (sideWallX - stallLeftBoundaryX) / womenStallCount
     : stallWidth;
   const partitionXs = Array.from(
     { length: stallCount + 1 },
@@ -87,7 +106,7 @@ export function createRestroomPreviewStallLayout(
     partitionZ: -920,
     doorZ: -20,
     toiletZ: -1_120,
-    labelPosition: [labelCenterX, 2_380, -700],
+    labelPosition: [labelCenterX, normalizedRoomHeight - 270, -700],
   };
 }
 
@@ -127,12 +146,14 @@ export interface RestroomPreviewAccessibleLayout {
 
 export function createRestroomPreviewAccessibleLayout(
   transferSide: RestroomAccessibleTransferSide,
+  roomHeight: number = restroomPreviewRoomHeightLimits.defaultValue,
 ): RestroomPreviewAccessibleLayout {
+  const normalizedRoomHeight = normalizeRestroomPreviewRoomHeight(roomHeight);
   const roomWidth = 4_200;
   const backWallZ = -1_870;
   const frontWallZ = 1_450;
   const roomDepth = frontWallZ - backWallZ;
-  const wallHeight = 2_650;
+  const wallHeight = normalizedRoomHeight;
   const wallThickness = 70;
   const roomHalfWidth = roomWidth / 2;
   const wallCenterZ = (backWallZ + frontWallZ) / 2;
@@ -186,7 +207,7 @@ export function createRestroomPreviewAccessibleLayout(
       width: 820,
       bottomHeight: 900,
     },
-    labelPosition: [0, 2_420, -650],
+    labelPosition: [0, wallHeight - 230, -650],
   };
 }
 
@@ -211,17 +232,20 @@ export interface RestroomPreviewFixtureLayout {
   };
 }
 
-export function createRestroomPreviewFixtureLayout(): RestroomPreviewFixtureLayout {
+export function createRestroomPreviewFixtureLayout(
+  roomHeight: number = restroomPreviewRoomHeightLimits.defaultValue,
+): RestroomPreviewFixtureLayout {
+  const normalizedRoomHeight = normalizeRestroomPreviewRoomHeight(roomHeight);
   const vanityWidth = 1_600;
   const vanityDepth = 560;
   const mirrorWidth = 1_600;
-  const wallFrontX = sideWallPosition[0] + sideWallSize[0] / 2;
+  const wallFrontX = sideWallX + sideWallThickness / 2;
   const fixtureMountX = wallFrontX + wallClearance;
 
   return {
     sideWall: {
-      position: sideWallPosition,
-      size: sideWallSize,
+      position: [sideWallX, normalizedRoomHeight / 2, sideWallZ],
+      size: [sideWallThickness, normalizedRoomHeight, sideWallDepth],
       frontX: wallFrontX,
     },
     vanity: {

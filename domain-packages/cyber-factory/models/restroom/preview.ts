@@ -31,6 +31,7 @@ import {
   createRestroomPreviewAccessibleLayout,
   createRestroomPreviewFixtureLayout,
   createRestroomPreviewStallLayout,
+  restroomPreviewRoomHeightLimits,
   restroomPreviewWallColor,
   type RestroomPreviewRoomType,
 } from "./preview-layout.js";
@@ -45,6 +46,7 @@ interface PreviewState {
   doorOpen: boolean;
   accessibleLayout: RestroomAccessibleTransferSide;
   roomType: RestroomPreviewRoomType;
+  roomHeight: number;
   urinalCount: number;
   urinalSpacing: number;
 }
@@ -111,15 +113,6 @@ grid.position.set(100, 2, -250);
 scene.add(grid);
 
 const wallMaterial = new THREE.MeshStandardMaterial({ color: restroomPreviewWallColor, roughness: 0.93, metalness: 0.02 });
-const backWall = new THREE.Mesh(new THREE.BoxGeometry(6_300, 2_650, 70), wallMaterial);
-backWall.position.set(200, 1_325, -1_870);
-backWall.receiveShadow = true;
-scene.add(backWall);
-const fixtureLayout = createRestroomPreviewFixtureLayout();
-const sideWall = new THREE.Mesh(new THREE.BoxGeometry(...fixtureLayout.sideWall.size), wallMaterial);
-sideWall.position.set(...fixtureLayout.sideWall.position);
-sideWall.receiveShadow = true;
-scene.add(sideWall);
 let roomShellRoot = new THREE.Group();
 scene.add(roomShellRoot);
 
@@ -131,6 +124,7 @@ const state: PreviewState = {
   dividerEnabled: true,
   doorOpen: true,
   roomType: "men",
+  roomHeight: restroomPreviewRoomHeightLimits.defaultValue,
   urinalCount: 3,
   urinalSpacing: 700,
 };
@@ -351,15 +345,17 @@ function rebuildRoomShell(accessibleLayout?: ReturnType<typeof createRestroomPre
   disposeObject(roomShellRoot);
   roomShellRoot = new THREE.Group();
   scene.add(roomShellRoot);
-  backWall.visible = !accessibleLayout;
-  sideWall.visible = !accessibleLayout;
-  if (!accessibleLayout) return;
-
-  const walls = [
-    accessibleLayout.room.backWall,
-    ...accessibleLayout.room.sideWalls,
-    ...accessibleLayout.room.frontWalls,
-  ];
+  const fixtureLayout = createRestroomPreviewFixtureLayout(state.roomHeight);
+  const walls = accessibleLayout
+    ? [
+      accessibleLayout.room.backWall,
+      ...accessibleLayout.room.sideWalls,
+      ...accessibleLayout.room.frontWalls,
+    ]
+    : [
+      { position: [200, state.roomHeight / 2, -1_870] as Vector3Tuple, size: [6_300, state.roomHeight, 70] as Vector3Tuple },
+      fixtureLayout.sideWall,
+    ];
   walls.forEach(({ position, size }) => {
     const wall = new THREE.Mesh(new THREE.BoxGeometry(...size), wallMaterial.clone());
     wall.position.set(...position);
@@ -379,7 +375,7 @@ function rebuildScene() {
 
   const composition = createRestroomPreviewComposition(state.roomType);
   if (state.roomType === "accessible") {
-    const accessibleLayout = createRestroomPreviewAccessibleLayout(state.accessibleLayout);
+    const accessibleLayout = createRestroomPreviewAccessibleLayout(state.accessibleLayout, state.roomHeight);
     rebuildRoomShell(accessibleLayout);
     addDefinition(createRestroomAccessibleDoorDefinition({ openingWidth: accessibleLayout.door.openingWidth }), accessibleLayout.door);
     addDefinition(createRestroomToiletDefinition({ seatHeight: 460 }), accessibleLayout.toilet);
@@ -406,7 +402,8 @@ function rebuildScene() {
   }
 
   rebuildRoomShell();
-  const stallLayout = createRestroomPreviewStallLayout(state.roomType);
+  const stallLayout = createRestroomPreviewStallLayout(state.roomType, state.roomHeight);
+  const fixtureLayout = createRestroomPreviewFixtureLayout(state.roomHeight);
   const partition = createRestroomPartitionDefinition({ width: 1_800 });
   stallLayout.partitionXs.forEach((x) => {
     addDefinition(partition, { position: [x, 0, stallLayout.partitionZ], rotationY: 90 });
@@ -489,6 +486,7 @@ function updateInterface() {
   requiredElement<HTMLOutputElement>("urinal-spacing-output").value = urinalControlsEnabled
     ? `${state.urinalSpacing} mm`
     : "不配置";
+  requiredElement<HTMLOutputElement>("room-height-output").value = `${state.roomHeight} mm`;
   requiredElement("spacing-metric").textContent = urinalControlsEnabled
     ? `器具净距 ${state.urinalSpacing - 380} mm`
     : accessible
@@ -525,6 +523,11 @@ urinalCountInput.addEventListener("input", () => {
 const urinalSpacingInput = requiredElement<HTMLInputElement>("urinal-spacing");
 urinalSpacingInput.addEventListener("input", () => {
   state.urinalSpacing = Number(urinalSpacingInput.value);
+  rebuildScene();
+});
+const roomHeightInput = requiredElement<HTMLInputElement>("room-height");
+roomHeightInput.addEventListener("input", () => {
+  state.roomHeight = Number(roomHeightInput.value);
   rebuildScene();
 });
 requiredElement<HTMLSelectElement>("room-type").addEventListener("change", (event) => {
