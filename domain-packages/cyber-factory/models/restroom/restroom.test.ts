@@ -242,6 +242,16 @@ describe("modular restroom asset kit", () => {
     expect(525 - openBounds.maximumX).toBeGreaterThan(980);
   });
 
+  it("keeps the accessible entry door visually distinct from the restroom wall palette", () => {
+    const door = createRestroomAccessibleDoorDefinition();
+    const features = door.createModel().featureGraph!.features;
+
+    expect(features.find(({ id }) => id === "restroom-accessible-door-leaf")?.appearance?.color).toBe("#213A57");
+    expect(features.find(({ id }) => id === "restroom-accessible-door-symbol")?.appearance?.color).toBe("#55BCEB");
+    expect(door.manifest.materials.find(({ id }) => id === "accessible-door-panel")?.color).toBe("#213A57");
+    expect(door.manifest.materials.find(({ id }) => id === "accessible-door-symbol")?.color).toBe("#55BCEB");
+  });
+
   it("regenerates partition geometry, colliders and installation anchors from one parameter set", () => {
     const definition = createRestroomPartitionDefinition({ width: 2_000, panelHeight: 2_050, bottomGap: 180, thickness: 50 });
     expect(boxFeature(definition, "restroom-partition-panel")).toMatchObject({
