@@ -12,6 +12,7 @@ const womenStallCount = 5;
 
 export type RestroomPreviewRoomType = "men" | "women" | "accessible";
 export type RestroomPreviewAssetId = (typeof restroomAssetIds)[keyof typeof restroomAssetIds];
+export const restroomPreviewWallColor = 0xe1e6e4;
 
 export interface RestroomPreviewComposition {
   roomType: RestroomPreviewRoomType;
