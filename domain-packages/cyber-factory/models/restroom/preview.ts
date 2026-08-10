@@ -22,6 +22,7 @@ import { restroomAssetIds, restroomDoorLeafBounds } from "./model.js";
 import {
   createRestroomPreviewComposition,
   createRestroomPreviewFixtureLayout,
+  createRestroomPreviewStallLayout,
   type RestroomPreviewRoomType,
 } from "./preview-layout.js";
 
@@ -342,19 +343,24 @@ function rebuildScene() {
   colliderRoot = new THREE.Group();
   scene.add(assetRoot, anchorRoot, colliderRoot);
 
+  const composition = createRestroomPreviewComposition(state.roomType);
+  const stallLayout = createRestroomPreviewStallLayout(state.roomType);
   const partition = createRestroomPartitionDefinition({ width: 1_800 });
-  [-2_320, -1_370, -420].forEach((x) => addDefinition(partition, { position: [x, 0, -920], rotationY: 90 }));
+  stallLayout.partitionXs.forEach((x) => {
+    addDefinition(partition, { position: [x, 0, stallLayout.partitionZ], rotationY: 90 });
+  });
 
   const door = createRestroomStallDoorDefinition({ openingWidth: 900, openAngle: 88 });
-  addDefinition(door, { position: [-1_845, 0, -20] });
-  addDefinition(door, { position: [-895, 0, -20] });
+  stallLayout.stallCenterXs.forEach((x) => {
+    addDefinition(door, { position: [x, 0, stallLayout.doorZ] });
+  });
 
   const toilet = createRestroomToiletDefinition();
-  addDefinition(toilet, { position: [-1_845, 0, -1_120] });
-  addDefinition(toilet, { position: [-895, 0, -1_120] });
+  stallLayout.stallCenterXs.forEach((x) => {
+    addDefinition(toilet, { position: [x, 0, stallLayout.toiletZ] });
+  });
   addDefinition(toilet, { position: [-2_750, 0, 520], rotationY: 12 });
 
-  const composition = createRestroomPreviewComposition(state.roomType);
   if (composition.assetIds.includes(restroomAssetIds.urinalBank)) {
     const urinals = createRestroomUrinalBankDefinition({
       count: state.urinalCount,
@@ -383,7 +389,7 @@ function rebuildScene() {
     rotationY: fixtureLayout.mirror.rotationY,
   });
 
-  addLabel("双隔间 · 坐便器", [-1_370, 2_380, -700]);
+  addLabel(`${stallLayout.stallCount} 隔间 · 坐便器`, stallLayout.labelPosition);
   addLabel("独立坐便器组件", [-2_750, 1_180, 520]);
   if (composition.assetIds.includes(restroomAssetIds.urinalBank)) {
     addLabel("壁挂小便器 · 可选挡板", [650, 2_000, -1_680]);
