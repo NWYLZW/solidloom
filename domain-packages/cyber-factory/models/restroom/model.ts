@@ -38,6 +38,9 @@ export const restroomAssetIds = {
   urinalBank: "cyber-factory-restroom-urinal-bank",
   vanity: "cyber-factory-restroom-vanity",
   mirror: "cyber-factory-restroom-mirror",
+  accessibleDoor: "cyber-factory-restroom-accessible-door",
+  accessibleVanity: "cyber-factory-restroom-accessible-vanity",
+  accessibilitySupport: "cyber-factory-restroom-accessibility-support",
 } as const;
 
 export const restroomGroupIds = {
@@ -49,10 +52,15 @@ export const restroomGroupIds = {
   urinalDividers: "restroom-urinal-divider-group",
   vanity: "restroom-vanity-group",
   mirror: "restroom-mirror-group",
+  accessibleDoorFrame: "restroom-accessible-door-frame-group",
+  accessibleDoorLeaf: "restroom-accessible-door-leaf-group",
+  accessibleVanity: "restroom-accessible-vanity-group",
+  accessibilitySupport: "restroom-accessibility-support-group",
 } as const;
 
 export const restroomJointIds = {
   stallDoor: "restroom-stall-door-hinge",
+  accessibleDoor: "restroom-accessible-door-hinge",
 } as const;
 
 export const restroomParameterLimits = {

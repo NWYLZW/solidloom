@@ -3,6 +3,11 @@ import {
   type ModelAssetDefinition,
 } from "@solidloom/shared";
 import {
+  restroomAccessibleDoorDefinition,
+  restroomAccessibleVanityDefinition,
+  restroomAccessibilitySupportDefinition,
+} from "./accessible.js";
+import {
   createRestroomMirrorManifest,
   createRestroomPartitionManifest,
   createRestroomStallDoorManifest,
@@ -107,4 +112,7 @@ export const restroomAssetDefinitions = [
   restroomUrinalBankDefinition,
   restroomVanityDefinition,
   restroomMirrorDefinition,
+  restroomAccessibleDoorDefinition,
+  restroomAccessibleVanityDefinition,
+  restroomAccessibilitySupportDefinition,
 ] as const;
