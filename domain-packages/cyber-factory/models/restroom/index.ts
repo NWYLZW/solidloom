@@ -2,6 +2,7 @@ import { defineAssetModelModule } from "@solidloom/shared";
 import { restroomAssetDefinitions } from "./asset.js";
 
 export * from "./asset.js";
+export * from "./accessible.js";
 export * from "./manifest.js";
 export * from "./model.js";
 export * from "./types.js";

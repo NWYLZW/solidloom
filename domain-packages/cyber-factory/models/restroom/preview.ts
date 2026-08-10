@@ -11,6 +11,13 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import {
+  createRestroomAccessibleDoorDefinition,
+  createRestroomAccessibleVanityDefinition,
+  createRestroomAccessibilitySupportDefinition,
+  restroomAccessibleDoorLeafBounds,
+  type RestroomAccessibleTransferSide,
+} from "./accessible.js";
+import {
   createRestroomMirrorDefinition,
   createRestroomPartitionDefinition,
   createRestroomStallDoorDefinition,
@@ -21,6 +28,7 @@ import {
 import { restroomAssetIds, restroomDoorLeafBounds } from "./model.js";
 import {
   createRestroomPreviewComposition,
+  createRestroomPreviewAccessibleLayout,
   createRestroomPreviewFixtureLayout,
   createRestroomPreviewStallLayout,
   type RestroomPreviewRoomType,
@@ -34,6 +42,7 @@ interface PreviewState {
   device: DevicePreference;
   dividerEnabled: boolean;
   doorOpen: boolean;
+  accessibleLayout: RestroomAccessibleTransferSide;
   roomType: RestroomPreviewRoomType;
   urinalCount: number;
   urinalSpacing: number;
@@ -110,9 +119,12 @@ const sideWall = new THREE.Mesh(new THREE.BoxGeometry(...fixtureLayout.sideWall.
 sideWall.position.set(...fixtureLayout.sideWall.position);
 sideWall.receiveShadow = true;
 scene.add(sideWall);
+let roomShellRoot = new THREE.Group();
+scene.add(roomShellRoot);
 
 const state: PreviewState = {
   anchorVisible: false,
+  accessibleLayout: "left",
   colliderVisible: false,
   device: "auto",
   dividerEnabled: true,
@@ -334,6 +346,27 @@ function addLabel(text: string, position: Vector3Tuple) {
   assetRoot.add(sprite);
 }
 
+function rebuildRoomShell(accessibleLayout?: ReturnType<typeof createRestroomPreviewAccessibleLayout>) {
+  disposeObject(roomShellRoot);
+  roomShellRoot = new THREE.Group();
+  scene.add(roomShellRoot);
+  backWall.visible = !accessibleLayout;
+  sideWall.visible = !accessibleLayout;
+  if (!accessibleLayout) return;
+
+  const walls = [
+    accessibleLayout.room.backWall,
+    ...accessibleLayout.room.sideWalls,
+    ...accessibleLayout.room.frontWalls,
+  ];
+  walls.forEach(({ position, size }) => {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(...size), wallMaterial.clone());
+    wall.position.set(...position);
+    wall.receiveShadow = true;
+    roomShellRoot.add(wall);
+  });
+}
+
 function rebuildScene() {
   disposeObject(assetRoot);
   disposeObject(anchorRoot);
@@ -344,6 +377,34 @@ function rebuildScene() {
   scene.add(assetRoot, anchorRoot, colliderRoot);
 
   const composition = createRestroomPreviewComposition(state.roomType);
+  if (state.roomType === "accessible") {
+    const accessibleLayout = createRestroomPreviewAccessibleLayout(state.accessibleLayout);
+    rebuildRoomShell(accessibleLayout);
+    addDefinition(createRestroomAccessibleDoorDefinition({ openingWidth: accessibleLayout.door.openingWidth }), accessibleLayout.door);
+    addDefinition(createRestroomToiletDefinition({ seatHeight: 460 }), accessibleLayout.toilet);
+    addDefinition(createRestroomAccessibilitySupportDefinition({ transferSide: accessibleLayout.support.transferSide }), accessibleLayout.support);
+    addDefinition(createRestroomAccessibleVanityDefinition({
+      width: accessibleLayout.vanity.width,
+      depth: accessibleLayout.vanity.depth,
+      counterHeight: accessibleLayout.vanity.counterHeight,
+    }), accessibleLayout.vanity);
+    addDefinition(createRestroomMirrorDefinition({
+      width: accessibleLayout.mirror.width,
+      height: 850,
+      bottomHeight: accessibleLayout.mirror.bottomHeight,
+    }), accessibleLayout.mirror);
+    addLabel(
+      `无障碍厕所 · ${state.accessibleLayout === "left" ? "左侧转移" : "右侧转移"}`,
+      accessibleLayout.labelPosition,
+    );
+    addLabel("壁挂洗手台 · 扶手 · 紧急呼叫", [0, 2_100, 450]);
+    anchorRoot.visible = state.anchorVisible;
+    colliderRoot.visible = state.colliderVisible;
+    updateInterface();
+    return;
+  }
+
+  rebuildRoomShell();
   const stallLayout = createRestroomPreviewStallLayout(state.roomType);
   const partition = createRestroomPartitionDefinition({ width: 1_800 });
   stallLayout.partitionXs.forEach((x) => {
@@ -401,9 +462,15 @@ function rebuildScene() {
 
 function setCamera(force = false) {
   const mobile = resolvedDevice() === "mobile";
-  const target = new THREE.Vector3(-100, 850, -720);
+  const accessible = state.roomType === "accessible";
+  const target = new THREE.Vector3(...(accessible ? [0, 900, -240] as Vector3Tuple : [-100, 850, -720] as Vector3Tuple));
   if (force || camera.position.lengthSq() === 0) {
-    camera.position.set(...(mobile ? [12_000, 7_000, 17_000] as Vector3Tuple : [4_200, 3_150, 7_300] as Vector3Tuple));
+    const accessibleCameraX = state.accessibleLayout === "left" ? 4_600 : -4_600;
+    camera.position.set(...(
+      accessible
+        ? mobile ? [accessibleCameraX * 2.17, 7_200, 15_000] as Vector3Tuple : [accessibleCameraX, 3_700, 7_200] as Vector3Tuple
+        : mobile ? [12_000, 7_000, 17_000] as Vector3Tuple : [4_200, 3_150, 7_300] as Vector3Tuple
+    ));
     controls.target.copy(target);
     controls.update();
   }
@@ -413,6 +480,7 @@ function updateInterface() {
   const device = resolvedDevice();
   const composition = createRestroomPreviewComposition(state.roomType);
   const urinalControlsEnabled = composition.urinalControlsEnabled;
+  const accessible = state.roomType === "accessible";
   requiredElement("device-badge").textContent = device === "mobile" ? "手机精简层级" : "桌面完整层级";
   requiredElement<HTMLOutputElement>("urinal-count-output").value = urinalControlsEnabled
     ? `${state.urinalCount} 个`
@@ -422,14 +490,23 @@ function updateInterface() {
     : "不配置";
   requiredElement("spacing-metric").textContent = urinalControlsEnabled
     ? `器具净距 ${state.urinalSpacing - 380} mm`
-    : "女厕不配置小便器";
+    : accessible
+      ? `${state.accessibleLayout === "left" ? "左侧" : "右侧"}转移布局 · 独立单间`
+      : "女厕不配置小便器";
   requiredElement<HTMLInputElement>("urinal-count").disabled = !urinalControlsEnabled;
   requiredElement<HTMLInputElement>("urinal-spacing").disabled = !urinalControlsEnabled;
   requiredElement<HTMLSelectElement>("divider-enabled").disabled = !urinalControlsEnabled;
-  const bounds = restroomDoorLeafBounds({ openingWidth: 900, openAngle: 88 }, -88);
-  requiredElement("door-metric").textContent = `开门后净宽 ${Math.round(450 - bounds.maximumX)} mm`;
+  requiredElement<HTMLSelectElement>("accessible-layout").disabled = !accessible;
+  const bounds = accessible
+    ? restroomAccessibleDoorLeafBounds({ openingWidth: 1_050, openAngle: 92 }, -92)
+    : restroomDoorLeafBounds({ openingWidth: 900, openAngle: 88 }, -88);
+  requiredElement("door-metric").textContent = accessible
+    ? `入口门开启净宽 ${Math.round(525 - bounds.maximumX)} mm`
+    : `开门后净宽 ${Math.round(450 - bounds.maximumX)} mm`;
   const doorButton = requiredElement<HTMLButtonElement>("door-toggle");
-  doorButton.textContent = state.doorOpen ? "关闭隔间门" : "打开隔间门";
+  doorButton.textContent = state.doorOpen
+    ? accessible ? "关闭入口门" : "关闭隔间门"
+    : accessible ? "打开入口门" : "打开隔间门";
   doorButton.setAttribute("aria-pressed", String(state.doorOpen));
   const anchorButton = requiredElement<HTMLButtonElement>("anchor-toggle");
   anchorButton.textContent = state.anchorVisible ? "隐藏锚点" : "显示锚点";
@@ -452,6 +529,12 @@ urinalSpacingInput.addEventListener("input", () => {
 requiredElement<HTMLSelectElement>("room-type").addEventListener("change", (event) => {
   state.roomType = (event.currentTarget as HTMLSelectElement).value as RestroomPreviewRoomType;
   rebuildScene();
+  setCamera(true);
+});
+requiredElement<HTMLSelectElement>("accessible-layout").addEventListener("change", (event) => {
+  state.accessibleLayout = (event.currentTarget as HTMLSelectElement).value as RestroomAccessibleTransferSide;
+  rebuildScene();
+  setCamera(true);
 });
 requiredElement<HTMLSelectElement>("device").addEventListener("change", (event) => {
   state.device = (event.currentTarget as HTMLSelectElement).value as DevicePreference;

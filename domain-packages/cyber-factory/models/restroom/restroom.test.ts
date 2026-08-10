@@ -4,6 +4,9 @@ import {
 } from "@solidloom/shared";
 import { describe, expect, it } from "vitest";
 import {
+  createRestroomAccessibleDoorDefinition,
+  createRestroomAccessibleVanityDefinition,
+  createRestroomAccessibilitySupportDefinition,
   createRestroomMirrorDefinition,
   createRestroomPartitionDefinition,
   createRestroomStallDoorDefinition,
@@ -14,6 +17,7 @@ import {
   defaultRestroomUrinalBankParameters,
   restroomAssetDefinitions,
   restroomAssetModules,
+  restroomAccessibleDoorLeafBounds,
   restroomDoorLeafBounds,
   restroomJointIds,
   restroomUrinalCenterX,
@@ -21,6 +25,7 @@ import {
   restroomVanityBasinX,
 } from "./index.js";
 import {
+  createRestroomPreviewAccessibleLayout,
   createRestroomPreviewComposition,
   createRestroomPreviewFixtureLayout,
   createRestroomPreviewStallLayout,
@@ -37,7 +42,7 @@ function boxFeature(definition: ReturnType<typeof createRestroomPartitionDefinit
 }
 
 describe("modular restroom asset kit", () => {
-  it("publishes six independently referenceable planned assets that pass the shared contract", () => {
+  it("publishes nine independently referenceable planned assets that pass the shared contract", () => {
     expect(restroomAssetDefinitions.map(({ manifest }) => manifest.id)).toEqual([
       "cyber-factory-restroom-partition",
       "cyber-factory-restroom-stall-door",
@@ -45,12 +50,15 @@ describe("modular restroom asset kit", () => {
       "cyber-factory-restroom-urinal-bank",
       "cyber-factory-restroom-vanity",
       "cyber-factory-restroom-mirror",
+      "cyber-factory-restroom-accessible-door",
+      "cyber-factory-restroom-accessible-vanity",
+      "cyber-factory-restroom-accessibility-support",
     ]);
     expect(restroomAssetDefinitions.map(validateModelAssetDefinition)).toEqual(
-      Array.from({ length: 6 }, () => ({ valid: true, issues: [] })),
+      Array.from({ length: 9 }, () => ({ valid: true, issues: [] })),
     );
     expect(restroomAssetModules.every(({ status }) => status === "planned")).toBe(true);
-    expect(new Set(restroomAssetDefinitions.map(({ createModel }) => createModel))).toHaveLength(6);
+    expect(new Set(restroomAssetDefinitions.map(({ createModel }) => createModel))).toHaveLength(9);
   });
 
   it("keeps real millimetre scale and an explicit Y=0 placement baseline", () => {
@@ -107,6 +115,24 @@ describe("modular restroom asset kit", () => {
       "cyber-factory-restroom-vanity",
       "cyber-factory-restroom-mirror",
     ]);
+    expect(women.stallControlsEnabled).toBe(true);
+  });
+
+  it("uses only independent accessible-room assets for the accessible composition", () => {
+    const accessible = createRestroomPreviewComposition("accessible");
+
+    expect(accessible.assetIds).toEqual([
+      "cyber-factory-restroom-accessible-door",
+      "cyber-factory-restroom-toilet",
+      "cyber-factory-restroom-accessible-vanity",
+      "cyber-factory-restroom-mirror",
+      "cyber-factory-restroom-accessibility-support",
+    ]);
+    expect(accessible.assetIds).not.toContain("cyber-factory-restroom-partition");
+    expect(accessible.assetIds).not.toContain("cyber-factory-restroom-stall-door");
+    expect(accessible.assetIds).not.toContain("cyber-factory-restroom-urinal-bank");
+    expect(accessible.stallControlsEnabled).toBe(false);
+    expect(accessible.urinalControlsEnabled).toBe(false);
   });
 
   it("fills the women room continuously from the left boundary to the vanity wall", () => {
@@ -143,6 +169,9 @@ describe("modular restroom asset kit", () => {
       [createRestroomUrinalBankDefinition(), createRestroomUrinalBankDefinition({ centerSpacing: 780, urinalWidth: 400, rimHeight: 680 })],
       [createRestroomVanityDefinition(), createRestroomVanityDefinition({ width: 1_750, depth: 620, counterHeight: 900 })],
       [createRestroomMirrorDefinition(), createRestroomMirrorDefinition({ width: 1_800, height: 900, bottomHeight: 1_100 })],
+      [createRestroomAccessibleDoorDefinition(), createRestroomAccessibleDoorDefinition({ openingWidth: 1_150, doorHeight: 2_200 })],
+      [createRestroomAccessibleVanityDefinition(), createRestroomAccessibleVanityDefinition({ width: 900, depth: 560, counterHeight: 820 })],
+      [createRestroomAccessibilitySupportDefinition(), createRestroomAccessibilitySupportDefinition({ transferSide: "right", railHeight: 800, railLength: 780 })],
     ] as const;
 
     for (const [baseline, resized] of variants) {
@@ -150,6 +179,67 @@ describe("modular restroom asset kit", () => {
       expect(ids(resized.manifest.colliders)).toEqual(ids(baseline.manifest.colliders));
       expect(ids(resized.manifest.anchors)).toEqual(ids(baseline.manifest.anchors));
     }
+  });
+
+  it("mirrors the complete accessible room without changing room dimensions", () => {
+    const left = createRestroomPreviewAccessibleLayout("left");
+    const right = createRestroomPreviewAccessibleLayout("right");
+
+    expect(left.room.width).toBe(right.room.width);
+    expect(left.room.depth).toBe(right.room.depth);
+    expect(left.room.backWall).toEqual(right.room.backWall);
+    expect(left.room.frontWalls).toEqual(right.room.frontWalls);
+    expect(left.room.sideWalls.map(({ size }) => size[1])).toEqual([2_650, 1_000]);
+    expect(right.room.sideWalls.map(({ size }) => size[1])).toEqual([1_000, 2_650]);
+    expect(left.toilet.position).toEqual([850, 0, -1_050]);
+    expect(right.toilet.position).toEqual([-850, 0, -1_050]);
+    expect(left.support).toMatchObject({ position: [850, 0, -1_050], transferSide: "left" });
+    expect(right.support).toMatchObject({ position: [-850, 0, -1_050], transferSide: "right" });
+    expect(left.vanity.position[0]).toBe(-right.vanity.position[0]);
+    expect(left.vanity.rotationY).toBe(-right.vanity.rotationY);
+    expect(left.mirror.position[0]).toBe(-right.mirror.position[0]);
+    expect(left.door).toEqual(right.door);
+    expect(left.room.frontWalls.map(({ size }) => size[0])).toEqual([1_575, 1_575]);
+  });
+
+  it("mirrors grab rails and emergency call anchors with stable IDs", () => {
+    const left = createRestroomAccessibilitySupportDefinition({ transferSide: "left" });
+    const right = createRestroomAccessibilitySupportDefinition({ transferSide: "right" });
+    const leftFeatures = left.createModel().featureGraph!.features;
+    const rightFeatures = right.createModel().featureGraph!.features;
+
+    expect(ids(leftFeatures)).toEqual(ids(rightFeatures));
+    expect(ids(left.manifest.colliders)).toEqual(ids(right.manifest.colliders));
+    expect(ids(left.manifest.anchors)).toEqual(ids(right.manifest.anchors));
+    expect(leftFeatures.find(({ id }) => id === "restroom-accessibility-transfer-rail")?.position[0]).toBe(-420);
+    expect(rightFeatures.find(({ id }) => id === "restroom-accessibility-transfer-rail")?.position[0]).toBe(420);
+    expect(left.manifest.anchors.find(({ id }) => id === "restroom-accessibility-emergency-call")?.position[0]).toBe(-720);
+    expect(right.manifest.anchors.find(({ id }) => id === "restroom-accessibility-emergency-call")?.position[0]).toBe(720);
+    expect(left.manifest.anchors.find(({ id }) => id === "restroom-accessibility-transfer-support")?.tags).toContain("left");
+    expect(right.manifest.anchors.find(({ id }) => id === "restroom-accessibility-transfer-support")?.tags).toContain("right");
+  });
+
+  it("keeps the accessible vanity wall-hung and leaves the front free of a cabinet collider", () => {
+    const vanity = createRestroomAccessibleVanityDefinition({ kneeClearanceHeight: 700 });
+
+    expect(ids(vanity.createModel().featureGraph!.features).some((id) => id.includes("cabinet"))).toBe(false);
+    expect(ids(vanity.manifest.colliders).some((id) => id.includes("cabinet"))).toBe(false);
+    expect(vanity.manifest.anchors.find(({ id }) => id === "restroom-accessible-vanity-knee-space")?.position[1]).toBe(700);
+    expect(vanity.manifest.anchors.find(({ id }) => id === "restroom-accessible-vanity-wall-service")?.position[2]).toBe(0);
+  });
+
+  it("opens the full-height accessible entry door with a dynamic collider", () => {
+    const door = createRestroomAccessibleDoorDefinition({ openingWidth: 1_050, openAngle: 92 });
+    const joint = door.createModel().featureGraph!.joints?.find(({ id }) => id === restroomJointIds.accessibleDoor);
+    const openBounds = restroomAccessibleDoorLeafBounds({ openingWidth: 1_050, openAngle: 92 }, -92);
+
+    expect(joint).toMatchObject({ min: -92, max: 0, axis: [0, 1, 0] });
+    expect(door.manifest.colliders.find(({ id }) => id === "restroom-accessible-door-leaf-collider")).toMatchObject({
+      dynamic: true,
+      groupId: "restroom-accessible-door-leaf-group",
+      jointId: restroomJointIds.accessibleDoor,
+    });
+    expect(525 - openBounds.maximumX).toBeGreaterThan(980);
   });
 
   it("regenerates partition geometry, colliders and installation anchors from one parameter set", () => {
@@ -241,6 +331,9 @@ describe("modular restroom asset kit", () => {
     expect(() => createRestroomUrinalBankDefinition({ projection: 420, dividerDepth: 470 })).toThrow(/至少多 60 mm/);
     expect(() => createRestroomVanityDefinition({ width: 1_400, basinCount: 2, basinSpacing: 850 })).toThrow(/无法容纳/);
     expect(() => createRestroomMirrorDefinition({ bottomHeight: Number.NaN })).toThrow(/mirror.bottomHeight/);
+    expect(() => createRestroomAccessibleDoorDefinition({ openingWidth: 899 })).toThrow(/accessibleDoor.openingWidth/);
+    expect(() => createRestroomAccessibleVanityDefinition({ counterHeight: 760, kneeClearanceHeight: 720 })).toThrow(/结构厚度/);
+    expect(() => createRestroomAccessibilitySupportDefinition({ transferSide: "center" as "left" })).toThrow(/transferSide/);
     expect(() => restroomUrinalCenterX({ count: 3, centerSpacing: 700 }, 3)).toThrow(/超出范围/);
   });
 
@@ -252,6 +345,9 @@ describe("modular restroom asset kit", () => {
       createRestroomUrinalBankDefinition({ count: 6, centerSpacing: 900 }),
       createRestroomVanityDefinition({ width: 2_400, basinCount: 3, basinSpacing: 800 }),
       createRestroomMirrorDefinition({ width: 2_400 }),
+      createRestroomAccessibleDoorDefinition({ openingWidth: 1_200 }),
+      createRestroomAccessibleVanityDefinition({ width: 1_000 }),
+      createRestroomAccessibilitySupportDefinition({ transferSide: "right", railLength: 850 }),
     ];
     expect(definitions.map(validateModelAssetDefinition)).toEqual(
       Array.from({ length: definitions.length }, () => ({ valid: true, issues: [] })),

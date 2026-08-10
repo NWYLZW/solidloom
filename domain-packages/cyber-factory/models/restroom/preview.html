@@ -13,7 +13,7 @@
       <section class="brand" aria-label="资产信息">
         <div class="eyebrow">赛博工厂 · 独立资产预览</div>
         <h1>模块化厕所区域套件</h1>
-        <p>隔断、隔间门、坐便器、小便器与挡板、洗手台和镜面均来自可单独引用的参数工厂。</p>
+        <p>普通隔间、小便器、无障碍入口门、壁挂洗手台、扶手与紧急呼叫组件均来自可单独引用的参数工厂。</p>
         <div class="badges">
           <span class="badge" id="device-badge">桌面完整层级</span>
           <span class="badge">真实毫米尺度</span>
@@ -25,11 +25,18 @@
       <section class="controls" aria-label="预览参数与显示选项">
         <h2>组合参数</h2>
         <p class="control-note">拖动旋转、滚轮缩放；参数更新会同时重建几何、碰撞体和锚点。</p>
-        <div class="select-row room-type-row">
+        <div class="select-row">
           <label>厕所类型
             <select id="room-type">
               <option value="men">男厕</option>
               <option value="women">女厕</option>
+              <option value="accessible">无障碍厕所</option>
+            </select>
+          </label>
+          <label>无障碍布局
+            <select id="accessible-layout" disabled>
+              <option value="left">左侧转移</option>
+              <option value="right">右侧转移</option>
             </select>
           </label>
         </div>
