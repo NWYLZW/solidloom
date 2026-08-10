@@ -20,7 +20,10 @@ import {
   restroomUrinalDividerX,
   restroomVanityBasinX,
 } from "./index.js";
-import { createRestroomPreviewFixtureLayout } from "./preview-layout.js";
+import {
+  createRestroomPreviewComposition,
+  createRestroomPreviewFixtureLayout,
+} from "./preview-layout.js";
 
 function ids(values: ReadonlyArray<{ id: string }>) {
   return values.map(({ id }) => id);
@@ -86,6 +89,23 @@ describe("modular restroom asset kit", () => {
     const fixtureMaximumZ = layout.vanity.position[2] + layout.vanity.width / 2;
     expect(fixtureMinimumZ).toBeGreaterThanOrEqual(wallMinimumZ);
     expect(fixtureMaximumZ).toBeLessThanOrEqual(wallMaximumZ);
+  });
+
+  it("omits the urinal bank from the women room composition without creating a zero-count asset", () => {
+    const men = createRestroomPreviewComposition("men");
+    const women = createRestroomPreviewComposition("women");
+
+    expect(men.assetIds).toContain("cyber-factory-restroom-urinal-bank");
+    expect(men.urinalControlsEnabled).toBe(true);
+    expect(women.assetIds).not.toContain("cyber-factory-restroom-urinal-bank");
+    expect(women.urinalControlsEnabled).toBe(false);
+    expect(women.assetIds).toEqual([
+      "cyber-factory-restroom-partition",
+      "cyber-factory-restroom-stall-door",
+      "cyber-factory-restroom-toilet",
+      "cyber-factory-restroom-vanity",
+      "cyber-factory-restroom-mirror",
+    ]);
   });
 
   it("keeps stable feature, collider and anchor IDs when dimensions change", () => {

@@ -73,6 +73,7 @@ h1 { margin: 8px 0 7px; font-size: clamp(26px, 3vw, 44px); line-height: 1.04; }
 .control-row output { color: var(--accent); font-size: 10px; text-align: right; }
 input[type="range"] { width: 100%; accent-color: var(--accent); }
 .select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 13px; }
+.room-type-row { grid-template-columns: 1fr; margin-top: 0; }
 .select-row label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
 select,
 button {
@@ -83,6 +84,8 @@ button {
   color: var(--ink);
   padding: var(--control-padding-y) var(--control-padding-x);
 }
+input:disabled,
+select:disabled { cursor: not-allowed; opacity: 0.42; }
 .button-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
 button { cursor: pointer; white-space: nowrap; font-size: 11px; }
 button:hover,

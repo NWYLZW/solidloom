@@ -18,8 +18,12 @@ import {
   createRestroomUrinalBankDefinition,
   createRestroomVanityDefinition,
 } from "./asset.js";
-import { restroomDoorLeafBounds } from "./model.js";
-import { createRestroomPreviewFixtureLayout } from "./preview-layout.js";
+import { restroomAssetIds, restroomDoorLeafBounds } from "./model.js";
+import {
+  createRestroomPreviewComposition,
+  createRestroomPreviewFixtureLayout,
+  type RestroomPreviewRoomType,
+} from "./preview-layout.js";
 
 type DevicePreference = "auto" | ModelAssetDeviceClass;
 
@@ -29,6 +33,7 @@ interface PreviewState {
   device: DevicePreference;
   dividerEnabled: boolean;
   doorOpen: boolean;
+  roomType: RestroomPreviewRoomType;
   urinalCount: number;
   urinalSpacing: number;
 }
@@ -111,6 +116,7 @@ const state: PreviewState = {
   device: "auto",
   dividerEnabled: true,
   doorOpen: true,
+  roomType: "men",
   urinalCount: 3,
   urinalSpacing: 700,
 };
@@ -348,12 +354,15 @@ function rebuildScene() {
   addDefinition(toilet, { position: [-895, 0, -1_120] });
   addDefinition(toilet, { position: [-2_750, 0, 520], rotationY: 12 });
 
-  const urinals = createRestroomUrinalBankDefinition({
-    count: state.urinalCount,
-    centerSpacing: state.urinalSpacing,
-    dividerEnabled: state.dividerEnabled,
-  });
-  addDefinition(urinals, { position: [650, 0, -1_820] });
+  const composition = createRestroomPreviewComposition(state.roomType);
+  if (composition.assetIds.includes(restroomAssetIds.urinalBank)) {
+    const urinals = createRestroomUrinalBankDefinition({
+      count: state.urinalCount,
+      centerSpacing: state.urinalSpacing,
+      dividerEnabled: state.dividerEnabled,
+    });
+    addDefinition(urinals, { position: [650, 0, -1_820] });
+  }
 
   const vanity = createRestroomVanityDefinition({
     width: fixtureLayout.vanity.width,
@@ -376,7 +385,9 @@ function rebuildScene() {
 
   addLabel("双隔间 · 坐便器", [-1_370, 2_380, -700]);
   addLabel("独立坐便器组件", [-2_750, 1_180, 520]);
-  addLabel("壁挂小便器 · 可选挡板", [650, 2_000, -1_680]);
+  if (composition.assetIds.includes(restroomAssetIds.urinalBank)) {
+    addLabel("壁挂小便器 · 可选挡板", [650, 2_000, -1_680]);
+  }
   addLabel("洗手台 · 镜面", [3_030, 2_300, -360]);
 
   anchorRoot.visible = state.anchorVisible;
@@ -396,10 +407,21 @@ function setCamera(force = false) {
 
 function updateInterface() {
   const device = resolvedDevice();
+  const composition = createRestroomPreviewComposition(state.roomType);
+  const urinalControlsEnabled = composition.urinalControlsEnabled;
   requiredElement("device-badge").textContent = device === "mobile" ? "手机精简层级" : "桌面完整层级";
-  requiredElement<HTMLOutputElement>("urinal-count-output").value = `${state.urinalCount} 个`;
-  requiredElement<HTMLOutputElement>("urinal-spacing-output").value = `${state.urinalSpacing} mm`;
-  requiredElement("spacing-metric").textContent = `器具净距 ${state.urinalSpacing - 380} mm`;
+  requiredElement<HTMLOutputElement>("urinal-count-output").value = urinalControlsEnabled
+    ? `${state.urinalCount} 个`
+    : "不配置";
+  requiredElement<HTMLOutputElement>("urinal-spacing-output").value = urinalControlsEnabled
+    ? `${state.urinalSpacing} mm`
+    : "不配置";
+  requiredElement("spacing-metric").textContent = urinalControlsEnabled
+    ? `器具净距 ${state.urinalSpacing - 380} mm`
+    : "女厕不配置小便器";
+  requiredElement<HTMLInputElement>("urinal-count").disabled = !urinalControlsEnabled;
+  requiredElement<HTMLInputElement>("urinal-spacing").disabled = !urinalControlsEnabled;
+  requiredElement<HTMLSelectElement>("divider-enabled").disabled = !urinalControlsEnabled;
   const bounds = restroomDoorLeafBounds({ openingWidth: 900, openAngle: 88 }, -88);
   requiredElement("door-metric").textContent = `开门后净宽 ${Math.round(450 - bounds.maximumX)} mm`;
   const doorButton = requiredElement<HTMLButtonElement>("door-toggle");
@@ -421,6 +443,10 @@ urinalCountInput.addEventListener("input", () => {
 const urinalSpacingInput = requiredElement<HTMLInputElement>("urinal-spacing");
 urinalSpacingInput.addEventListener("input", () => {
   state.urinalSpacing = Number(urinalSpacingInput.value);
+  rebuildScene();
+});
+requiredElement<HTMLSelectElement>("room-type").addEventListener("change", (event) => {
+  state.roomType = (event.currentTarget as HTMLSelectElement).value as RestroomPreviewRoomType;
   rebuildScene();
 });
 requiredElement<HTMLSelectElement>("device").addEventListener("change", (event) => {
