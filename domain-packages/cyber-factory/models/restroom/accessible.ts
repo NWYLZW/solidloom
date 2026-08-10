@@ -39,11 +39,12 @@ export interface RestroomAccessibilitySupportParameters {
   callHeight: number;
 }
 
-const panel: FeatureAppearance = { material: "plastic", color: "#567C79" };
+const doorPanel: FeatureAppearance = { material: "plastic", color: "#213A57" };
 const metal: FeatureAppearance = { material: "metal", color: "#A7B7BA" };
 const ceramic: FeatureAppearance = { material: "default", color: "#D7E0DF" };
 const darkPlastic: FeatureAppearance = { material: "plastic", color: "#26383C" };
 const accessBlue: FeatureAppearance = { material: "plastic", color: "#3D83C5" };
+const doorSymbolBlue: FeatureAppearance = { material: "plastic", color: "#55BCEB" };
 const emergencyRed: FeatureAppearance = { material: "plastic", color: "#D95757" };
 
 export const restroomAccessibleParameterLimits = {
@@ -267,10 +268,10 @@ export function createRestroomAccessibleDoorModel(
     box("restroom-accessible-door-head", "无障碍门上门框", [parameters.openingWidth + postWidth * 2, 70, 70], [0, parameters.doorHeight + 35, 0], metal, 8),
   ];
   const leafFeatures: ModelFeature[] = [
-    box("restroom-accessible-door-leaf", "无障碍厕所门扇", [leafWidth, parameters.doorHeight, parameters.thickness], [hingeX + leafWidth / 2, parameters.doorHeight / 2, 0], panel, 20),
+    box("restroom-accessible-door-leaf", "无障碍厕所门扇", [leafWidth, parameters.doorHeight, parameters.thickness], [hingeX + leafWidth / 2, parameters.doorHeight / 2, 0], doorPanel, 20),
     cylinder("restroom-accessible-door-handle-front", "无障碍门外侧把手", 24, 42, [hingeX + leafWidth - 110, 1_000, parameters.thickness / 2 + 21], metal, [90, 0, 0]),
     cylinder("restroom-accessible-door-handle-inside", "无障碍门内侧把手", 24, 42, [hingeX + leafWidth - 110, 1_000, -parameters.thickness / 2 - 21], metal, [90, 0, 0]),
-    box("restroom-accessible-door-symbol", "无障碍厕所标识", [230, 230, 18], [40, 1_480, parameters.thickness / 2 + 11], accessBlue, 30),
+    box("restroom-accessible-door-symbol", "无障碍厕所标识", [230, 230, 18], [40, 1_480, parameters.thickness / 2 + 11], doorSymbolBlue, 30),
   ];
   const hinge: ArticulationJoint = {
     id: restroomJointIds.accessibleDoor,
@@ -412,8 +413,8 @@ export function createRestroomAccessibleDoorManifest(
       { id: "open-angle", label: "最大开启角", type: "number", defaultValue: parameters.openAngle, unit: "degree", ...restroomAccessibleParameterLimits.door.openAngle },
     ],
     materials: [
-      { id: "accessible-door-panel", label: "入口门板", material: "plastic", color: "#567C79", featureIds: idsByMaterial(model, "plastic").filter((id) => id !== "restroom-accessible-door-symbol") },
-      { id: "accessible-door-symbol", label: "无障碍标识", material: "plastic", color: "#3D83C5", featureIds: ["restroom-accessible-door-symbol"] },
+      { id: "accessible-door-panel", label: "入口门板", material: "plastic", color: "#213A57", featureIds: idsByMaterial(model, "plastic").filter((id) => id !== "restroom-accessible-door-symbol") },
+      { id: "accessible-door-symbol", label: "无障碍标识", material: "plastic", color: "#55BCEB", featureIds: ["restroom-accessible-door-symbol"] },
       { id: "accessible-door-hardware", label: "入口门五金", material: "metal", color: "#A7B7BA", featureIds: idsByMaterial(model, "metal") },
     ],
     placement: placement(),
