@@ -109,27 +109,30 @@ describe("modular restroom asset kit", () => {
     ]);
   });
 
-  it("reflows the women room across the former urinal area with two additional stalls", () => {
+  it("fills the women room continuously from the left boundary to the vanity wall", () => {
     const men = createRestroomPreviewStallLayout("men");
     const women = createRestroomPreviewStallLayout("women");
+    const fixtures = createRestroomPreviewFixtureLayout();
 
     expect(men.stallCount).toBe(2);
     expect(men.partitionXs).toEqual([-2_320, -1_370, -420]);
     expect(men.stallCenterXs).toEqual([-1_845, -895]);
-    expect(women.stallCount).toBe(4);
-    expect(women.partitionXs).toEqual([-2_320, -1_370, -420, 530, 1_480]);
-    expect(women.stallCenterXs).toEqual([-1_845, -895, 55, 1_005]);
+    expect(women.stallCount).toBe(5);
+    expect(women.stallWidth).toBe(1_050);
+    expect(women.partitionXs).toEqual([-2_320, -1_270, -220, 830, 1_880, 2_930]);
+    expect(women.stallCenterXs).toEqual([-1_795, -745, 305, 1_355, 2_405]);
     expect(women.partitionXs.slice(1).map((x, index) => x - women.partitionXs[index]!)).toEqual([
-      950,
-      950,
-      950,
-      950,
+      1_050,
+      1_050,
+      1_050,
+      1_050,
+      1_050,
     ]);
     women.stallCenterXs.forEach((centerX, index) => {
       expect(centerX).toBe((women.partitionXs[index]! + women.partitionXs[index + 1]!) / 2);
     });
-    expect(women.partitionXs.at(-1)).toBeGreaterThanOrEqual(1_350);
-    expect(women.labelPosition[0]).toBe(-420);
+    expect(women.partitionXs.at(-1)).toBe(fixtures.sideWall.position[0]);
+    expect(women.labelPosition[0]).toBe(305);
   });
 
   it("keeps stable feature, collider and anchor IDs when dimensions change", () => {

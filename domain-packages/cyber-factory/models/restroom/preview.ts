@@ -359,7 +359,6 @@ function rebuildScene() {
   stallLayout.stallCenterXs.forEach((x) => {
     addDefinition(toilet, { position: [x, 0, stallLayout.toiletZ] });
   });
-  addDefinition(toilet, { position: [-2_750, 0, 520], rotationY: 12 });
 
   if (composition.assetIds.includes(restroomAssetIds.urinalBank)) {
     const urinals = createRestroomUrinalBankDefinition({
@@ -390,7 +389,6 @@ function rebuildScene() {
   });
 
   addLabel(`${stallLayout.stallCount} 隔间 · 坐便器`, stallLayout.labelPosition);
-  addLabel("独立坐便器组件", [-2_750, 1_180, 520]);
   if (composition.assetIds.includes(restroomAssetIds.urinalBank)) {
     addLabel("壁挂小便器 · 可选挡板", [650, 2_000, -1_680]);
   }

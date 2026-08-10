@@ -7,6 +7,7 @@ const fixtureCenterZ = -370;
 const wallClearance = 8;
 const stallLeftBoundaryX = -2_320;
 const stallWidth = 950;
+const womenStallCount = 5;
 
 export type RestroomPreviewRoomType = "men" | "women";
 export type RestroomPreviewAssetId = (typeof restroomAssetIds)[keyof typeof restroomAssetIds];
@@ -47,20 +48,23 @@ export interface RestroomPreviewStallLayout {
 export function createRestroomPreviewStallLayout(
   roomType: RestroomPreviewRoomType,
 ): RestroomPreviewStallLayout {
-  const stallCount = roomType === "women" ? 4 : 2;
+  const stallCount = roomType === "women" ? womenStallCount : 2;
+  const resolvedStallWidth = roomType === "women"
+    ? (sideWallPosition[0] - stallLeftBoundaryX) / womenStallCount
+    : stallWidth;
   const partitionXs = Array.from(
     { length: stallCount + 1 },
-    (_, index) => stallLeftBoundaryX + index * stallWidth,
+    (_, index) => stallLeftBoundaryX + index * resolvedStallWidth,
   );
   const stallCenterXs = Array.from(
     { length: stallCount },
-    (_, index) => stallLeftBoundaryX + stallWidth * (index + 0.5),
+    (_, index) => stallLeftBoundaryX + resolvedStallWidth * (index + 0.5),
   );
   const labelCenterX = (partitionXs[0]! + partitionXs.at(-1)!) / 2;
 
   return {
     stallCount,
-    stallWidth,
+    stallWidth: resolvedStallWidth,
     partitionXs,
     stallCenterXs,
     partitionZ: -920,
