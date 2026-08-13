@@ -16,7 +16,7 @@ export interface PlayUrlState {
   settingsCategory: PlaySettingsCategory;
 }
 
-interface PlayUrlStatePatch {
+export interface PlayUrlStatePatch {
   cameraMode?: NavigationCameraMode;
   firstPersonAvatarMode?: NavigationFirstPersonAvatarMode;
   menuView?: PlayMenuView | null;
@@ -26,7 +26,6 @@ interface PlayUrlStatePatch {
 const DEFAULT_CAMERA_MODE: NavigationCameraMode = "third-person";
 const DEFAULT_FIRST_PERSON_AVATAR_MODE: NavigationFirstPersonAvatarMode = "automatic";
 const DEFAULT_SETTINGS_CATEGORY: PlaySettingsCategory = "appearance";
-const PLAY_HISTORY_MARKER = "solidloomPlayMenuNavigation";
 const PLAY_CAMERA_STORAGE_KEY = "solidloom.play.camera-mode";
 const PLAY_FIRST_PERSON_AVATAR_STORAGE_KEY = "solidloom.play.firstPersonAvatarMode.v1";
 const CAMERA_MODES = new Set<NavigationCameraMode>(["god", "first-person", "third-person"]);
@@ -103,8 +102,23 @@ export function updatePlayUrlPathname(
   return menuView ? `${match[1]}/${menuView}` : match[1];
 }
 
-function hasPlayHistoryMarker() {
-  return Boolean(window.history.state?.[PLAY_HISTORY_MARKER]);
+export function updatePlayUrl(href: string, patch: PlayUrlStatePatch): URL {
+  const url = new URL(href);
+  const nextSearch = updatePlayUrlSearch(url.search, patch);
+  if (patch.menuView !== undefined || patch.settingsCategory !== undefined) {
+    const currentUrlState = readPlayUrlState(url.pathname, url.search);
+    const nextMenuView = patch.menuView !== undefined
+      ? patch.menuView
+      : currentUrlState.menuView;
+    const nextSettingsCategory = patch.settingsCategory ?? currentUrlState.settingsCategory;
+    url.pathname = updatePlayUrlPathname(
+      url.pathname,
+      nextMenuView,
+      nextSettingsCategory,
+    );
+  }
+  url.search = nextSearch ? `?${nextSearch}` : "";
+  return url;
 }
 
 function readCurrentPlayUrlState(): PlayUrlState {
@@ -159,26 +173,12 @@ export function usePlayUrlState() {
   }, []);
 
   const commit = useCallback((patch: PlayUrlStatePatch, replace = false) => {
-    const url = new URL(window.location.href);
-    const nextSearch = updatePlayUrlSearch(url.search, patch);
-    if (patch.menuView !== undefined || patch.settingsCategory !== undefined) {
-      const currentUrlState = readPlayUrlState(url.pathname, url.search);
-      const nextMenuView = patch.menuView !== undefined
-        ? patch.menuView
-        : currentUrlState.menuView;
-      const nextSettingsCategory = patch.settingsCategory ?? currentUrlState.settingsCategory;
-      url.pathname = updatePlayUrlPathname(
-        url.pathname,
-        nextMenuView,
-        nextSettingsCategory,
-      );
-    }
-    url.search = nextSearch ? `?${nextSearch}` : "";
-    const nextState = {
-      ...window.history.state,
-      ...(replace ? {} : { [PLAY_HISTORY_MARKER]: true }),
-    };
-    window.history[replace ? "replaceState" : "pushState"](nextState, "", url);
+    const url = updatePlayUrl(window.location.href, patch);
+    window.history[replace ? "replaceState" : "pushState"](
+      window.history.state,
+      "",
+      url,
+    );
     setState(readPlayUrlState(url.pathname, url.search));
   }, []);
 
@@ -187,13 +187,11 @@ export function usePlayUrlState() {
   }, [commit]);
 
   const returnToMenu = useCallback(() => {
-    if (hasPlayHistoryMarker()) window.history.back();
-    else commit({ menuView: "menu" }, true);
+    commit({ menuView: "menu" }, true);
   }, [commit]);
 
   const closeMenu = useCallback(() => {
-    if (hasPlayHistoryMarker()) window.history.back();
-    else commit({ menuView: null }, true);
+    commit({ menuView: null }, true);
   }, [commit]);
 
   const setCameraMode = useCallback((cameraMode: NavigationCameraMode) => {
