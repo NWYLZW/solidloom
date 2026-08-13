@@ -1,9 +1,25 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("react", () => ({
+  useCallback: (callback: unknown) => callback,
+  useEffect: () => undefined,
+  useState: (initial: unknown) => [
+    typeof initial === "function" ? (initial as () => unknown)() : initial,
+    () => undefined,
+  ],
+}));
+
 import {
   readPlayUrlState,
+  updatePlayUrl,
   updatePlayUrlPathname,
   updatePlayUrlSearch,
+  usePlayUrlState,
 } from "./usePlayUrlState";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("play URL state", () => {
   it("restores the page from the path and camera state from the query", () => {
@@ -71,5 +87,64 @@ describe("play URL state", () => {
       .toBe("controls");
     expect(readPlayUrlState("/play/scene-1/settings/unsupported", "").settingsCategory)
       .toBe("appearance");
+  });
+
+  it("keeps the selected camera while returning from settings to the game", () => {
+    const cameraSettings = updatePlayUrl(
+      "http://localhost/play/scene-1/settings/camera?camera=first-person&interaction-ui=panel",
+      { cameraMode: "god" },
+    );
+    const menu = updatePlayUrl(cameraSettings.href, { menuView: "menu" });
+    const game = updatePlayUrl(menu.href, { menuView: null });
+
+    expect(menu.pathname).toBe("/play/scene-1/menu");
+    expect(game.pathname).toBe("/play/scene-1");
+    expect(game.searchParams.get("camera")).toBe("god");
+    expect(game.searchParams.get("interaction-ui")).toBe("panel");
+    expect(readPlayUrlState(game.pathname, game.search).cameraMode).toBe("god");
+  });
+
+  it("does not restore stale history entries when returning to the menu", () => {
+    let currentUrl = new URL(
+      "http://localhost/play/scene-1/settings/camera?camera=god",
+    );
+    const back = vi.fn();
+    const replaceState = vi.fn((state: unknown, _title: string, nextUrl: URL) => {
+      currentUrl = new URL(nextUrl);
+      fakeWindow.history.state = state as { solidloomPlayMenuNavigation: boolean };
+    });
+    const fakeWindow = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      get location() {
+        return {
+          href: currentUrl.href,
+          pathname: currentUrl.pathname,
+          search: currentUrl.search,
+        };
+      },
+      history: {
+        back,
+        pushState: vi.fn(),
+        replaceState,
+        state: { solidloomPlayMenuNavigation: true },
+      },
+      localStorage: {
+        getItem: vi.fn(() => null),
+        setItem: vi.fn(),
+      },
+    };
+    vi.stubGlobal("window", fakeWindow);
+
+    const playUrlState = usePlayUrlState();
+    playUrlState.returnToMenu();
+    expect(back).not.toHaveBeenCalled();
+    expect(currentUrl.pathname).toBe("/play/scene-1/menu");
+    expect(currentUrl.searchParams.get("camera")).toBe("god");
+
+    playUrlState.closeMenu();
+    expect(back).not.toHaveBeenCalled();
+    expect(currentUrl.pathname).toBe("/play/scene-1");
+    expect(currentUrl.searchParams.get("camera")).toBe("god");
   });
 });
